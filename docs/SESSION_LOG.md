@@ -14,16 +14,16 @@ Paste at the start of your next session:
 >
 > 1. **Regression baseline.** `pytest -q` (expect **180 pass**) · `mypy --strict pulse_check scripts` (expect **38 source files clean**) · `ruff check pulse_check scripts tests` (expect clean). Flag deviations.
 > 2. **Code read-through.** Skim `pulse_check/aggregation/a1.py` + `tests/unit/aggregation/test_a1.py`. Flag drift from doctrine: every mention = 1.0; sorted+deduped `mention_ids` provenance; polarity & intensity as separate distributions (zero-filled); PRIMARY-only filter; idempotent rerun via delete-then-insert keyed on `(run_id, product_id)`; caller owns transaction (flush only).
-> 3. **Pending operator decisions.** Confirm: (a) smoke-scrape green-light, (b) authorization for first git commit. Both still open from session 4.
+> 3. **Pending operator decision.** Confirm smoke-scrape green-light. (Still open from session 4; first git commit landed at session-4 close — root commit `bfd94d6`.)
 >
 > After audit:
-> - **Smoke scrape green-lit** → `python scripts/scrape.py --run-config configs/run_smoke_test.yaml` → `python scripts/tag.py --run-config configs/run_smoke_test.yaml` → `python scripts/build_gold_set.py --task aspect_tagging --run-config configs/run_smoke_test.yaml --total 50` → operator spot-checks via `python scripts/review_gold_set.py data/gold_sets/aspect_tagging_v1.jsonl`. Validates the Wave 2 ≥80% gold-set accuracy gate.
+> - **Smoke scrape green-lit** → **first, pre-flight:** confirm Ollama is reachable (`curl -fsS http://localhost:11434/api/tags`) and `ANTHROPIC_API_KEY` in `.env` is non-placeholder. Surface failures to the operator before launching the pipeline. Then: `python scripts/scrape.py --run-config configs/run_smoke_test.yaml` → `python scripts/tag.py --run-config configs/run_smoke_test.yaml` → `python scripts/build_gold_set.py --task aspect_tagging --run-config configs/run_smoke_test.yaml --total 50` → operator spot-checks via `python scripts/review_gold_set.py data/gold_sets/aspect_tagging_v1.jsonl`. Validates the Wave 2 ≥80% gold-set accuracy gate.
 > - **Smoke scrape still gated** → push into Wave 2 bite 6 (synthesis: Haiku dedup + Sonnet verbatim selector + Sonnet A1 brief writer + citation validator), code-only on fixture rows. Note: meaningful testing requires real corpus eventually — pure-fixture bite 6 is possible but limited.
 
 ## Current state
 
 - **Phase:** Wave 1 closed. Wave 2 ~50% — tagging pipeline + gold-set machinery + A1 aggregator built and unit-tested. Synthesis + backend handlers + frontend atoms not yet started.
-- **Awaiting operator input on:** smoke-scrape green-light, first git commit (`git init` ran in session 4; no commit yet).
+- **Awaiting operator input on:** smoke-scrape green-light. (First git commit landed at session-4 close; repo now under version control at root commit `bfd94d6`.)
 - **180 unit tests passing · `mypy --strict` clean on 38 source files · `ruff` clean.**
 - **Working code:**
   - **Foundation (session 2):** `pulse_check/` storage + config + llm_cache + scraping + tagging.OllamaClient + synthesis.AnthropicClient; `scripts/scrape.py`; Alembic migration applied to `data/pulse_check.db`; 6 example YAML configs.
@@ -70,7 +70,6 @@ Added in session 3:
 
 Added in session 4:
 - **`aggregates_aspect_sku` schema lacks version columns** — uniqueness is `(run_id, product_id, aspect)` only. Re-aggregating against a different `(taxonomy_version, prompt_version)` overwrites prior rows. Acceptable as "current pass" semantics; if version-stratified aggregates are ever needed, add `taxonomy_version` + `prompt_version` columns + extend uniqueness key (Alembic migration). Flagged in-conversation when bite 5 was implemented.
-- **First git commit** — `git init` done in session 4; no commit yet. Operator hasn't authorized; flag every session until resolved.
 - **Subagent file-creation blocked in this harness** — Write/Bash mkdir denied for background subagents (saved as memory `feedback_subagent_write.md`). Code-writing tasks must run in foreground; use subagents for read-only research only. Watch if permissions change.
 
 ---
@@ -104,7 +103,8 @@ Saved as `feedback_subagent_write.md` so future sessions don't re-discover.
 
 **Decision deferred to next session.**
 - **Smoke-scrape green-light** still pending. Operator received plain-English walkthrough this session but hasn't authorized.
-- **First git commit.** `git init` ran; no commit yet — flag at next resume.
+
+**Session-close action — first git commit.** Operator authorized at session close. Initial commit (root commit `bfd94d6`) covers all work through session 4: 119 files, 14,664 insertions. `.gitignore` (from session 2) excluded `.env` + `data/` + caches; `.claude/settings.local.json` included (project-local, no secrets). The "first git commit" gate is closed; SESSION_LOG starter and Open Items updated to reflect.
 
 **Artifacts created (session 4).**
 - `pulse_check/aggregation/a1.py` (~190 lines)
