@@ -1,0 +1,90 @@
+# Demo product set for the Wave 5 pilot run (PRD §9).
+# TODO Wave 5: fill in real URLs (bestbuy / amazon / manufacturer) + curated
+#   youtube_seeds + article_seeds per product. Attribution patterns below are
+#   a first pass and will iterate during the first scrape.
+
+products:
+  - product_id: alienware_16_aurora
+    display_name: "Alienware 16 Aurora"
+    brand: "Alienware"
+    aliases:
+      - "16 Aurora"
+      - "Alienware Aurora 16"
+      - "Aurora 16"
+    attribution_patterns:
+      primary:
+        - "\\balienware\\s+16\\s*aurora\\b"
+        - "\\baurora\\s+16\\b"
+    urls: {}
+
+  - product_id: alienware_16x_aurora
+    display_name: "Alienware 16x Aurora"
+    brand: "Alienware"
+    aliases:
+      - "16x Aurora"
+      - "Alienware Aurora 16x"
+      - "Aurora 16x"
+    attribution_patterns:
+      primary:
+        - "\\balienware\\s+16x\\s*aurora\\b"
+        - "\\baurora\\s+16x\\b"
+    urls: {}
+
+  - product_id: rog_strix_g16
+    display_name: "ROG Strix G16"
+    brand: "ASUS ROG"
+    aliases:
+      - "Strix G16"
+      - "ROG G16"
+    attribution_patterns:
+      primary:
+        - "\\brog\\s+strix\\s+g16\\b"
+        - "\\bstrix\\s+g16\\b"
+    urls: {}
+
+  - product_id: rog_tuf_16
+    display_name: "ROG TUF 16"
+    brand: "ASUS ROG"
+    aliases:
+      - "TUF 16"
+      - "ASUS TUF 16"
+    attribution_patterns:
+      primary:
+        - "\\brog\\s+tuf\\s+16\\b"
+        - "\\btuf\\s+16\\b"
+    urls: {}
+
+  - product_id: legion_5_pro
+    display_name: "Lenovo Legion 5 Pro"
+    brand: "Lenovo"
+    aliases:
+      - "Legion 5 Pro"
+      - "Legion Pro 5"
+    attribution_patterns:
+      primary:
+        - "\\blegion\\s+5\\s*pro\\b"
+        - "\\blegion\\s+pro\\s+5\\b"
+    urls: {}
+
+  - product_id: legion_7i
+    display_name: "Lenovo Legion 7i"
+    brand: "Lenovo"
+    aliases:
+      - "Legion 7i"
+      - "Legion 7"
+    attribution_patterns:
+      primary:
+        - "\\blegion\\s+7i\\b"
+    urls: {}
+
+  - product_id: hp_omen_16
+    display_name: "HP Omen 16"
+    brand: "HP"
+    aliases:
+      - "Omen 16"
+      - "HP OMEN 16"
+    attribution_patterns:
+      primary:
+        - "\\bhp\\s+omen\\s+16\\b"
+        - "\\bomen\\s+16\\b"
+    urls: {}

@@ -1,0 +1,10 @@
+Alembic migrations for the pulse-check analytical store.
+
+Run from project root:
+
+    alembic upgrade head            # apply all pending
+    alembic downgrade -1            # revert one step
+    alembic revision --autogenerate -m "describe change"
+
+`env.py` reads DATABASE_URL from `pulse_check.settings`, which loads `.env`.
+Target metadata is `pulse_check.storage.models.Base.metadata`.

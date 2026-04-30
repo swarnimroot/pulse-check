@@ -1,0 +1,38 @@
+# Smoke-test product set — 2 products.
+# Used by tests + `configs/run_smoke_test.yaml` for end-to-end pipeline smoke.
+# Real products so attribution patterns can be exercised against real corpora.
+
+products:
+  - product_id: alienware_16_aurora
+    display_name: "Alienware 16 Aurora"
+    brand: "Alienware"
+    aliases:
+      - "16 Aurora"
+      - "Alienware Aurora 16"
+      - "Aurora 16"
+    attribution_patterns:
+      primary:
+        - "\\balienware\\s+16\\s*aurora\\b"
+        - "\\baurora\\s+16\\b"
+      secondary:
+        - "\\balienware\\s*aurora\\b"
+    urls:
+      youtube_seeds: []
+      article_seeds: []
+
+  - product_id: rog_strix_g16
+    display_name: "ROG Strix G16"
+    brand: "ASUS ROG"
+    aliases:
+      - "Strix G16"
+      - "ROG G16"
+      - "ASUS Strix G16"
+    attribution_patterns:
+      primary:
+        - "\\brog\\s+strix\\s+g16\\b"
+        - "\\bstrix\\s+g16\\b"
+      secondary:
+        - "\\brog\\s*strix\\b"
+    urls:
+      youtube_seeds: []
+      article_seeds: []

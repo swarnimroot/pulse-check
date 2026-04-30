@@ -1,0 +1,28 @@
+# Demo run for Wave 5 pilot (PRD §9).
+# TODO Wave 5: confirm subreddits list + tune backfill windows per source.
+
+run_id: demo_2026_04
+product_set: product_set_gaming_laptops_2026.yaml
+pair_plan: pair_plan_alienware_vs_all.yaml
+source_windows:
+  reddit:
+    enabled: true
+    backfill_months: 6
+    subreddits:
+      - GamingLaptops
+      - SuggestALaptop
+      - pcmasterrace
+      - buildapc
+  bestbuy_reviews:
+    enabled: true
+    paginate: true
+    backfill_months: 6
+  amazon_reviews:
+    enabled: true
+  youtube:
+    enabled: true
+    backfill_months: 6
+  article:
+    enabled: true
+    backfill_months: 6
+taxonomy_version: v0

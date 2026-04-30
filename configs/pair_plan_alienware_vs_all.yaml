@@ -1,0 +1,34 @@
+# Demo pair plan — 10 Alienware-vs-competitor pairs (2 × 5).
+# PRD §9: operator may trim to segment-matched pairs (~5) for tighter compute.
+
+pairs:
+  - pair_id: alienware_16_aurora_vs_rog_strix_g16
+    primary: alienware_16_aurora
+    comparator: rog_strix_g16
+  - pair_id: alienware_16_aurora_vs_rog_tuf_16
+    primary: alienware_16_aurora
+    comparator: rog_tuf_16
+  - pair_id: alienware_16_aurora_vs_legion_5_pro
+    primary: alienware_16_aurora
+    comparator: legion_5_pro
+  - pair_id: alienware_16_aurora_vs_legion_7i
+    primary: alienware_16_aurora
+    comparator: legion_7i
+  - pair_id: alienware_16_aurora_vs_hp_omen_16
+    primary: alienware_16_aurora
+    comparator: hp_omen_16
+  - pair_id: alienware_16x_aurora_vs_rog_strix_g16
+    primary: alienware_16x_aurora
+    comparator: rog_strix_g16
+  - pair_id: alienware_16x_aurora_vs_rog_tuf_16
+    primary: alienware_16x_aurora
+    comparator: rog_tuf_16
+  - pair_id: alienware_16x_aurora_vs_legion_5_pro
+    primary: alienware_16x_aurora
+    comparator: legion_5_pro
+  - pair_id: alienware_16x_aurora_vs_legion_7i
+    primary: alienware_16x_aurora
+    comparator: legion_7i
+  - pair_id: alienware_16x_aurora_vs_hp_omen_16
+    primary: alienware_16x_aurora
+    comparator: hp_omen_16

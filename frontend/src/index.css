@@ -1,0 +1,77 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Design tokens from DESIGN_SYSTEM §3.
+ * Single source of truth for raw colour values; Tailwind and any future
+ * shadcn/ui components read these via var(...) references declared in
+ * tailwind.config.ts. Dark-mode-only for v1 (§8.4); the `.dark` selector
+ * stays here for forward compatibility but the html element is always
+ * `class="dark"`.
+ */
+:root,
+.dark {
+  /* 3.1 — surfaces */
+  --surface-0: #0b0b0d;
+  --surface-1: #141416;
+  --surface-2: #1e1e22;
+  --surface-3: #282830;
+  --border-subtle: #2a2a30;
+  --border-strong: #3a3a42;
+
+  /* 3.2 — text */
+  --text-primary: #f5f5f7;
+  --text-secondary: #9a9aa4;
+  --text-tertiary: #6a6a74;
+  --text-on-accent: #0b0b0d;
+
+  /* 3.3 — accent */
+  --accent-primary: #00d4ff;
+  --accent-hover: #33ddff;
+  --accent-subtle: rgba(0, 212, 255, 0.12);
+  --accent-muted: #0097b8;
+
+  /* 3.4 — sentiment */
+  --sentiment-positive: #3ab58a;
+  --sentiment-neutral: #6a6a74;
+  --sentiment-negative: #d35268;
+
+  /* 3.4 — intensity */
+  --intensity-low: #5a6b7a;
+  --intensity-medium: #c48a3a;
+  --intensity-high: #d35268;
+
+  /* 3.4 — addressability */
+  --addr-messaging: #00d4ff;
+  --addr-software: #3ab58a;
+  --addr-hardware: #c48a3a;
+  --addr-pricing: #9b6ad8;
+  --addr-mixed: #6a6a74;
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    min-height: 100%;
+  }
+  body {
+    @apply bg-surface-0 text-text-primary font-sans antialiased;
+    font-variant-numeric: tabular-nums;
+  }
+  /* Ensure AggregateNumber-style numeric columns align per §3.5. */
+  .font-mono,
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+  /* Respect reduced-motion preferences per §7. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0ms !important;
+      transition-duration: 0ms !important;
+    }
+  }
+}

@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+env/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Environment
+.env
+.env.local
+
+# Persistent project data + scrape cache + analysis DB + logs + Playwright profiles.
+# All operator-local. Directory retained via data/.gitkeep.
+data/
+!data/.gitkeep
+
+# Alembic
+alembic/versions/__pycache__/
+alembic/versions/*.pyc
+
+# Frontend (Wave 1 shells; full build in later waves)
+node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Test temp artifacts
+tests/**/.tmp/
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*~

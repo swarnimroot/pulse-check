@@ -1,0 +1,6 @@
+# Smoke-test pair plan — 1 pair.
+
+pairs:
+  - pair_id: alienware_16_aurora_vs_rog_strix_g16
+    primary: alienware_16_aurora
+    comparator: rog_strix_g16

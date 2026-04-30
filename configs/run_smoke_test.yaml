@@ -1,0 +1,23 @@
+# Smoke-test run config — exercises the full pipeline on 2 products / 1 pair.
+# Short backfill windows so the smoke run completes fast.
+
+run_id: smoke_test
+product_set: product_set_smoke_test.yaml
+pair_plan: pair_plan_smoke_test.yaml
+source_windows:
+  reddit:
+    enabled: true
+    backfill_months: 1
+    subreddits:
+      - GamingLaptops
+  bestbuy_reviews:
+    enabled: true
+    paginate: false
+    backfill_months: 6
+  amazon_reviews:
+    enabled: true
+  youtube:
+    enabled: false
+  article:
+    enabled: false
+taxonomy_version: v0
