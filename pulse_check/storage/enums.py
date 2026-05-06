@@ -87,3 +87,14 @@ class Addressability(enum.StrEnum):
 class ScopeType(enum.StrEnum):
     ASPECT_1_SKU = "aspect_1_sku"
     ASPECT_2_PAIR = "aspect_2_pair"
+
+
+class ContentType(enum.StrEnum):
+    """Mention content-type triage — filters deal-roundup contamination from
+    the aspect-tagging corpus. Mention-scoped (not product-scoped); a post
+    is one content type regardless of which products it references.
+    """
+
+    REVIEW = "review"
+    DEAL = "deal"
+    OTHER = "other"

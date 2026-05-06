@@ -1,6 +1,6 @@
 # pulse-check — Tasks
 
-**Status:** draft &nbsp;·&nbsp; **Paired docs:** [`PRD.md`](PRD.md), [`ARCHITECTURE.md`](ARCHITECTURE.md), [`TESTING.md`](TESTING.md)
+**Status:** draft &nbsp;·&nbsp; **Paired docs:** [`PRD.md`](PRD.md), [`ARCHITECTURE.md`](ARCHITECTURE.md), [`TESTING.md`](TESTING.md) &nbsp;·&nbsp; **Last reconciled:** 2026-05-06 (session 6 audit)
 
 Wave-by-wave implementation plan matching the PRD's ~7–8 week single-operator estimate. Each wave has clear outputs, specific tasks, dependencies, and exit criteria. **Wave 2 is the A1-only cutpoint** — if v1 slips, A1 alone is a defensible ship.
 
@@ -10,10 +10,10 @@ Wave-by-wave implementation plan matching the PRD's ~7–8 week single-operator 
 
 Operator-side setup that runs alongside code work. Not blocking for Wave 1 start.
 
-- [ ] Install Python 3.12 + create `.venv`
-- [ ] Install Ollama + pull `qwen2.5:7b-q4_K_M` (or operator's preferred Qwen tag); verify local LLM works
-- [ ] Get Anthropic API key; store in `.env`
-- [ ] Install scrapers-lib editable from sibling directory (`pip install -e ../scrapers-lib`)
+- [x] Install Python 3.12 + create `.venv`
+- [ ] Install Ollama + pull `qwen2.5:7b-q4_K_M` (or operator's preferred Qwen tag); verify local LLM works *(operator-side; aspect tagging swapped to Haiku in session 5 — Ollama+Qwen still scoped for Wave 3 deliberation/reason classifiers)*
+- [x] Get Anthropic API key; store in `.env`
+- [x] Install scrapers-lib editable from sibling directory (`pip install -e ../scrapers-lib`)
 - [ ] `playwright install chromium` (for scrapers-lib Tier 2/3 sources)
 - [ ] Curate **YouTube seed list** — ~10–15 videos per demo pair (head-to-heads + expert single-product reviews). Target: ~50–75 URLs total for the 10-pair demo.
 - [ ] Curate **article seed list** — ~20–30 articles per pair (roundups + reviews + head-to-heads). Target: ~150–200 URLs.
@@ -26,6 +26,8 @@ Seed-list curation is the biggest operator-side time cost outside coding. Start 
 
 **Goal:** the shared layer is working. Can scrape, attribute, store, cache. Frontend/backend shells exist. Ready for aspect work.
 
+**Status:** ✅ complete (session 5).
+
 **Exit criteria:**
 - `alembic upgrade head` creates a full schema matching ARCHITECTURE §3
 - `scripts/scrape.py --run-config configs/run_smoke.yaml` runs end-to-end on a 2-product smoke test
@@ -36,51 +38,55 @@ Seed-list curation is the biggest operator-side time cost outside coding. Start 
 ### Tasks
 
 **Scaffold**
-- [ ] `pyproject.toml` — package metadata, dependencies, entry points
-- [ ] `.env.example` — documented credential template
-- [ ] `.gitignore` — `data/`, `.venv/`, `.env`, `__pycache__/`, `node_modules/`, `dist/`, `alembic/versions/*.pyc`
-- [ ] `git init` (locally, no push); initial commit after scaffold lands
-- [ ] pre-commit config — ruff, mypy, fast-unit test subset
-- [ ] `pytest` config in `pyproject.toml`; `tests/` tree with `unit/`, `integration/`, `eval/` subdirs
-- [ ] Logging config — stdlib logging with a rotating file handler pointing at `data/pulse_check.log`
+- [x] `pyproject.toml` — package metadata, dependencies, entry points
+- [x] `.env.example` — documented credential template
+- [x] `.gitignore` — `data/`, `.venv/`, `.env`, `__pycache__/`, `node_modules/`, `dist/`, `alembic/versions/*.pyc`
+- [x] `git init` (locally, no push); initial commit after scaffold lands
+- [x] pre-commit config — ruff, mypy, fast-unit test subset
+- [x] `pytest` config in `pyproject.toml`; `tests/` tree with `unit/`, `integration/`, `eval/` subdirs
+- [x] Logging config — stdlib logging with a rotating file handler pointing at `data/pulse_check.log`
 
 **Storage**
-- [ ] SQLAlchemy setup — engine, session factory, declarative base
-- [ ] Alembic init — `alembic.ini`, `alembic/env.py`, first migration covering all tables in ARCHITECTURE §3
-- [ ] Storage helpers — session context manager, basic CRUD wrappers
-- [ ] Unit tests on each model: constraint enforcement, timezone round-trip, JSON column round-trip
+- [x] SQLAlchemy setup — engine, session factory, declarative base
+- [x] Alembic init — `alembic.ini`, `alembic/env.py`, first migration covering all tables in ARCHITECTURE §3
+- [x] Storage helpers — session context manager, basic CRUD wrappers
+- [x] Unit tests on each model: constraint enforcement, timezone round-trip, JSON column round-trip
 
 **Config**
-- [ ] Pydantic v2 models — `ProductSet`, `PairPlan`, `RunConfig`, `SourceWindows`
-- [ ] YAML loader with validation; clear errors on malformed input
-- [ ] Example configs in `configs/` — a `smoke_test.yaml` (2 products) + placeholders for the demo run (7 products, filled in at Wave 5)
-- [ ] Unit tests on validation (happy + edge cases)
+- [x] Pydantic v2 models — `ProductSet`, `PairPlan`, `RunConfig`, `SourceWindows`
+- [x] YAML loader with validation; clear errors on malformed input
+- [x] Example configs in `configs/` — a `smoke_test.yaml` (2 products) + placeholders for the demo run (7 products, filled in at Wave 5)
+- [x] Unit tests on validation (happy + edge cases)
 
 **Scrapers-lib integration**
-- [ ] Wrapper module per source — Reddit, BestBuy reviews, Amazon PDP, YouTube, article — converts `RawMention` / `ProductSnapshot` to `Mention` rows
-- [ ] Scheduler wiring — drive all fetchers via `scrapers_lib.Scheduler` for resumability
-- [ ] Primary attribution at fetch time via `attribute_regex_all`
-- [ ] Secondary attribution pass — post-fetch sweep over all mentions' raw text against all product patterns
+- [x] Wrapper module per source — Reddit, BestBuy reviews, Amazon PDP, YouTube, article — converts `RawMention` / `ProductSnapshot` to `Mention` rows
+- [x] Scheduler wiring — drive all fetchers via `scrapers_lib.Scheduler` for resumability
+- [x] Primary attribution at fetch time via `attribute_regex_all`
+- [x] Secondary attribution pass — post-fetch sweep over all mentions' raw text against all product patterns
 
 **LLM infrastructure**
-- [ ] `llm_cache` table + wrapper — `call_with_cache(task, input_payload, prompt_version, model, temperature)`
-- [ ] Ollama client wrapper — JSON-output mode, retry on parse failure, consistent error types
-- [ ] Anthropic client wrapper (Sonnet + Haiku) — structured output, retry, error types
-- [ ] Unit tests on cache (hit/miss/versioning) + mocked LLM clients
+- [x] `llm_cache` table + wrapper — `call_with_cache(task, input_payload, prompt_version, model, temperature)`
+- [x] Ollama client wrapper — JSON-output mode, retry on parse failure, consistent error types
+- [x] Anthropic client wrapper (Sonnet + Haiku) — structured output, retry, error types
+- [x] Unit tests on cache (hit/miss/versioning) + mocked LLM clients
 
 **Frontend + backend shells**
-- [ ] Vite + React + TS project in `frontend/`
-- [ ] Tailwind + shadcn/ui setup with tokens from DESIGN_SYSTEM §3
-- [ ] Basic router (`/`, `/product/:id`, `/pair/:id`)
-- [ ] API client skeleton
-- [ ] FastAPI app with CORS + error middleware; routes for `/health`, stubs for `/products`, `/pairs`
-- [ ] Run scripts — `scripts/serve.py` launches backend + frontend dev server
+- [x] Vite + React + TS project in `frontend/`
+- [x] Tailwind + shadcn/ui setup with tokens from DESIGN_SYSTEM §3 *(Tailwind + tokens configured; shadcn deps installed; individual components are generated on-demand under Wave 2/4 frontend tasks)*
+- [x] Basic router (`/`, `/product/:id`, `/pair/:id`)
+- [x] API client skeleton
+- [x] FastAPI app with CORS + error middleware; routes for `/health`, stubs for `/products`, `/pairs`
+- [x] Run scripts — `scripts/serve.py` launches backend + frontend dev server
 
 ---
 
 ## Wave 2 — Aspect 1 (week 3) — **A1-only cutpoint**
 
 **Goal:** full A1 scorecard view for a given product; classifier passes its gold-set threshold.
+
+**Status:** ~50% complete. Tagging + gold-set build + A1 aggregation done on real corpus (session 5). Eval runner, full synthesis layer (clusterer / verbatim selector / brief writer / citation validator), A1 API endpoints, and scorecard frontend remain.
+
+**Deviation flag (session 5, approved):** aspect classifier swapped from Qwen 7B to Haiku for cost/quality reasons. Architecture §6 routing should reflect this on next ARCHITECTURE pass.
 
 **Exit criteria:**
 - Aspect + polarity + intensity classifier reaches ≥ 80% accuracy on the aspect_tagging gold set
@@ -93,19 +99,19 @@ Seed-list curation is the biggest operator-side time cost outside coding. Start 
 ### Tasks
 
 **Tagging**
-- [ ] Qwen aspect + polarity + intensity classifier — prompt + JSON schema + anchor examples per aspect
-- [ ] Batch runner — iterate mentions in the corpus, call Qwen via the cached wrapper, write `aspect_tags` rows
-- [ ] Snapshot test on prompt string
+- [x] Qwen → **Haiku** aspect + polarity + intensity classifier — prompt + JSON schema + anchor examples per aspect *(provider swap landed in session 5)*
+- [x] Batch runner — iterate mentions in the corpus, call Qwen via the cached wrapper, write `aspect_tags` rows
+- [x] Snapshot test on prompt string
 
 **Gold set + eval**
-- [ ] `scripts/build-gold-set.py --task aspect_tagging` — Sonnet labels ~150 sampled mentions
-- [ ] `scripts/review-gold-set.py` — CLI helper for the operator's 20–30-sample spot-check (accept/flag/correct)
+- [x] `scripts/build-gold-set.py --task aspect_tagging` — Sonnet labels ~150 sampled mentions *(28-entry gold set built on real corpus; below the 150 target — sample size to revisit when corpus grows)*
+- [x] `scripts/review-gold-set.py` — CLI helper for the operator's 20–30-sample spot-check (accept/flag/correct)
 - [ ] `scripts/run-eval.py --task aspect_tagging` — Qwen vs. gold set, accuracy table, confusion matrix
 - [ ] Iterate classifier prompt until ≥ 80% on the gold set
 
 **Aggregation**
-- [ ] A1 aggregator — per `(run, product, aspect)` compute `aggregates_aspect_sku` rows with `mention_ids` provenance
-- [ ] Unit tests — invariants (sum of polarity counts == total; provenance matches mentions)
+- [x] A1 aggregator — per `(run, product, aspect)` compute `aggregates_aspect_sku` rows with `mention_ids` provenance
+- [x] Unit tests — invariants (sum of polarity counts == total; provenance matches mentions)
 
 **Synthesis**
 - [ ] Haiku near-duplicate clusterer (usable for A2 too; build here so A1 can leverage)
@@ -115,13 +121,13 @@ Seed-list curation is the biggest operator-side time cost outside coding. Start 
 - [ ] Integration test — end-to-end brief generation on fixture corpus
 
 **API**
-- [ ] `/products` — list products in current run
+- [ ] `/products` — list products in current run *(stub-only in `api/main.py`; needs population)*
 - [ ] `/product/:id` — scorecard data (aspects + aggregates + brief)
 - [ ] `/mentions?ids=...` — resolve mention_ids to full cards (used by evidence drawer)
 - [ ] `/brief/:id` — single brief with citations
 
 **Frontend**
-- [ ] Page `/product/:id` — AspectRow table, BriefPanel, cohort toggles
+- [ ] Page `/product/:id` — AspectRow table, BriefPanel, cohort toggles *(Wave 1 shell only)*
 - [ ] `VerbatimCard` component with all chips + tombstone badge
 - [ ] `AggregateNumber` component with drawer trigger
 - [ ] `EvidenceDrawer` with filters (source, verified, recency, intensity)

@@ -17,6 +17,8 @@ products:
       secondary:
         - "\\balienware\\s*aurora\\b"
     urls:
+      bestbuy: "https://www.bestbuy.com/product/alienware-16-aurora-16-2-5k-gaming-laptop-intel-core-7-240h-2024-32gb-memory-nvidia-geforce-rtx-5060-8gb-1tb-storage-interstellar-indigo/J3K4L6J65W/sku/6630640"
+      amazon: "https://www.amazon.com/dp/B0FFT4D9BN"
       youtube_seeds: []
       article_seeds: []
 
@@ -34,5 +36,7 @@ products:
       secondary:
         - "\\brog\\s*strix\\b"
     urls:
+      bestbuy: "https://www.bestbuy.com/product/asus-rog-strix-g16-16-fhd-165hz-gaming-laptop-amd-ryzen-9-hx-16gb-ram-nvidia-geforce-rtx-5070-ti-1tb-ssd-eclipse-gray/JJGGLHJLTS"
+      amazon: "https://www.amazon.com/dp/B0DZZWMB2L"
       youtube_seeds: []
       article_seeds: []

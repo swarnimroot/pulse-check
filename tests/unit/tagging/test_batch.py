@@ -21,8 +21,19 @@ from collections.abc import Callable
 import httpx
 from sqlalchemy.orm import Session
 
-from pulse_check.storage.enums import AttributionMethod, AttributionType, SourceType
-from pulse_check.storage.models import AspectTag, Mention, MentionAttribution, Product
+from pulse_check.storage.enums import (
+    AttributionMethod,
+    AttributionType,
+    ContentType,
+    SourceType,
+)
+from pulse_check.storage.models import (
+    AspectTag,
+    ContentTypeTag,
+    Mention,
+    MentionAttribution,
+    Product,
+)
 from pulse_check.tagging import AspectClassifier, ProductContext
 from pulse_check.tagging.aspect_classifier import PROMPT_VERSION
 from pulse_check.tagging.batch import tag_corpus_aspects
@@ -268,6 +279,111 @@ def test_tag_corpus_empty_products_is_noop(session: Session) -> None:
 
     assert stats == type(stats)(0, 0, 0, 0)
     assert session.query(AspectTag).count() == 0
+
+
+# ---------------------------------------------------------------------------
+# Content-type filter (review/deal/other gate)
+# ---------------------------------------------------------------------------
+
+
+def _add_content_type_tag(
+    session: Session, mention_id: str, content_type: ContentType
+) -> None:
+    session.add(
+        ContentTypeTag(
+            mention_id=mention_id,
+            content_type=content_type,
+            prompt_version="content_type_classifier_v1",
+            model="claude-haiku-4-5-20251001",
+            temperature=0.0,
+        )
+    )
+
+
+def test_tag_corpus_filter_skips_excluded_content_types(session: Session) -> None:
+    _fixture(session)
+    _add_content_type_tag(session, "m1", ContentType.REVIEW)
+    _add_content_type_tag(session, "m2", ContentType.DEAL)
+    session.flush()
+
+    calls: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        return httpx.Response(
+            200,
+            json=_canned_tags({"aspect": "thermals", "polarity": "negative", "intensity": "low"}),
+        )
+
+    classifier = AspectClassifier(_ollama(handler))
+    stats = tag_corpus_aspects(
+        session,
+        classifier=classifier,
+        products=[_AW16, _STRIX],
+        exclude_content_types=frozenset({ContentType.DEAL}),
+    )
+    session.commit()
+
+    # m2 is a DEAL → filtered. m1 is REVIEW → tagged.
+    assert stats.attributions_seen == 2
+    assert stats.attributions_skipped_content_filter == 1
+    assert stats.attributions_classified == 1
+    assert len(calls) == 1
+    assert session.query(AspectTag).filter_by(mention_id="m2").count() == 0
+    assert session.query(AspectTag).filter_by(mention_id="m1").count() == 1
+
+
+def test_tag_corpus_filter_skips_unclassified_mentions_strictly(session: Session) -> None:
+    _fixture(session)
+    # Only m1 has a content_type_tag; m2 has none.
+    _add_content_type_tag(session, "m1", ContentType.REVIEW)
+    session.flush()
+
+    calls: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        return httpx.Response(
+            200,
+            json=_canned_tags({"aspect": "thermals", "polarity": "negative", "intensity": "low"}),
+        )
+
+    classifier = AspectClassifier(_ollama(handler))
+    stats = tag_corpus_aspects(
+        session,
+        classifier=classifier,
+        products=[_AW16, _STRIX],
+        exclude_content_types=frozenset({ContentType.DEAL}),
+    )
+    session.commit()
+
+    # m2 has no content_type tag → strict gate skips it.
+    assert stats.attributions_skipped_content_filter == 1
+    assert stats.attributions_classified == 1
+    assert len(calls) == 1
+
+
+def test_tag_corpus_no_filter_does_not_skip(session: Session) -> None:
+    _fixture(session)
+    # Even with deal-tagged content, no filter means everything is tagged.
+    _add_content_type_tag(session, "m1", ContentType.DEAL)
+    _add_content_type_tag(session, "m2", ContentType.DEAL)
+    session.flush()
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json=_canned_tags({"aspect": "thermals", "polarity": "negative", "intensity": "low"}),
+        )
+
+    classifier = AspectClassifier(_ollama(handler))
+    stats = tag_corpus_aspects(
+        session, classifier=classifier, products=[_AW16, _STRIX]
+    )
+    session.commit()
+
+    assert stats.attributions_skipped_content_filter == 0
+    assert stats.attributions_classified == 2
 
 
 def test_tag_corpus_multiple_aspects_per_mention(session: Session) -> None:

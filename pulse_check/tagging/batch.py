@@ -21,7 +21,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from pulse_check.llm_cache import LlmConnectionError, LlmParseError, LlmResponseError
-from pulse_check.storage.models import AspectTag, Mention, MentionAttribution
+from pulse_check.storage.enums import ContentType
+from pulse_check.storage.models import AspectTag, ContentTypeTag, Mention, MentionAttribution
 from pulse_check.tagging.aspect_classifier import (
     TAXONOMY_VERSION,
     AspectClassifier,
@@ -44,6 +45,7 @@ class BatchTagStats:
     attributions_skipped_existing: int
     attributions_classified: int
     aspect_tags_inserted: int
+    attributions_skipped_content_filter: int = 0
 
 
 def tag_corpus_aspects(
@@ -52,6 +54,7 @@ def tag_corpus_aspects(
     classifier: AspectClassifier,
     products: Iterable[ProductContext],
     taxonomy_version: str = TAXONOMY_VERSION,
+    exclude_content_types: frozenset[ContentType] | None = None,
 ) -> BatchTagStats:
     """Tag every in-scope ``(mention, product)`` pair with aspects.
 
@@ -70,11 +73,33 @@ def tag_corpus_aspects(
     taxonomy_version:
         Written to each new aspect_tags row. Defaults to the classifier
         module's ``TAXONOMY_VERSION`` ("v0").
+    exclude_content_types:
+        Strict gate: when non-empty, only mentions whose latest
+        ``content_type_tags.content_type`` is NOT in this set are tagged.
+        Mentions without any content_type_tag are also skipped (the filter
+        is opt-in; the operator must classify content type first).
     """
     product_by_id: dict[str, ProductContext] = {p.product_id: p for p in products}
     if not product_by_id:
         log.warning("tag_corpus_aspects: empty product set; nothing to do")
         return BatchTagStats(0, 0, 0, 0)
+
+    allowed_mention_ids: set[str] | None = None
+    if exclude_content_types:
+        allowed_mention_ids = set(
+            session.execute(
+                select(ContentTypeTag.mention_id)
+                .where(ContentTypeTag.content_type.notin_(exclude_content_types))
+                .distinct()
+            )
+            .scalars()
+            .all()
+        )
+        log.info(
+            "content-type filter active: excluding %s; %d mention(s) eligible",
+            sorted(ct.value for ct in exclude_content_types),
+            len(allowed_mention_ids),
+        )
 
     already_tagged: set[tuple[str, str]] = set(
         session.execute(
@@ -103,6 +128,7 @@ def tag_corpus_aspects(
     skipped = 0
     classified = 0
     inserted = 0
+    filtered = 0
     consecutive_infra_failures = 0
 
     for attribution in attributions:
@@ -110,6 +136,11 @@ def tag_corpus_aspects(
         key = (attribution.mention_id, attribution.product_id)
         if key in already_tagged:
             skipped += 1
+            continue
+
+        if allowed_mention_ids is not None and attribution.mention_id not in allowed_mention_ids:
+            filtered += 1
+            already_tagged.add(key)
             continue
 
         mention = session.get(Mention, attribution.mention_id)
@@ -192,4 +223,5 @@ def tag_corpus_aspects(
         attributions_skipped_existing=skipped,
         attributions_classified=classified,
         aspect_tags_inserted=inserted,
+        attributions_skipped_content_filter=filtered,
     )

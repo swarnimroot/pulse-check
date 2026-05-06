@@ -37,6 +37,7 @@ from pulse_check.storage.enums import (
     Aspect,
     AttributionMethod,
     AttributionType,
+    ContentType,
     Intensity,
     Polarity,
     ReasonBucket,
@@ -184,6 +185,33 @@ class AspectTag(Base):
     )
     classifier_confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
     taxonomy_version: Mapped[str] = mapped_column(String(32), nullable=False)
+    prompt_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    model: Mapped[str] = mapped_column(String(128), nullable=False)
+    temperature: Mapped[float] = mapped_column(Float, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(UtcDateTime(), default=_now_utc, nullable=False)
+
+
+class ContentTypeTag(Base):
+    __tablename__ = "content_type_tags"
+    __table_args__ = (
+        UniqueConstraint(
+            "mention_id",
+            "prompt_version",
+            name="uq_content_type_tags_key",
+        ),
+    )
+
+    tag_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    mention_id: Mapped[str] = mapped_column(
+        ForeignKey("mentions.mention_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    content_type: Mapped[ContentType] = mapped_column(
+        SAEnum(ContentType, native_enum=False, length=16, values_callable=_enum_values),
+        nullable=False,
+    )
+    classifier_confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
     prompt_version: Mapped[str] = mapped_column(String(64), nullable=False)
     model: Mapped[str] = mapped_column(String(128), nullable=False)
     temperature: Mapped[float] = mapped_column(Float, nullable=False)

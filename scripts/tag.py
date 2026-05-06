@@ -21,6 +21,7 @@ from pathlib import Path
 from pulse_check.config import load_run
 from pulse_check.logging_config import configure_logging
 from pulse_check.settings import get_settings
+from pulse_check.storage.enums import ContentType
 from pulse_check.storage.session import session_scope
 from pulse_check.synthesis.anthropic_client import AnthropicClient
 from pulse_check.tagging import AspectClassifier, ProductContext
@@ -51,6 +52,19 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
             " fallback when Qwen misses the gold-set threshold (CLAUDE.md)."
         ),
     )
+    parser.add_argument(
+        "--exclude-content-types",
+        nargs="+",
+        choices=[ct.value for ct in ContentType],
+        default=[],
+        metavar="TYPE",
+        help=(
+            "Skip mentions whose content_type_tags row matches any of these"
+            " values (review|deal|other). Strict gate: mentions without a"
+            " content_type classification are also skipped. Run"
+            " scripts/classify_content_type.py first to populate."
+        ),
+    )
     return parser.parse_args(argv)
 
 
@@ -65,12 +79,18 @@ def main(argv: list[str] | None = None) -> int:
         ProductContext(product_id=p.product_id, display_name=p.display_name)
         for p in product_set.products
     ]
+    exclude_content_types: frozenset[ContentType] | None = (
+        frozenset(ContentType(v) for v in args.exclude_content_types)
+        if args.exclude_content_types
+        else None
+    )
     log.info(
-        "starting aspect tagging: run_id=%s products=%d taxonomy=%s provider=%s",
+        "starting aspect tagging: run_id=%s products=%d taxonomy=%s provider=%s exclude=%s",
         run_config.run_id,
         len(products),
         run_config.taxonomy_version,
         args.provider,
+        sorted(args.exclude_content_types) or "none",
     )
 
     if args.provider == "anthropic":
@@ -91,6 +111,7 @@ def main(argv: list[str] | None = None) -> int:
                 classifier=classifier,
                 products=products,
                 taxonomy_version=run_config.taxonomy_version,
+                exclude_content_types=exclude_content_types,
             )
     else:
         with OllamaClient(host=settings.ollama_host) as ollama_client:
@@ -103,12 +124,14 @@ def main(argv: list[str] | None = None) -> int:
                     classifier=classifier,
                     products=products,
                     taxonomy_version=run_config.taxonomy_version,
+                    exclude_content_types=exclude_content_types,
                 )
 
     log.info(
-        "done: seen=%d skipped=%d classified=%d inserted=%d",
+        "done: seen=%d skipped=%d filtered=%d classified=%d inserted=%d",
         stats.attributions_seen,
         stats.attributions_skipped_existing,
+        stats.attributions_skipped_content_filter,
         stats.attributions_classified,
         stats.aspect_tags_inserted,
     )
