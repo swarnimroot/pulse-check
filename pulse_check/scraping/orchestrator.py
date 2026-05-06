@@ -25,6 +25,12 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from scrapers_lib import ProductSnapshot, RawMention, Scheduler
+
+# Import fetcher modules for their @register side effects.
+# Without these, scrapers-lib's Scheduler has an empty fetcher registry and
+# every enqueued job fails with "no fetcher for source ...".
+from scrapers_lib.tier1 import article, reddit, rss, youtube  # noqa: F401
+from scrapers_lib.tier3 import amazon, bestbuy  # noqa: F401
 from sqlalchemy.orm import Session
 
 from pulse_check.config.models import ProductConfig, ProductSet, RunConfig
@@ -35,6 +41,7 @@ from pulse_check.scraping.attribution import (
 )
 from pulse_check.scraping.ingester import IngestStats, ingest_batch
 from pulse_check.settings import get_settings
+from pulse_check.storage.models import Product
 
 log = logging.getLogger(__name__)
 
@@ -61,6 +68,9 @@ def run_scrape(
         state_file = get_settings().scheduler_db_path
     Path(state_file).parent.mkdir(parents=True, exist_ok=True)
 
+    _upsert_products(session, product_set)
+    session.commit()
+
     scheduler = Scheduler(state_file=state_file, result_sink=_sink)
     try:
         _enqueue_all_sources(scheduler, run_config, product_set)
@@ -81,6 +91,38 @@ def run_scrape(
     return ingest_stats, secondary_stats
 
 
+def _upsert_products(session: Session, product_set: ProductSet) -> None:
+    """Idempotent upsert of products from config into the DB.
+
+    Existing rows (matched on `product_id`) are updated with current values
+    of `display_name`, `brand`, `aliases`, `attribution_patterns`, `urls`.
+    Missing rows are inserted. No row is ever deleted by this function.
+
+    Run before scraping so the `products` table is populated when the
+    gold-set sampler joins on it (a previously missing prereq).
+    """
+    for pc in product_set.products:
+        existing = session.get(Product, pc.product_id)
+        if existing is not None:
+            existing.display_name = pc.display_name
+            existing.brand = pc.brand
+            existing.aliases = list(pc.aliases)
+            existing.attribution_patterns = pc.attribution_patterns.model_dump()
+            existing.urls = pc.urls.model_dump()
+        else:
+            session.add(
+                Product(
+                    product_id=pc.product_id,
+                    display_name=pc.display_name,
+                    brand=pc.brand,
+                    aliases=list(pc.aliases),
+                    attribution_patterns=pc.attribution_patterns.model_dump(),
+                    urls=pc.urls.model_dump(),
+                )
+            )
+    session.flush()
+
+
 def _enqueue_all_sources(
     scheduler: Scheduler, run_config: RunConfig, product_set: ProductSet
 ) -> int:
@@ -91,12 +133,22 @@ def _enqueue_all_sources(
 
     if sw.reddit is not None and sw.reddit.enabled and all_anchors:
         for subreddit in sw.reddit.subreddits:
+            # /new — recent posts (catches breaking discussions, fresh reviews).
             scheduler.enqueue(
                 url=_reddit_url(subreddit),
                 source="reddit",
                 anchors=all_anchors,
             )
-            count += 1
+            # /top?t=year — substantive year-over-year posts; far higher
+            # product-mention density than /new on low-volume subs.
+            scheduler.enqueue(
+                url=_reddit_url(subreddit),
+                source="reddit",
+                anchors=all_anchors,
+                sort="top",
+                time_filter="year",
+            )
+            count += 2
 
     if sw.bestbuy_reviews is not None and sw.bestbuy_reviews.enabled:
         for product in product_set.products:

@@ -37,7 +37,7 @@ class OllamaClient:
         self,
         host: str = "http://localhost:11434",
         *,
-        timeout: float = 120.0,
+        timeout: float = 300.0,
         client: httpx.Client | None = None,
     ) -> None:
         if client is None:

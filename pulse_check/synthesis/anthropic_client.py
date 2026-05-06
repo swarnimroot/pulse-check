@@ -25,6 +25,30 @@ log = logging.getLogger(__name__)
 _JSON_STRICT_SUFFIX = "\n\nReturn ONLY valid JSON, no prose, no markdown fences."
 
 
+def _strip_markdown_fences(raw: str) -> str:
+    """Defensively strip ```json...``` or ```...``` fences.
+
+    Anthropic models often wrap JSON output in markdown fences even when
+    explicitly instructed otherwise. Anthropic has no equivalent of
+    Ollama's ``format=json`` hard-mode, so we strip post-hoc.
+    """
+    s = raw.strip()
+    if not s.startswith("```"):
+        return s
+    # Drop the opening fence (``` or ```json or ```JSON, possibly with newline).
+    after_open = s[3:]
+    # If the first line is a language tag (e.g. "json"), drop it.
+    newline_idx = after_open.find("\n")
+    if newline_idx != -1:
+        first_line = after_open[:newline_idx].strip()
+        if first_line == "" or first_line.lower() == "json":
+            after_open = after_open[newline_idx + 1 :]
+    # Drop the trailing fence if present.
+    if after_open.rstrip().endswith("```"):
+        after_open = after_open.rstrip()[:-3]
+    return after_open.strip()
+
+
 class AnthropicClient:
     """Minimal Anthropic client producing JSON-only responses."""
 
@@ -66,8 +90,9 @@ class AnthropicClient:
                 max_tokens=max_tokens,
             )
             last_raw = raw
+            cleaned = _strip_markdown_fences(raw)
             try:
-                parsed = json.loads(raw)
+                parsed = json.loads(cleaned)
             except json.JSONDecodeError as exc:
                 if attempt >= max_retries:
                     log.warning(

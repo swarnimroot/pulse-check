@@ -20,6 +20,7 @@ from dataclasses import dataclass
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from pulse_check.llm_cache import LlmConnectionError, LlmParseError, LlmResponseError
 from pulse_check.storage.models import AspectTag, Mention, MentionAttribution
 from pulse_check.tagging.aspect_classifier import (
     TAXONOMY_VERSION,
@@ -28,6 +29,11 @@ from pulse_check.tagging.aspect_classifier import (
 )
 
 log = logging.getLogger(__name__)
+
+# Halt the batch after this many consecutive infrastructure failures
+# (connection timeout / HTTP error). Parse failures are mention-specific
+# and do not count toward this threshold.
+_MAX_CONSECUTIVE_INFRA_FAILURES = 3
 
 
 @dataclass(frozen=True)
@@ -97,6 +103,7 @@ def tag_corpus_aspects(
     skipped = 0
     classified = 0
     inserted = 0
+    consecutive_infra_failures = 0
 
     for attribution in attributions:
         seen += 1
@@ -114,12 +121,49 @@ def tag_corpus_aspects(
             continue
 
         product = product_by_id[attribution.product_id]
-        preds = classifier.classify(
-            session,
-            mention_text=mention.raw_text,
-            product=product,
-        )
+        try:
+            preds = classifier.classify(
+                session,
+                mention_text=mention.raw_text,
+                product=product,
+            )
+        except LlmParseError as exc:
+            # Qwen produced a structurally invalid response for this mention.
+            # Mention-specific; Ollama is healthy. Don't trip the circuit breaker.
+            log.warning(
+                "classify parse failure on mention_id=%s product_id=%s: %s",
+                attribution.mention_id,
+                attribution.product_id,
+                exc,
+            )
+            already_tagged.add(key)
+            consecutive_infra_failures = 0
+            continue
+        except (LlmConnectionError, LlmResponseError) as exc:
+            # Infrastructure-level failure (timeout / HTTP error). Skip this
+            # mention; halt the batch if too many in a row so we don't churn
+            # for hours while Ollama is down.
+            consecutive_infra_failures += 1
+            log.warning(
+                "classify infra failure (%d/%d consecutive) on mention_id=%s "
+                "product_id=%s: %s",
+                consecutive_infra_failures,
+                _MAX_CONSECUTIVE_INFRA_FAILURES,
+                attribution.mention_id,
+                attribution.product_id,
+                exc,
+            )
+            already_tagged.add(key)
+            if consecutive_infra_failures >= _MAX_CONSECUTIVE_INFRA_FAILURES:
+                log.error(
+                    "halting batch after %d consecutive infra failures; "
+                    "partial progress will be committed by the caller",
+                    consecutive_infra_failures,
+                )
+                break
+            continue
         classified += 1
+        consecutive_infra_failures = 0
 
         for pred in preds:
             session.add(

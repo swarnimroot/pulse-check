@@ -19,15 +19,31 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Protocol
 
 from sqlalchemy.orm import Session
 
 from pulse_check.llm_cache import LlmParseError, LlmResponse, call_with_cache
 from pulse_check.storage.enums import Aspect, Intensity, Polarity
-from pulse_check.tagging.ollama import OllamaClient
 
 log = logging.getLogger(__name__)
+
+
+class JsonGenerator(Protocol):
+    """Structural type for any client able to produce a JSON response.
+
+    Both ``OllamaClient`` (Qwen) and ``AnthropicClient`` (Sonnet/Haiku)
+    implement this signature, so the classifier accepts either via
+    duck-typing — no inheritance required.
+    """
+
+    def generate_json(
+        self,
+        *,
+        model: str,
+        prompt: str,
+        temperature: float = 0.0,
+    ) -> LlmResponse: ...
 
 PROMPT_VERSION = "aspect_classifier_v1"
 TAXONOMY_VERSION = "v0"
@@ -373,7 +389,7 @@ class AspectClassifier:
 
     def __init__(
         self,
-        client: OllamaClient,
+        client: JsonGenerator,
         *,
         model: str = _DEFAULT_MODEL,
         temperature: float = 0.0,

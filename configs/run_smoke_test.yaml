@@ -10,6 +10,10 @@ source_windows:
     backfill_months: 1
     subreddits:
       - GamingLaptops
+      - Alienware
+      - buildapc
+      - SuggestALaptop
+      - laptops
   bestbuy_reviews:
     enabled: true
     paginate: false
