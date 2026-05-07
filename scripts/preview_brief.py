@@ -77,6 +77,11 @@ def _build_prompts(
         "}"
     )
 
+    # Filter to PRIMARY-bucket rows (Option 3 strict isolation): the LLM brief
+    # body cites PRIMARY mentions only, so passing SECONDARY-only rows (where
+    # total_mentions == 0) is noise to Sonnet and would churn the cache key as
+    # the secondary corpus grows. Sidebar in _render_markdown still shows ALL
+    # aggregates, including SECONDARY-only.
     aggregates_payload = [
         {
             "aspect": _enum_value(agg.aspect),
@@ -88,6 +93,7 @@ def _build_prompts(
             "by_source": agg.by_source,
         }
         for agg in aggregates
+        if agg.total_mentions > 0
     ]
 
     user = (
@@ -115,6 +121,11 @@ def _collect_verbatims(
     by_aspect: dict[str, list[dict[str, str]]] = {}
     in_scope_ids: set[str] = set()
     for agg in aggregates:
+        # Skip SECONDARY-only rows: their PRIMARY mention_ids are empty, so
+        # they'd produce a zero-verbatim aspect entry that's pure noise to
+        # Sonnet. Sidebar still shows them via _render_markdown.
+        if agg.total_mentions == 0:
+            continue
         aspect = _enum_value(agg.aspect)
         verbatims: list[dict[str, str]] = []
         for mid in list(agg.mention_ids)[:MAX_VERBATIMS_PER_ASPECT]:
@@ -133,7 +144,11 @@ def _collect_verbatims(
     return by_aspect, in_scope_ids
 
 
-def _render_markdown(product: Product, brief: dict[str, Any]) -> str:
+def _render_markdown(
+    product: Product,
+    brief: dict[str, Any],
+    aggregates: list[AggregateAspectSku],
+) -> str:
     lines: list[str] = [
         f"# A1 preview brief — {product.display_name}",
         f"_Generated: {datetime.now(UTC).isoformat()}_",
@@ -157,6 +172,23 @@ def _render_markdown(product: Product, brief: dict[str, Any]) -> str:
     watchout = brief.get("watchout", "").strip()
     if watchout:
         lines += [f"**Watchout:** {watchout}", ""]
+
+    # Option 3 sidebar: SECONDARY-bucket density per aspect (e.g. comment-
+    # inheritance signal). Brief body + citations stay PRIMARY-only — this
+    # is operator context, not LLM input. No prompt_version bump required.
+    secondary_lines = [
+        f"- {_enum_value(agg.aspect)}: "
+        f"primary={agg.total_mentions} · secondary={agg.total_mentions_secondary} "
+        f"(net_sentiment_secondary={round(agg.net_sentiment_secondary, 2)})"
+        for agg in aggregates
+        if agg.total_mentions_secondary > 0
+    ]
+    if secondary_lines:
+        lines += [
+            "**Secondary signal (comment threads; not cited in body):**",
+            *secondary_lines,
+            "",
+        ]
     return "\n".join(lines)
 
 
@@ -243,7 +275,7 @@ def main(argv: list[str] | None = None) -> int:
         log.error("unexpected Sonnet output shape: %s", type(parsed).__name__)
         return 1
 
-    md = _render_markdown(product, parsed)
+    md = _render_markdown(product, parsed, aggregates)
     cited_count, fabricated = _check_citations(parsed, in_scope_ids)
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)

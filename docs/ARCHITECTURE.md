@@ -215,20 +215,31 @@ Unique constraint: `(mention_id, product_id, aspect, taxonomy_version, prompt_ve
 Every aggregate row carries its provenance — the list of contributing mention IDs — so every number in the UI is drillable.
 
 **`aggregates_aspect_sku`** — A1 scorecard data per (run, product, aspect).
+
+Two parallel buckets are written per row: a **PRIMARY** bucket (legacy columns, drives the brief body and citations) and a **SECONDARY** bucket (`*_secondary` mirror columns, surfaces comment-inheritance density and other secondary-attribution signal). The same eight-field arithmetic runs twice — once on PRIMARY-attributed mentions, once on SECONDARY-only — and both halves write into the same row. A row is written whenever **either** bucket has at least one contribution; the empty side carries zero/empty values. PRIMARY/SECONDARY are bucketed, never combined: aggregating across them is left to the consumer (UI / brief / operator), preserving the no-hidden-weighting principle. See §7.1.
+
 | Column | Type | Notes |
 |---|---|---|
 | `aggregate_id` | int (PK) | |
 | `run_id` | FK → runs | |
 | `product_id` | FK → products | |
 | `aspect` | enum | |
-| `total_mentions` | int | |
-| `polarity_counts` | JSON | `{negative, neutral, positive}` |
-| `net_sentiment` | float | mean polarity, −1 to +1 |
-| `intensity_counts` | JSON | `{negative: {low, medium, high}, positive: {low, medium, high}}` |
-| `verified_share` | float | 0.0–1.0; share of contributing mentions that are `verified_purchase=True` |
-| `by_source` | JSON | per-source-type: `{count, net_sentiment, intensity_counts}` |
-| `by_recency` | JSON | `{last_30d, last_90d, older}` bucket counts |
-| `mention_ids` | JSON | **provenance — full list of contributing mentions** |
+| `total_mentions` | int | PRIMARY bucket count |
+| `polarity_counts` | JSON | PRIMARY: `{negative, neutral, positive}` |
+| `net_sentiment` | float | PRIMARY: mean polarity, −1 to +1; `0.0` if bucket empty |
+| `intensity_counts` | JSON | PRIMARY: `{low, medium, high}` |
+| `verified_share` | float | PRIMARY: 0.0–1.0; share of contributing mentions that are `verified_purchase=True` |
+| `by_source` | JSON | PRIMARY: per-source-type: `{total, polarity_counts}` |
+| `by_recency` | JSON | PRIMARY: `{0_30, 30_90, 90_180, 180_plus, unknown}` bucket counts |
+| `mention_ids` | JSON | **PRIMARY provenance — full list of contributing mentions** |
+| `total_mentions_secondary` | int | SECONDARY bucket count |
+| `polarity_counts_secondary` | JSON | SECONDARY parity |
+| `net_sentiment_secondary` | float | SECONDARY parity; `0.0` if bucket empty |
+| `intensity_counts_secondary` | JSON | SECONDARY parity |
+| `verified_share_secondary` | float | SECONDARY parity; `0.0` if bucket empty |
+| `by_source_secondary` | JSON | SECONDARY parity |
+| `by_recency_secondary` | JSON | SECONDARY parity |
+| `mention_ids_secondary` | JSON | **SECONDARY provenance** |
 | `computed_at` | datetime(tz) | |
 
 **`aggregates_pair_reason`** — A2 ranked reasons per (run, pair, winning_product, reason_bucket).
@@ -384,6 +395,8 @@ Attribution is the act of linking a mention to the product(s) it's about. Two pa
 
 **Secondary attribution (post-fetch).** After each scrape, a secondary pass runs every stored mention's `raw_text` through **all products' patterns** (primary + an optional looser `secondary` pattern list). Matches produce `mention_attributions` rows with `attribution_type = secondary`. This catches cases like a BestBuy Area-51 18 review whose body mentions "ROG Strix" — the review's primary attribution is Area-51, the secondary attribution is Strix G16, and the mention is therefore a candidate for Aspect 2's "considered" corpus for that pair.
 
+**Tertiary attribution — comment inheritance (post-fetch).** A third pass runs after secondary attribution: unattributed Reddit comment mentions inherit their parent post's PRIMARY attributions as SECONDARY (`attribution_type = secondary`, `attribution_method = regex` for schema uniformity even though the link is structural, not a regex match on the comment text). The link is `mention.metadata_["parent_id"]` matching the parent post in the form `t3_<post_id>`. Rationale: a comment in a thread whose post is primary-attributed to product P is at least about-P-discussion, even if the comment text doesn't repeat the per-comment anchor regex. Skipped silently when the parent post is not in our DB. Implemented in `pulse_check/scraping/comment_inheritance.py`, called from `run_scrape` after `apply_secondary_attribution`. Comments fetched in this mode bypass scrapers-lib's strict per-comment anchor regex via `fetch_reddit_comments(emit_all_comments=True)`. This is a structural attribution mechanism, not text-based; comments not under one of our primary-attributed posts produce no attribution.
+
 **Definitional default — "considered mention":** review body contains a comparator-anchor secondary attribution. The operator can refine attribution patterns iteratively; every scrape re-runs secondary attribution against the current pattern set, so refinements propagate without re-scraping.
 
 ---
@@ -407,6 +420,8 @@ Cache key: `sha256(input_payload + prompt_version + "qwen2.5:7b-q4_K_M" + "0.0")
 Throughput budget: ~60–120 tok/s on RTX 5070; a ~5,000-mention corpus tags in 20–60 min. VRAM footprint ~4–5GB (Q4_K_M).
 
 **Per-task fallback:** if gold-set eval shows Qwen 7B misses threshold on a specific task (most likely candidates: deliberation classification, reason tagging on nuanced cases), that task swaps to Haiku via the same cached-call contract — cache key changes, no pipeline disruption. Routing is per task, not wholesale.
+
+> **Deviation in effect (Wave 2):** `tag_mention_aspects` and `classify_content_type` currently run on Haiku, not Qwen — see §6.5 for the full table.
 
 ### 6.2 Sonnet — synthesis + eval
 
@@ -458,6 +473,17 @@ Before Sonnet selects verbatims, Haiku clusters near-identical mentions (copy-pa
 
 Sonnet then sees one representative per cluster. Haiku is also cached.
 
+### 6.5 Haiku — batch classifiers (per-task fallback per §6.1)
+
+Two batch classifiers originally specced for Qwen now run on Haiku, against the same `call_with_cache` contract. The swap was operator-confirmed during Wave 2 build-out (Qwen 7B latency + parse-error rate on long inputs in early gold-set eval). Per-task fallback per §6.1, applied wholesale to these tasks:
+
+| Function | Model | Input | Output |
+|---|---|---|---|
+| `tag_mention_aspects(mention_text, product_context)` | Haiku | mention text + attributed product | list of `{aspect, polarity, intensity, confidence}` (deduped within-response on aspect; Haiku occasionally re-emits) |
+| `classify_content_type(mention_text)` | Haiku | mention text | `{content_type: review \| deal \| other, confidence}` |
+
+Cache keys substitute the Haiku model name; downstream contracts and prompt-version semantics unchanged. No other LLM-routing assumptions are affected.
+
 ---
 
 ## 7. Aggregation layer
@@ -467,12 +493,11 @@ Aggregation is deterministic given (mentions + tags + run config). No LLM calls 
 ### 7.1 Aspect 1 aggregation (per SKU)
 
 For each (product, aspect) pair in the run:
-1. Fetch all `aspect_tags` where `product_id = P`, `aspect = A`, `taxonomy_version = run.taxonomy_version`, and whose `mention_id` is attributed to P.
-2. Compute: `total_mentions`, `polarity_counts`, `net_sentiment = mean(polarity as −1/0/+1)`, `intensity_counts`, `verified_share`, `by_source`, `by_recency`.
-3. Collect `mention_ids` = the full list of contributing mentions.
-4. Write one `aggregates_aspect_sku` row.
-5. Sonnet selects ~6 representative verbatims per aspect (3 positive, 3 negative, biased toward high-intensity). `representative_mention_ids` stored on the aggregate (or a sibling table if preferred).
-6. Sonnet writes the A1 brief for the product (§6.3 contract), citing specific mention IDs.
+1. Fetch all `aspect_tags` where `product_id = P`, `aspect = A`, `taxonomy_version = run.taxonomy_version`, `prompt_version = run.prompt_version`. **Partition by attribution into two buckets:** PRIMARY-attributed → primary bucket; SECONDARY-only attributed → secondary bucket. A `(mention, product)` pair with both PRIMARY and SECONDARY rows lands in the primary bucket only — no double-count, preserving "every mention = 1.0".
+2. **Run the same eight-field computation twice — once per bucket:** `total_mentions`, `polarity_counts`, `net_sentiment = (positive − negative) / total_mentions` (or `0.0` if bucket empty), `intensity_counts`, `verified_share`, `by_source`, `by_recency`, plus `mention_ids` provenance.
+3. Write one `aggregates_aspect_sku` row carrying both buckets — primary fields and `*_secondary` fields. A row is emitted when either bucket has at least one contribution; the empty side carries zero/empty fields. Idempotent rerun via delete-then-insert keyed on `(run_id, product_id)`.
+4. Sonnet selects ~6 representative verbatims per aspect **from the PRIMARY bucket only** (3 positive, 3 negative, biased toward high-intensity). `representative_mention_ids` stored on the aggregate (or a sibling table if preferred). Citations stay primary-only; the SECONDARY count is surfaced as a sidebar number to the operator (preview brief and downstream UI).
+5. Sonnet writes the A1 brief for the product (§6.3 contract), citing specific mention IDs from the PRIMARY bucket.
 
 ### 7.2 Aspect 2 aggregation (per pair)
 

@@ -8,50 +8,26 @@ Running one-page chronicle. Updated **at session close**, when the operator says
 
 Paste at the start of your next session:
 
-> Resume pulse-check session 9. Read `CLAUDE.md` + `docs/SESSION_LOG.md`.
+> Resume pulse-check session 10. Read `CLAUDE.md` + `docs/SESSION_LOG.md`.
 >
-> **Audit session 8 deliverables before forward work.**
+> **Audit session 9 before forward work.** Run regression baselines + DB sanity + code read-through per the next-session-starter checklist that was active during session 9 (see session-9 history entry below for the verbatim shape) and the "Current state" / session-9 open items below. Report deviations.
 >
-> 1. **Regression baseline.**
->    - From pulse-check root: `.venv\Scripts\python -m pytest -q` (expect **225 pass**) · `mypy pulse_check` (expect 34 source files clean — mypy CLI now drops `scripts` per session-8 simplification; counts agreed) · `ruff check` (expect clean).
->    - From scrapers-lib root (`..\scrapers-lib`): `.venv\Scripts\python -m pytest -q tests` (expect **844 pass · 19 skipped**); ruff clean on edited files (`scrapers_lib\tier1\reddit.py`, `tests\tier1\test_reddit.py`). `_version.py` at 1.2.0 in HEAD with a working-tree edit to 1.2.1 (not from this session — pre-existing diff) (open item, two pending releases worth of edits).
-> 2. **DB sanity** (`data/pulse_check.db`): products=2 · **mentions=1143** (33 reddit_post + 1110 reddit_comment) · **mention_attributions=1380** (39 primary [33 post + 6 comment] + 1341 secondary, the bulk being inherited comment attributions) · **content_type_tags=1143** (46 deal / 999 other / 98 review) · **aspect_tags=649** (71 PRIMARY-attributed + 578 SECONDARY-attributed) · **aggregates_aspect_sku=18 — still PRIMARY-only, unchanged**. Alembic head = `4f5dc2929a19` (no migration this session). Gold-set JSONL still 28 entries at `data/gold_sets/aspect_tagging_v1.jsonl`.
-> 3. **Code read-through — verify session-8 edits:**
->    - `..\scrapers-lib\scrapers_lib\tier1\reddit.py` — new `emit_all_comments: bool = False` kwarg on `fetch_reddit_comments` + `parse_reddit_comments` + `_comment_to_mentions`. When True, comments bypass `_fan_out`'s strict per-comment anchor regex and emit unattributed (`attribution=None`); post emission unchanged. CHANGELOG entry under `[Unreleased]/Added`. 4 new tests in `TestEmitAllComments`.
->    - `pulse_check/scraping/orchestrator.py` — new `_enqueue_reddit_comment_followups` enqueues `fetch_reddit_comments(emit_all_comments=True)` on each PRIMARY-attributed Reddit post; called from `run_scrape` after the listing fetches. `tests/unit/scraping/test_orchestrator.py` — 8 tests (folds session-5 deferred Patch 2 + new comment-enqueue cases).
->    - `pulse_check/scraping/comment_inheritance.py` (new) — `apply_comment_inheritance(session) -> CommentInheritanceStats`. Walks unattributed `reddit_comment` mentions, looks up parent post via `metadata_["parent_id"]` (Reddit `t3_<post_id>` link form), inherits parent's PRIMARY products as **SECONDARY** with `attribution_method=REGEX`. Helper `_post_id_from_post_mention_id` extracts `post_id` from `reddit_post_<post_id>_<anchor_id>` mention_id format. `run_scrape` calls it after `apply_secondary_attribution`. `scripts/scrape.py` updated for tuple-of-three return. `pulse_check/scraping/__init__.py` exports the symbol. `tests/unit/scraping/test_comment_inheritance.py` (11 tests).
->    - `pulse_check/tagging/aspect_classifier.py` — `parse_response` dedupes within-LLM-response on aspect (keep first occurrence) via `seen_aspects: set[Aspect]`. Reason: Haiku occasionally emits two entries for the same aspect on long comments; the `aspect_tags` UNIQUE constraint failed the whole batch on a single such mention (mid-run crash; both aspect_tags inserts AND llm_cache writes rolled back per session-5 fragility). 1 new test.
-> 4. **Manual artifact spot-check.** `data/preview_briefs/alienware_16_aurora_*.md` Path A artifact still present. No new artifacts in session 8 (corpus expanded but A1 unchanged due to PRIMARY-only filter; a fresh Path A would render identically — Option 3 is the unblock).
+> **Then surface the bite pick.** Wave 2 ~75% after Option 3. Candidates listed in "Current state" below (Synthesis architecture · Bite 6.3 YouTube · Bite 6.4 retailer · backend/frontend Wave 2 finish). Recommend one with reasoning, wait for my call before touching code.
 >
-> **Pending operator decision: Option 3 — A1 aggregate PRIMARY/SECONDARY split. Confirm sub-scope at audit close.**
-> - **Locked at session-8 close:** add SECONDARY-side columns to `aggregates_aspect_sku`, run the same arithmetic twice, expose both buckets to `preview_brief.py` and downstream UI. Existing PRIMARY columns untouched.
-> - **Sub-decisions to settle before coding:**
->   - (a) Which fields to dual-track. Baseline 4: `total_mentions_secondary`, `polarity_counts_secondary` (json), `net_sentiment_secondary` (float), `mention_ids_secondary` (json). Full parity adds 4 more: `intensity_counts_secondary`, `verified_share_secondary`, `by_source_secondary`, `by_recency_secondary`. Recommend full parity unless storage cost surfaces.
->   - (b) Naming: `*_secondary` column suffix vs nested JSON blob. Suffix recommended for SQL legibility.
->   - (c) Code-computed virtual `total_mentions_combined`? Recommend NO — preserves no-hidden-weighting principle of bucketed display.
-> - **Concrete next steps after sub-decisions land:**
->   1. Update `docs/ARCHITECTURE.md` §3.3 (column inventory) AND §7.1 (algorithm: split mentions PRIMARY/SECONDARY before arithmetic; run arithmetic twice; collect two provenance lists).
->   2. Update `docs/ARCHITECTURE.md` §5 with the comment-inheritance "tertiary attribution" paragraph (drafted in session-8 wrap, ready to paste — see Open items).
->   3. Update `docs/ARCHITECTURE.md` §6.1 with the aspect-classifier-now-Haiku deviation note + add §6.5 Haiku batch classifiers.
->   4. Alembic migration to add the new columns (extends head from `4f5dc2929a19`).
->   5. `pulse_check/aggregation/a1.py` extension — split mention pool, run arithmetic twice, write both halves.
->   6. New unit tests: PRIMARY-only no-secondary path (legacy preserved), SECONDARY-only path, mixed (both populated), idempotent rerun.
->   7. `scripts/preview_brief.py` update — surface SECONDARY count alongside PRIMARY (recommend: PRIMARY-only citations for brief body, SECONDARY count surfaced as a sidebar number for now — minimizes prompt-version churn).
-> - Estimated 1–2h.
->
-> **Open items moved/added in session 8:** scrapers-lib `_version.py` 1.1.0 bump still deferred (now with two pending releases worth of edits); BestBuy/Amazon retailer paths still deferred to bite 6.4; comment-inheritance is a new attribution mechanism not yet in ARCHITECTURE §5 (paragraph drafted, applies during Option 3); A1 PRIMARY-only filter is undocumented in ARCHITECTURE §3.3 / §7.1 (Option 3 fixes both); content_type ratios shifted at scale (re-validate gate behavior at n=1143); aspect classifier is Haiku not Qwen (deviation not yet in ARCHITECTURE §6).
->
-> After audit + Option 3 sub-decisions confirmed, proceed.
+> Be very concise. Ultrathink. Use agents for read-heavy work.
 
 ## Current state
 
-- **Phase:** Wave 2 ~70%. Session 8 executed bite 6.2-revised in two rounds — orchestrator comment enqueue, then a scrapers-lib `emit_all_comments` kwarg + a pulse-check `apply_comment_inheritance` post-fetch step that propagates parent-post primary attributions onto previously-unattributed comments as SECONDARY. Corpus jumped from 33 → 1143 mentions; aspect_tags 95 → 649. **A1 aggregate rows are unchanged at 18** because `aggregate_a1` is PRIMARY-only and all 565 new comment aspect_tags are on SECONDARY-attributed mentions — surfaces Option 3 (dual-track PRIMARY/SECONDARY columns) as the next bite.
-- **Awaiting operator input on:** Option 3 sub-decisions — which 4–8 fields to dual-track on `aggregates_aspect_sku`, naming convention (`*_secondary` suffix vs nested JSON), whether to also expose `total_mentions_combined` as a code-computed virtual.
-- **pulse-check: 225 unit tests passing · `mypy` clean on 34 source files · `ruff` clean.** (mypy CLI now `mypy pulse_check`; `scripts` dropped — counts agreed with prior baseline, kept verbatim.)
-- **scrapers-lib: 844 unit tests passing · 19 skipped (network) · `ruff` clean on edited files.** `_version.py` at 1.2.0 in HEAD with a working-tree edit to 1.2.1 (not from this session — pre-existing diff) (deferred bump from session 7, now with two pending releases worth of edits).
-- **Capability-vs-output-aha framing — session 8 update.** Reddit-deepen unlocked **density** (33→1143) but not **output aha** yet, because the SECONDARY corpus is currently invisible to A1. Option 3 splits the aggregate to make it visible.
-- **Corpus contamination shifted at scale.** content_type breakdown over 1143 mentions: 46 deal / 999 other / 98 review. The 65% deal-roundup ratio observed at n=31 (session 6) does not hold at n=1143 — comments skew heavily toward `other` (substantive discussion that isn't a structured review). Re-validate the `--exclude-content-types deal` gate behavior at the new scale before next bite.
-- **Real corpus state:** 1143 mentions in DB (33 reddit_post + 1110 reddit_comment). 39 primary attributions (33 post + 6 comment). 1341 secondary attributions (largely the inherited comment attributions). 1143 content_type_tags rows. 649 aspect_tags (71 PRIMARY-attributed + 578 SECONDARY-attributed). 18 (product, aspect) aggregate rows — **PRIMARY-only**, unchanged from session 5/6/7. 28-entry Sonnet gold set at `data/gold_sets/aspect_tagging_v1.jsonl` (unchanged).
+- **Phase:** Wave 2 ~75%. Session 9 implemented Option 3 end-to-end — Alembic migration `b8560c93bbd8` adds eight `*_secondary` columns to `aggregates_aspect_sku`; `aggregate_a1` partitions tags into PRIMARY vs SECONDARY-only buckets (PRIMARY precedence on dual-attributed pairs) and runs the same eight-field arithmetic twice; ARCHITECTURE §3.3/§5/§6.1+§6.5/§7.1 updated to match; `preview_brief.py` adds a "Secondary signal" sidebar over the full aggregate set + filters PRIMARY-only into the LLM payload (strict isolation). Live DB rerun: 18 → **22 aggregate rows** (4 new SECONDARY-only `(product, aspect)` pairs); PRIMARY mentions_contributing=71 preserved exactly; SECONDARY mentions_contributing=578 now visible. Sample divergence: rog_strix_g16 price_value PRIMARY +0.59 vs SECONDARY −0.18 — the dual-track was load-bearing for output aha.
+- **Bite candidates for session 10** (operator picks):
+  - **Synthesis architecture** (natural Option-3 follow-on; productionizes what `preview_brief.py` previewed). Haiku near-duplicate dedup → Sonnet verbatim selector → Sonnet A1 brief writer with structured citation contract → citation validator. Estimated 2–3h.
+  - **Bite 6.3 — YouTube** end-to-end. Operator URL curation + first run; budget plumbing surprises (cf. session 7's Amazon discovery).
+  - **Bite 6.4 (still deferred) — retailer reviews.** Three open items unchanged: BestBuy network/Akamai timeout · pulse-check `result_sink` mapping for `('amazon','post')`/`('bestbuy','post')` · Amazon Strix empty-page diagnosis.
+  - **Backend/frontend Wave 2 finish.** `/products`/`/product/:id`/`/mentions`/`/brief` real handlers + frontend atoms (`VerbatimCard`, `AggregateNumber`, `EvidenceDrawer`, `BriefPanel`, `AspectRow`) + `/product/:id` page wired end-to-end + Wave 2 exit-criteria check.
+- **pulse-check: 230 unit tests passing · `mypy` clean on 34 source files · `ruff` clean.** (Was 225 at session-8 close; +5 from new dual-track tests in `test_a1.py`.)
+- **scrapers-lib: 904 unit tests passing · 20 skipped · ruff clean on edited files.** Drift +60/+1 vs the older 844/19 baseline — flagged in session 9 audit; non-blocking (all green). `_version.py` is **`1.2.1` in HEAD with no working-tree diff** — the deferred-bump open item from sessions 7/8 is **resolved** (already committed; not by us).
+- **Capability + output aha both demonstrated for A1.** Session 8 unlocked density (33→1143 mentions); session 9 unlocks output aha (PRIMARY/SECONDARY divergence visible at the aggregate layer). Brief regenerated successfully with sidebar (citation integrity 8/0).
+- **Real corpus state:** 1143 mentions (33 reddit_post + 1110 reddit_comment) · 1380 mention_attributions (39 PRIMARY + 1341 SECONDARY) · 1143 content_type_tags (46 deal / 999 other / 98 review) · 649 aspect_tags (71 PRIMARY + 578 SECONDARY) · **22 aggregate rows** (was 18 pre-Option-3; +4 SECONDARY-only) · 28-entry gold-set JSONL unchanged · 3 preview-brief artifacts for `alienware_16_aurora` (session-6 + two from session 9; latest `alienware_16_aurora_20260507T203215Z.md`) · `llm_cache` has 3 rows for `prompt_version='preview_a1_v1'` (audit-trail; one orphan from the session-9 unfiltered intermediate run, harmless per the never-evict design).
 - **Working code:**
   - **Foundation (session 2):** `pulse_check/` storage + config + llm_cache + scraping + tagging.OllamaClient + synthesis.AnthropicClient; `scripts/scrape.py`; Alembic migration applied to `data/pulse_check.db`; 6 example YAML configs.
   - **Wave 1 shell (session 3, visual confirmed session 4):** `pulse_check/api/main.py` (FastAPI factory + `/health` + `/products`/`/pairs` stubs + CORS + error envelope); full `frontend/` Vite+React+TS+Tailwind v3+shadcn-ready scaffold with DESIGN_SYSTEM §3 tokens; three themed route shells render correctly in browser; `scripts/serve.py` dual-server launcher.
@@ -71,8 +47,16 @@ Paste at the start of your next session:
     - **pulse-check `pulse_check/tagging/aspect_classifier.py`:** `parse_response` now dedupes within-LLM-response on aspect (keep first occurrence) via `seen_aspects: set[Aspect]`. Reason: Haiku occasionally emits two entries for the same aspect on long comments; the `aspect_tags` UNIQUE constraint failed the whole batch on a single such mention (mid-run crash; both aspect_tags inserts AND llm_cache writes rolled back per session-5 fragility). 1 new test.
     - **`configs/run_smoke_test.yaml`:** `bestbuy_reviews.enabled: false`, `amazon_reviews.enabled: false` (paused per bite 6.4 deferral).
     - **Stale scheduler state cleared:** deleted 4 stale BestBuy + Amazon jobs from `data/scheduler_state.db`; cleared `bestbuy.com` domain backoff. Reddit dedup history preserved.
+  - **Option 3 — A1 aggregate PRIMARY/SECONDARY split (session 9):**
+    - **Alembic `b8560c93bbd8`** — adds 8 `*_secondary` columns to `aggregates_aspect_sku` via `batch_alter_table`, NOT NULL with server defaults (`0` / `'{}'` / `'[]'`); `down_revision = 4f5dc2929a19`.
+    - **`pulse_check/storage/models.py`** — `AggregateAspectSku` gains the 8 mirror columns (`total_mentions_secondary`, `polarity_counts_secondary`, `net_sentiment_secondary`, `intensity_counts_secondary`, `verified_share_secondary`, `by_source_secondary`, `by_recency_secondary`, `mention_ids_secondary`), each with both Python `default` and SQL `server_default`. Imports `text` from `sqlalchemy`.
+    - **`pulse_check/aggregation/a1.py`** — extracted `_compute_bucket(tags, mentions, now) -> _BucketResult` helper. `aggregate_a1` builds two attribution-pair sets (`primary_pairs`, `secondary_pairs = SECONDARY-all − primary_pairs` — PRIMARY precedence on dual-attributed pairs), partitions tags accordingly, runs the same 8-field arithmetic twice, writes both halves into one row. Empty bucket → zero/empty fields. `BatchAggregateStats` gained `mentions_contributing_secondary` (default 0). Idempotent delete-then-insert preserved.
+    - **`tests/unit/aggregation/test_a1.py`** — 12 → 17 tests. Renamed `test_aggregate_a1_skips_secondary_attributions` → `test_aggregate_a1_routes_primary_and_secondary_into_separate_buckets`. New: `_primary_only_leaves_secondary_columns_empty`, `_secondary_only_path`, `_primary_takes_precedence_over_secondary_pair`, `_skips_secondary_for_out_of_scope_products`, `_idempotent_rerun_with_both_buckets`.
+    - **`scripts/preview_brief.py`** — `_render_markdown` adds a "Secondary signal (comment threads; not cited in body):" sidebar showing per-aspect `primary=N · secondary=M (net_sentiment_secondary=X)` for any aspect with `total_mentions_secondary > 0`. `_build_prompts` and `_collect_verbatims` both filter to `total_mentions > 0` (strict isolation: PRIMARY-only into the LLM payload + verbatim corpus; SECONDARY-only rows excluded as they have no PRIMARY mention_ids to cite and would churn the cache). LLM prompt_version unchanged.
+    - **`docs/ARCHITECTURE.md`** — §3.3 dual-track table + intro paragraph; §5 tertiary-attribution paragraph (comment-inheritance via `metadata_["parent_id"]`); §6.1 Haiku-deviation pointer; new §6.5 Haiku batch-classifiers; §7.1 split-and-aggregate-twice algorithm.
+    - **Live DB rerun:** `aggregate_a1` invoked once on the live corpus → 18 → **22 rows** (4 new SECONDARY-only `(product, aspect)` pairs). `mentions_contributing=71` preserved exactly; `mentions_contributing_secondary=578` newly visible. Sample divergence: `rog_strix_g16` price_value PRIMARY +0.59 vs SECONDARY −0.18; `rog_strix_g16` keyboard PRIMARY 0.0 / SECONDARY −0.48 (52 mentions).
+    - **Brief regenerated:** `data/preview_briefs/alienware_16_aurora_20260507T203215Z.md` · 8 cited / 0 fabricated · sidebar rendered. Cache miss vs session-6 row was expected and explained — see "Open items added in session 9".
 - **Not yet started (Wave 2 remainder, prioritized):**
-  - **Option 3 — A1 aggregate PRIMARY/SECONDARY split (recommended next):** Alembic migration adds `total_mentions_secondary`, `polarity_counts_secondary` (json), `net_sentiment_secondary` (float), `mention_ids_secondary` (json) — possibly `intensity_counts_secondary`, `verified_share_secondary`, `by_source_secondary`, `by_recency_secondary` for full parity (sub-decision). Existing primary columns untouched. `aggregate_a1` runs the same 8-field math twice. Tests for both. Update `preview_brief.py` if needed. ARCHITECTURE §3.3 + §7.1 + §5 + §6 doc updates folded in. Estimated 1–2h.
   - **Bite 6.3 — YouTube:** operator URL-seed curation + first end-to-end YouTube fetcher exercise (expect plumbing gaps similar to session-7's Amazon discovery).
   - **Bite 6.4 (deferred) — retailer reviews:** three open items parked — BestBuy network/Akamai timeout diagnostics; pulse-check `result_sink` mapping for `('amazon','post')` and `('bestbuy','post')`; Amazon Strix empty-review-page diagnosis.
   - Synthesis architecture: Haiku dedup + Sonnet verbatim selector + Sonnet A1 brief writer + citation validator (gated on corpus density).
@@ -84,10 +68,8 @@ Paste at the start of your next session:
 
 Manual checks the prior session couldn't / didn't do, listed so they don't get lost:
 
-- **Aspect classifier anchors are synthetic** — 22 short verbatims approximating gaming-laptop review language. Will see real Qwen behavior on the first real tagging pass; expect a v2 anchor refinement after eval.
+- **Aspect classifier anchors are synthetic** — 22 short verbatims approximating gaming-laptop review language. v2 anchor refinement still expected after first eval iteration; not yet executed.
 - **Sonnet gold labeling reuses the Qwen prompt verbatim** — same label space (deliberate). If Sonnet labels look weak during operator spot-check, consider a richer Sonnet-specific prompt as a separate bite.
-- **No live LLM contact yet anywhere** — all Ollama + Anthropic calls in tests are mocked. The first real Ollama hit happens when `scripts/tag.py` runs; the first real Sonnet hit when `scripts/build_gold_set.py` runs.
-- **A1 aggregator on real data** — never run on real corpus. Eight computed fields per row (`total_mentions`, `polarity_counts`, `net_sentiment`, `intensity_counts`, `verified_share`, `by_source`, `by_recency`, `mention_ids`); fixture tests cover each, but real data may surface schema-fit issues (e.g. metadata key variations across scrapers-lib sources for `verified_purchase`).
 - **scrapers-lib BestBuy URL HTML-fallback path is unit-tested but never hit production (session 7).** Both BestBuy URLs in session 7 timed out at the network layer before any HTML was returned; the new HTML-fallback regex (`"skuId":"<7d>"` via `_html_unescape`) is verified against the AREA51 fixture but unverified against live Strix HTML. Will revisit when bite 6.4 returns.
 
 ## Open items to revisit (deferred, not lost)
@@ -132,7 +114,7 @@ Added in session 6:
 - **Capability vs output aha distinction** — saved as `feedback_capability_vs_output_aha.md` (memory). Path A confirmed the capability holds; output aha requires corpus density. Apply as evaluation lens at every architectural milestone going forward.
 
 Added in session 7:
-- **scrapers-lib `_version.py` deferred bump.** Session-7's `[Unreleased]/Added` entry sits alongside pre-existing HP fetcher coverage + asus URL fix entries. Whoever cuts the next release picks the version (likely 1.2.0). Operator approved bumping in conversation but I deferred to avoid rolling pre-existing pending changes into a release decision unilaterally.
+- ~~**scrapers-lib `_version.py` deferred bump.**~~ **RESOLVED at session-9 audit start** — `_version.py` is `1.2.1` in HEAD with no working-tree diff; the bump was committed (not by us, between sessions 8 and 9). Earlier session-9 messages still reference "1.2.0 in HEAD with edit to 1.2.1" — that framing is stale.
 - **pulse-check `result_sink` does not map `('amazon', 'post')` or `('bestbuy', 'post')`.** Discovered in session 7 when Amazon Alienware fetched cleanly (HTTP 200) but ingestion rejected the row. Latent issue — these mappings were never exercised before. Fix is a small extension (10–30 lines + test); parked in bite 6.4.
 - **Amazon Strix returned HTTP 200 but parser found zero inline reviews.** Possible causes: (a) anti-bot stripped page, (b) scrapers-lib selectors stale for this product layout, (c) reviews behind a "see all reviews" link the parser doesn't follow. Diagnose in bite 6.4.
 - **BestBuy reachability from this machine.** Both URLs hit curl 28 timeout × 2 → 1h domain backoff (in scrapers-lib scheduler). Could be local network, regional IP, or Akamai escalation. Diagnose with manual curl outside scrapers-lib (and ideally from a different network) when bite 6.4 returns. Backoff auto-expires 1h after last attempt.
@@ -149,9 +131,75 @@ Added in session 8:
 - **Memory note: no auto-rerun of expensive LLM batches.** Saved as `feedback_no_auto_rerun_on_crash.md` (memory). Pause and ask before restarting expensive LLM batches after a crash.
 - **First-contact plumbing budget — pattern.** Untested end-to-end integration paths typically have 2–3 orthogonal failure classes that unit tests don't catch. Future bites that exercise a new source for the first time should budget a discovery phase before committing to "fix all then ship." Applied to bite 6.3 (YouTube): expect plumbing surprises on first run.
 
+Added in session 9:
+- **scrapers-lib test count drift +60/+1** (904 pass / 20 skipped vs 844/19 baseline at session-8 close). All green; flagged to operator. Likely external work landed in scrapers-lib between sessions. Confirm baseline before next release decision.
+- **`ruff` not installed in scrapers-lib `.venv`.** Audit check #5 couldn't run as specified. `pip install ruff` into that venv (or run via pulse-check's venv pointed at scrapers-lib paths). Non-blocking.
+- **`llm_cache` has 3 rows for `prompt_version='preview_a1_v1'`.** Session-6 row + session-9 unfiltered intermediate run row + session-9 strict-isolation final run row. The middle row is an orphan — won't be re-hit, but never-evict is by design (audit trail per ARCHITECTURE §3.4). Cosmetic; flag if it grows unbounded across many preview-brief regens.
+- **PRIMARY aspect_tag count drift between sessions, attributable to within-response dedup.** Session 5 produced ~82 PRIMARY aspect_tags; session 8 closed at 71 PRIMARY. Difference is the dedup fix in `parse_response` (session 8) which removed duplicate (mention, aspect) tuples that were previously surviving as separate rows. Expected, not a regression. Implication: re-runs of `aggregate_a1` against historical aspect_tag sets won't reproduce exact session-5 row contents — minor caveat for any future "byte-identical reproducibility" check on PRIMARY values.
+- **`runs` table still empty** despite 22 aggregates_aspect_sku rows referencing `run_id='smoke_test'`. Carry-forward from session 6; SQLite doesn't enforce FK by default. Not blocking; flag if a future bite assumes joinability.
+
 ---
 
 ## Session history (newest first)
+
+### 2026-05-07 — session 9: Option 3 — A1 aggregate PRIMARY/SECONDARY dual-track (migration + aggregator + tests + ARCHITECTURE + preview-brief renderer/strict-isolation filter); live rerun + brief regen
+
+**Context entering.** Session 8 closed at Wave 2 ~70% with Option 3 locked at session close: dual-track PRIMARY/SECONDARY columns on `aggregates_aspect_sku`, run arithmetic twice, expose both buckets to `preview_brief.py`. Three sub-decisions to settle at session-9 audit close: (a) field scope — 4 baseline vs 8 full parity; (b) naming — `*_secondary` suffix vs nested JSON; (c) virtual `total_mentions_combined`.
+
+**Audit pass.** GREEN with three housekeeping notes. pulse-check 225 pass · mypy 34 files clean · ruff clean. **scrapers-lib 904 pass · 20 skipped** (drift +60/+1 vs 844/19 baseline; flagged, all green). **scrapers-lib `_version.py` already `1.2.1` in HEAD with no working-tree diff** — session-7/8's two-pending-releases open item resolved (committed between sessions, not by us). ruff not installed in scrapers-lib `.venv` — check #5 couldn't run. DB sanity matched expected (mentions=1143, attributions 39P/1341S, content_type 46/999/98, aspect_tags 649, aggregates 18, alembic `4f5dc2929a19`, gold-set 28, brief artifact present). Code read-through on session-8 edits all PASS.
+
+**Option 3 sub-decisions confirmed.** (a) Full 8 fields. (b) `*_secondary` suffix. (c) NO virtual `total_mentions_combined` — preserves no-hidden-weighting principle. Rationale per session-8 plan: storage cost trivial at ~22 rows; SQL legibility favors suffix; bucketed display lets UI/operator decide aggregation explicitly.
+
+**Implementation.**
+- **Migration `b8560c93bbd8`** — generated via `alembic revision`, then hand-written `upgrade()`/`downgrade()`. `batch_alter_table` adds 8 columns NOT NULL with server defaults: `total_mentions_secondary` (Integer, `0`), `polarity_counts_secondary` (JSON, `'{}'`), `net_sentiment_secondary` (Float, `0.0`), `intensity_counts_secondary` (JSON, `'{}'`), `verified_share_secondary` (Float, `0.0`), `by_source_secondary` (JSON, `'{}'`), `by_recency_secondary` (JSON, `'{}'`), `mention_ids_secondary` (JSON, `'[]'`). `down_revision = 4f5dc2929a19`.
+- **`pulse_check/storage/models.py`** — `AggregateAspectSku` gains the 8 mirror columns with both Python `default` (`0` / `0.0` / `dict` / `list`) and SQL `server_default` matching the migration. Imports `text` from `sqlalchemy`.
+- **`pulse_check/aggregation/a1.py`** — extracted `_compute_bucket(tags, mentions, now) -> _BucketResult` helper to factor out the shared 8-field arithmetic; added `_empty_bucket()` for the zero-state. `aggregate_a1` builds `primary_pairs` and `secondary_pairs_all` from `mention_attributions`, derives `secondary_pairs = secondary_pairs_all − primary_pairs` (PRIMARY precedence on dual-attributed pairs), partitions tags accordingly, runs `_compute_bucket` twice per `(product, aspect)` and emits one row carrying both halves. `BatchAggregateStats` gained `mentions_contributing_secondary` (default 0, preserves back-compat). Updated docstring to describe both buckets and the empty-side semantics. Idempotent delete-then-insert preserved.
+- **`tests/unit/aggregation/test_a1.py`** — 12 → **17 tests**. Renamed legacy `test_aggregate_a1_skips_secondary_attributions` → `test_aggregate_a1_routes_primary_and_secondary_into_separate_buckets` with new SECONDARY-bucket assertions on top of the existing primary ones. New tests: `_primary_only_leaves_secondary_columns_empty` (legacy preserved), `_secondary_only_path` (PRIMARY zeros + SECONDARY populated), `_primary_takes_precedence_over_secondary_pair` (no double-count), `_skips_secondary_for_out_of_scope_products`, `_idempotent_rerun_with_both_buckets`. Updated coverage docstring.
+- **`scripts/preview_brief.py`** — `_render_markdown` extended to take `aggregates` and append a "Secondary signal (comment threads; not cited in body):" sidebar listing `aspect: primary=N · secondary=M (net_sentiment_secondary=X)` for any aspect with `total_mentions_secondary > 0`. **Strict-isolation fix** (operator-confirmed mid-session): `_build_prompts` and `_collect_verbatims` filter to `total_mentions > 0` before constructing the LLM payload + verbatim corpus, since SECONDARY-only rows have empty PRIMARY `mention_ids` (no cite-able verbatims) and would just churn the cache as the SECONDARY corpus grows. PROMPT_VERSION unchanged.
+- **`docs/ARCHITECTURE.md`** — §3.3 dual-track table (8 PRIMARY rows + 8 `*_secondary` rows) + intro paragraph explaining the bucketed semantics and no-combined principle; §5 tertiary-attribution paragraph (parent-link comment-inheritance via `metadata_["parent_id"]`); §6.1 Haiku-deviation pointer to §6.5; new §6.5 "Haiku — batch classifiers" covering `tag_mention_aspects` + `classify_content_type`; §7.1 algorithm rewritten for partition-then-twice (PRIMARY precedence note included).
+
+**Verification.**
+- pulse-check **230 pass** (was 225; +5 new tests) · mypy clean on 34 source files · ruff clean. scrapers-lib unchanged.
+- `alembic upgrade head` ran cleanly: `4f5dc2929a19 → b8560c93bbd8`. `aggregates_aspect_sku` now has 21 columns (was 13); existing 18 rows got server-default zero/empty values.
+- **Live `aggregate_a1` rerun** (free, local, no LLM): `BatchAggregateStats(groups_seen=22, aggregates_upserted=22, mentions_contributing=71, mentions_contributing_secondary=578)`. 18 → **22 rows** (4 new SECONDARY-only `(product, aspect)` pairs, e.g. `support_warranty: primary=0 / secondary=5`). PRIMARY mentions_contributing=71 preserved exactly vs pre-Option-3 baseline; PRIMARY columns unchanged per row. Sample divergence flagging dual-track value:
+  - `rog_strix_g16` aesthetics: PRIMARY 1 / SECONDARY 91; net_sentiment −1.0 / **−0.33**.
+  - `rog_strix_g16` price_value: PRIMARY 17 / SECONDARY 77; net_sentiment +0.59 / **−0.18** (most striking divergence — comment threads disagree with post sentiment on price).
+  - `rog_strix_g16` keyboard: PRIMARY 1 / SECONDARY 52; net_sentiment 0.0 / **−0.48**.
+  - `alienware_16_aurora` price_value: PRIMARY 6 / SECONDARY 45; +0.67 / +0.07.
+
+**Brief regeneration.** Two passes during the session:
+1. **First pass (intermediate, before strict-isolation fix):** `data/preview_briefs/alienware_16_aurora_20260507T185904Z.md`. Cache miss vs session-6 row (~17s Sonnet HTTP). Citation integrity 7/0. Sidebar rendered. Findings cycled vs session-6 (`price_value / build_quality / display` → `price_value / display / performance`). Ruled "narrative variance, not regression" but flagged as input-side noise: SECONDARY-only rows leaked into LLM payload as zero-count entries.
+2. **Second pass (after strict-isolation filter):** `data/preview_briefs/alienware_16_aurora_20260507T203215Z.md`. Cache miss again (~17s) — operator hypothesis "filter restores session-6 cache hit" disproven. Diagnosis: PRIMARY data did drift between session-6 and session-9, not from Option 3 but from the session-8 within-response dedup re-tag (PRIMARY aspect_tags 82 → 71 as duplicate `(mention, aspect)` tuples were pruned). Different PRIMARY counts per aspect → different aggregates → different LLM payload. Cache miss is correct given the data shift; the filter is still load-bearing for **future** SECONDARY-only row additions which won't churn the cache. Citation integrity 8/0. Sidebar rendered. Today's run is the new session-9 baseline cache row.
+
+**Mid-session decision: strict isolation in `_build_prompts` + `_collect_verbatims`.** Operator picked stance (i) over (ii) "leave as-is" after I surfaced the cache-miss-after-row-set-growth issue. Reasoning: defensive against future drift, no semantic change for this run (zero-count rows weren't driving findings anyway), small ~5-line edit. Memory not added — single-session call, not a generalizable rule.
+
+**Key decisions (all flagged in-conversation when made).**
+- Option 3 sub-decisions (a) full 8 / (b) suffix / (c) no virtual — operator confirmed; rationale recorded above.
+- PRIMARY precedence on dual-attributed `(mention, product)` pairs (`secondary_pairs = SECONDARY-all − primary_pairs`) — preserves "every mention = 1.0".
+- Strict-isolation filter on `_build_prompts` + `_collect_verbatims` — applied mid-session after cache-miss diagnosis.
+- Live `aggregate_a1` rerun authorized as part of "go" since it's local + free; preview-brief regens authorized per operator request and explicitly held back behind separate confirmation given Sonnet $.
+- `_version.py` open item ruled resolved at audit, not deferred again — it was already done in HEAD.
+
+**Artifacts created/modified (session 9).**
+- `alembic/versions/b8560c93bbd8_add_aggregate_a1_secondary_bucket_.py` (new).
+- `pulse_check/storage/models.py` (+8 columns, `text` import).
+- `pulse_check/aggregation/a1.py` (full rewrite of body; new helpers; `BatchAggregateStats` extension).
+- `tests/unit/aggregation/test_a1.py` (rename + 5 new tests + docstring update).
+- `scripts/preview_brief.py` (sidebar render + strict-isolation filters).
+- `docs/ARCHITECTURE.md` (5 sections updated: §3.3 table+intro, §5 tertiary paragraph, §6.1 deviation note, new §6.5, §7.1 algorithm).
+- `data/pulse_check.db` — 22 aggregate rows (was 18); 8 new columns populated.
+- `data/preview_briefs/alienware_16_aurora_20260507T185904Z.md` (intermediate, orphan cache row).
+- `data/preview_briefs/alienware_16_aurora_20260507T203215Z.md` (final, current baseline).
+- Sonnet spend: 2× preview-brief calls (~$0.05 each, both cache miss). No Haiku spend (session-8 already covered the 1143-mention classify+tag pass).
+
+**Final regression baselines.**
+- pulse-check: **230 pass · mypy clean on 34 source files · ruff clean.**
+- scrapers-lib: 904 pass · 20 skipped · ruff blocked by missing install (audit flag, not a session-9 regression).
+- Alembic head: **`b8560c93bbd8`**.
+
+**Session closed at Wave 2 ~75%.** Output aha unlocked at the aggregate layer (PRIMARY/SECONDARY divergence visible per row); preview brief renders the sidebar over real data; ARCHITECTURE catches up to the past three sessions of deviations (Haiku swap, content-type gate, comment-inheritance, dual-track). Synthesis architecture (Haiku dedup → Sonnet selector → brief writer → citation validator) is the natural next bite to productionize what `preview_brief.py` previewed; YouTube (bite 6.3) and retailer (bite 6.4) and backend/frontend Wave 2 finish are also viable. Next session resumes with audit pass per the standard handoff pattern, then operator picks the bite.
+
+---
 
 ### 2026-05-07 — session 8: bite 6.2-revised (Reddit-deepen via orchestrator extension + scrapers-lib `emit_all_comments` + comment inheritance) + Option 3 lock
 

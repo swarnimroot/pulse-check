@@ -7,11 +7,17 @@ Coverage priorities:
 - verified_share counts metadata_["verified_purchase"] is True; missing key is False
 - by_source carries per-source totals + polarity_counts
 - by_recency buckets correctly across all 5 buckets including unknown
-- SECONDARY attributions ignored (A1 is primary-only)
 - Out-of-scope products skipped
 - (taxonomy_version, prompt_version) filter scoped correctly
 - Idempotent rerun produces the same row count + values
 - Empty product set / no matching tags → no-op
+- Option 3 dual-track:
+  - PRIMARY-only path: SECONDARY columns zero/empty (legacy preserved)
+  - SECONDARY-only path: PRIMARY columns zero/empty, SECONDARY populated
+  - Mixed path: both buckets populated independently for the same (P, A)
+  - PRIMARY precedence: a (mention, product) attributed both ways lands in PRIMARY only
+  - SECONDARY out-of-scope products excluded
+  - Idempotent rerun preserves both buckets
 """
 
 from __future__ import annotations
@@ -367,11 +373,15 @@ def test_aggregate_a1_by_recency_buckets(session: Session) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Secondary attributions excluded
+# Option 3 — dual-track PRIMARY / SECONDARY buckets
 # ---------------------------------------------------------------------------
 
 
-def test_aggregate_a1_skips_secondary_attributions(session: Session) -> None:
+def test_aggregate_a1_routes_primary_and_secondary_into_separate_buckets(
+    session: Session,
+) -> None:
+    """A SECONDARY-attributed mention now contributes to *_secondary columns
+    rather than being silently dropped (pre-Option-3 behavior)."""
     _make_run(session)
     _make_product(session, "aw16")
     _make_mention(session, "primary_m", published_at=_NOW - timedelta(days=10))
@@ -393,9 +403,20 @@ def test_aggregate_a1_skips_secondary_attributions(session: Session) -> None:
     session.commit()
 
     assert stats.aggregates_upserted == 1
+    assert stats.mentions_contributing == 1
+    assert stats.mentions_contributing_secondary == 1
     row = _rows_by_key(session)[("aw16", "keyboard")]
+    # PRIMARY bucket (legacy columns)
     assert row.total_mentions == 1
     assert row.mention_ids == ["primary_m"]
+    assert row.polarity_counts == {"negative": 0, "neutral": 0, "positive": 1}
+    assert row.net_sentiment == 1.0
+    # SECONDARY bucket
+    assert row.total_mentions_secondary == 1
+    assert row.mention_ids_secondary == ["secondary_m"]
+    assert row.polarity_counts_secondary == {"negative": 1, "neutral": 0, "positive": 0}
+    assert row.net_sentiment_secondary == -1.0
+    assert row.intensity_counts_secondary == {"low": 0, "medium": 0, "high": 1}
 
 
 # ---------------------------------------------------------------------------
@@ -544,3 +565,191 @@ def test_aggregate_a1_empty_product_set_is_noop(session: Session) -> None:
     )
     session.commit()
     assert stats == BatchAggregateStats(0, 0, 0)
+
+
+# ---------------------------------------------------------------------------
+# Option 3 — additional dual-track coverage
+# ---------------------------------------------------------------------------
+
+
+def test_aggregate_a1_primary_only_leaves_secondary_columns_empty(
+    session: Session,
+) -> None:
+    """Legacy-shape input (PRIMARY-only, no SECONDARY anywhere) writes zero
+    SECONDARY fields and an empty SECONDARY mention_ids list."""
+    _make_run(session)
+    _make_product(session, "aw16")
+    _make_mention(session, "m1", published_at=_NOW - timedelta(days=10))
+    _attach(session, "m1", "aw16", attribution_type=AttributionType.PRIMARY)
+    _tag(session, "m1", "aw16", Aspect.THERMALS, Polarity.NEGATIVE, Intensity.HIGH)
+    session.flush()
+
+    stats = aggregate_a1(
+        session,
+        run_id=_RUN,
+        product_ids=["aw16"],
+        taxonomy_version=_TAX,
+        prompt_version=_PROMPT,
+        now=_NOW,
+    )
+    session.commit()
+
+    assert stats.mentions_contributing == 1
+    assert stats.mentions_contributing_secondary == 0
+    row = _rows_by_key(session)[("aw16", "thermals")]
+    assert row.total_mentions == 1
+    assert row.total_mentions_secondary == 0
+    assert row.polarity_counts_secondary == {"negative": 0, "neutral": 0, "positive": 0}
+    assert row.intensity_counts_secondary == {"low": 0, "medium": 0, "high": 0}
+    assert row.net_sentiment_secondary == 0.0
+    assert row.verified_share_secondary == 0.0
+    assert row.by_source_secondary == {}
+    assert row.by_recency_secondary == {
+        "0_30": 0, "30_90": 0, "90_180": 0, "180_plus": 0, "unknown": 0,
+    }
+    assert row.mention_ids_secondary == []
+
+
+def test_aggregate_a1_secondary_only_path(session: Session) -> None:
+    """A (product, aspect) with only SECONDARY contributions writes a row
+    with PRIMARY columns zero/empty and SECONDARY populated."""
+    _make_run(session)
+    _make_product(session, "aw16")
+    _make_mention(session, "s1", published_at=_NOW - timedelta(days=10))
+    _make_mention(session, "s2", published_at=_NOW - timedelta(days=20))
+    _attach(session, "s1", "aw16", attribution_type=AttributionType.SECONDARY)
+    _attach(session, "s2", "aw16", attribution_type=AttributionType.SECONDARY)
+    _tag(session, "s1", "aw16", Aspect.THERMALS, Polarity.NEGATIVE, Intensity.MEDIUM)
+    _tag(session, "s2", "aw16", Aspect.THERMALS, Polarity.POSITIVE, Intensity.LOW)
+    session.flush()
+
+    stats = aggregate_a1(
+        session,
+        run_id=_RUN,
+        product_ids=["aw16"],
+        taxonomy_version=_TAX,
+        prompt_version=_PROMPT,
+        now=_NOW,
+    )
+    session.commit()
+
+    assert stats.aggregates_upserted == 1
+    assert stats.mentions_contributing == 0
+    assert stats.mentions_contributing_secondary == 2
+    row = _rows_by_key(session)[("aw16", "thermals")]
+    # PRIMARY zero / empty
+    assert row.total_mentions == 0
+    assert row.mention_ids == []
+    assert row.net_sentiment == 0.0
+    assert row.verified_share == 0.0
+    assert row.by_source == {}
+    # SECONDARY populated
+    assert row.total_mentions_secondary == 2
+    assert sorted(row.mention_ids_secondary) == ["s1", "s2"]
+    assert row.polarity_counts_secondary == {"negative": 1, "neutral": 0, "positive": 1}
+    assert row.net_sentiment_secondary == 0.0
+    assert row.intensity_counts_secondary == {"low": 1, "medium": 1, "high": 0}
+
+
+def test_aggregate_a1_primary_takes_precedence_over_secondary_pair(
+    session: Session,
+) -> None:
+    """A (mention, product) pair with both PRIMARY and SECONDARY attribution
+    rows contributes to PRIMARY only — preserves "every mention = 1.0"."""
+    _make_run(session)
+    _make_product(session, "aw16")
+    _make_mention(session, "m1", published_at=_NOW - timedelta(days=10))
+    _attach(session, "m1", "aw16", attribution_type=AttributionType.PRIMARY)
+    _attach(session, "m1", "aw16", attribution_type=AttributionType.SECONDARY)
+    _tag(session, "m1", "aw16", Aspect.THERMALS, Polarity.NEGATIVE, Intensity.HIGH)
+    session.flush()
+
+    stats = aggregate_a1(
+        session,
+        run_id=_RUN,
+        product_ids=["aw16"],
+        taxonomy_version=_TAX,
+        prompt_version=_PROMPT,
+        now=_NOW,
+    )
+    session.commit()
+
+    row = _rows_by_key(session)[("aw16", "thermals")]
+    assert row.total_mentions == 1
+    assert row.mention_ids == ["m1"]
+    assert row.total_mentions_secondary == 0
+    assert row.mention_ids_secondary == []
+    assert stats.mentions_contributing == 1
+    assert stats.mentions_contributing_secondary == 0
+
+
+def test_aggregate_a1_skips_secondary_for_out_of_scope_products(
+    session: Session,
+) -> None:
+    """SECONDARY attributions on products outside the in-scope set are skipped,
+    matching the existing primary-side behavior."""
+    _make_run(session)
+    _make_product(session, "aw16")
+    _make_product(session, "legion")
+    _make_mention(session, "m1", published_at=_NOW - timedelta(days=10))
+    _attach(session, "m1", "legion", attribution_type=AttributionType.SECONDARY)
+    _tag(session, "m1", "legion", Aspect.THERMALS, Polarity.NEGATIVE, Intensity.HIGH)
+    session.flush()
+
+    stats = aggregate_a1(
+        session,
+        run_id=_RUN,
+        product_ids=["aw16"],  # legion not in scope
+        taxonomy_version=_TAX,
+        prompt_version=_PROMPT,
+        now=_NOW,
+    )
+    session.commit()
+
+    assert stats.aggregates_upserted == 0
+    assert _rows_by_key(session) == {}
+
+
+def test_aggregate_a1_idempotent_rerun_with_both_buckets(session: Session) -> None:
+    """Rerunning over a corpus with both PRIMARY and SECONDARY contributions
+    produces the same row count and identical bucket values."""
+    _make_run(session)
+    _make_product(session, "aw16")
+    _make_mention(session, "p1", published_at=_NOW - timedelta(days=10))
+    _make_mention(session, "s1", published_at=_NOW - timedelta(days=20))
+    _attach(session, "p1", "aw16", attribution_type=AttributionType.PRIMARY)
+    _attach(session, "s1", "aw16", attribution_type=AttributionType.SECONDARY)
+    _tag(session, "p1", "aw16", Aspect.BATTERY, Polarity.POSITIVE, Intensity.HIGH)
+    _tag(session, "s1", "aw16", Aspect.BATTERY, Polarity.NEGATIVE, Intensity.LOW)
+    session.flush()
+
+    aggregate_a1(
+        session,
+        run_id=_RUN,
+        product_ids=["aw16"],
+        taxonomy_version=_TAX,
+        prompt_version=_PROMPT,
+        now=_NOW,
+    )
+    session.commit()
+    first_count = session.query(AggregateAspectSku).count()
+    first_row = _rows_by_key(session)[("aw16", "battery")]
+    first_p_polarity = dict(first_row.polarity_counts)
+    first_s_polarity = dict(first_row.polarity_counts_secondary)
+    first_s_ids = list(first_row.mention_ids_secondary)
+
+    aggregate_a1(
+        session,
+        run_id=_RUN,
+        product_ids=["aw16"],
+        taxonomy_version=_TAX,
+        prompt_version=_PROMPT,
+        now=_NOW,
+    )
+    session.commit()
+
+    assert session.query(AggregateAspectSku).count() == first_count
+    second_row = _rows_by_key(session)[("aw16", "battery")]
+    assert dict(second_row.polarity_counts) == first_p_polarity
+    assert dict(second_row.polarity_counts_secondary) == first_s_polarity
+    assert list(second_row.mention_ids_secondary) == first_s_ids

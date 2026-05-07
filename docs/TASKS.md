@@ -1,6 +1,6 @@
 # pulse-check — Tasks
 
-**Status:** draft &nbsp;·&nbsp; **Paired docs:** [`PRD.md`](PRD.md), [`ARCHITECTURE.md`](ARCHITECTURE.md), [`TESTING.md`](TESTING.md) &nbsp;·&nbsp; **Last reconciled:** 2026-05-07 (session 8 wrap-up)
+**Status:** draft &nbsp;·&nbsp; **Paired docs:** [`PRD.md`](PRD.md), [`ARCHITECTURE.md`](ARCHITECTURE.md), [`TESTING.md`](TESTING.md) &nbsp;·&nbsp; **Last reconciled:** 2026-05-07 (session 9 wrap-up)
 
 Wave-by-wave implementation plan matching the PRD's ~7–8 week single-operator estimate. Each wave has clear outputs, specific tasks, dependencies, and exit criteria. **Wave 2 is the A1-only cutpoint** — if v1 slips, A1 alone is a defensible ship.
 
@@ -84,13 +84,13 @@ Seed-list curation is the biggest operator-side time cost outside coding. Start 
 
 **Goal:** full A1 scorecard view for a given product; classifier passes its gold-set threshold.
 
-**Status:** ~70% complete. Tagging + gold-set build + A1 aggregation done on real corpus (session 5). Content-type pre-classifier + tag-time gate (session 6, bite 6.1). Reddit-deepen via comment inheritance (session 8, bite 6.2-revised) — corpus 33 → 1143 mentions; aspect_tags 95 → 649. **Option 3 — A1 aggregate PRIMARY/SECONDARY column split — queued next** to make the SECONDARY-attributed comment corpus visible at the aggregate layer. Eval runner, full synthesis layer (clusterer / verbatim selector / brief writer / citation validator), A1 API endpoints, and scorecard frontend remain.
+**Status:** ~75% complete. Tagging + gold-set build + A1 aggregation done on real corpus (session 5). Content-type pre-classifier + tag-time gate (session 6, bite 6.1). Reddit-deepen via comment inheritance (session 8, bite 6.2-revised) — corpus 33 → 1143 mentions; aspect_tags 95 → 649. **Option 3 — A1 aggregate PRIMARY/SECONDARY column split — DONE (session 9, alembic `b8560c93bbd8`).** Aggregate rows 18 → 22; PRIMARY mentions_contributing=71 preserved, SECONDARY mentions_contributing=578 newly visible. Preview brief regenerated with sidebar. Eval runner, full synthesis layer (clusterer / verbatim selector / brief writer / citation validator), A1 API endpoints, and scorecard frontend remain.
 
-**Deviation flags (approved, ARCHITECTURE pass pending):**
-- **Session 5:** aspect classifier swapped Qwen 7B → Haiku for cost/quality. ARCHITECTURE §6.1 routing needs the deviation note.
-- **Session 6:** new Haiku content-type pre-classifier (`review|deal|other`) + `--exclude-content-types` strict gate on `tag_corpus_aspects`. ARCHITECTURE §6 needs a §6.5 Haiku-batch-classifiers entry.
-- **Session 8:** comment-inheritance attribution mechanism (parent-link-based, propagates parent-post PRIMARY → comment SECONDARY) is a third attribution path beyond ARCHITECTURE §5's primary + secondary regex sweep. Folded into ARCHITECTURE during Option 3.
-- **Session 8 (locked, queued):** Option 3 — `aggregates_aspect_sku` gains parallel SECONDARY columns; `aggregate_a1` arithmetic runs over PRIMARY and SECONDARY pools independently. ARCHITECTURE §3.3 + §7.1 update during the implementation bite.
+**Deviation flags (all approved + folded into ARCHITECTURE in session 9):**
+- ~~**Session 5:** aspect classifier swapped Qwen 7B → Haiku.~~ Folded into ARCHITECTURE §6.1 (deviation note pointing at §6.5) + §6.5 (Haiku batch classifiers table).
+- ~~**Session 6:** Haiku content-type pre-classifier + `--exclude-content-types` gate.~~ Folded into ARCHITECTURE §6.5.
+- ~~**Session 8:** comment-inheritance tertiary attribution.~~ Folded into ARCHITECTURE §5 (third paragraph).
+- ~~**Session 8 (locked, queued):** Option 3 dual-track aggregate.~~ Implemented (session 9). ARCHITECTURE §3.3 + §7.1 updated for the dual-bucket schema + algorithm.
 
 **Exit criteria:**
 - Aspect + polarity + intensity classifier reaches ≥ 80% accuracy on the aspect_tagging gold set
@@ -123,7 +123,7 @@ Seed-list curation is the biggest operator-side time cost outside coding. Start 
 **Aggregation**
 - [x] A1 aggregator — per `(run, product, aspect)` compute `aggregates_aspect_sku` rows with `mention_ids` provenance
 - [x] Unit tests — invariants (sum of polarity counts == total; provenance matches mentions)
-- [ ] **Option 3 — A1 aggregate PRIMARY/SECONDARY split.** Alembic migration adds `*_secondary` columns; `aggregate_a1` runs same arithmetic twice (PRIMARY pool + SECONDARY pool). Updates ARCHITECTURE §3.3 + §7.1 (and §5 + §6 deviation backlog). Sub-decisions before coding: which fields (4 baseline vs 8 full parity), naming convention, virtual-combined exposure. *(session 8 close, queued for session 9)*
+- [x] **Option 3 — A1 aggregate PRIMARY/SECONDARY split** — alembic `b8560c93bbd8` adds 8 `*_secondary` columns; `aggregate_a1` partitions tags PRIMARY vs SECONDARY-only (PRIMARY precedence on dual-attributed pairs), runs the 8-field arithmetic twice. ARCHITECTURE §3.3 (table + intro) + §5 (tertiary paragraph) + §6.1/§6.5 (Haiku deviations) + §7.1 (algorithm) updated. `preview_brief.py` adds sidebar + strict-isolation filter. 17 a1 tests (was 12). Live rerun: 18 → 22 rows; PRIMARY 71 preserved, SECONDARY 578 newly visible. *(session 9)*
 
 **Synthesis**
 - [ ] Haiku near-duplicate clusterer (usable for A2 too; build here so A1 can leverage)

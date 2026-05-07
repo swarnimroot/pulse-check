@@ -28,6 +28,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    text,
 )
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
@@ -306,6 +307,33 @@ class AggregateAspectSku(Base):
     by_source: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
     by_recency: Mapped[dict[str, int]] = mapped_column(JSON, nullable=False)
     mention_ids: Mapped[list[str]] = mapped_column(JSON, nullable=False)
+    # Option 3 (session 9): SECONDARY-bucket parallel of the eight primary
+    # fields above. Same semantics, computed against SECONDARY-only attributions.
+    # Zero/empty when no SECONDARY contributions for this (product, aspect).
+    total_mentions_secondary: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
+    polarity_counts_secondary: Mapped[dict[str, int]] = mapped_column(
+        JSON, nullable=False, default=dict, server_default=text("'{}'")
+    )
+    net_sentiment_secondary: Mapped[float] = mapped_column(
+        Float, nullable=False, default=0.0, server_default="0.0"
+    )
+    intensity_counts_secondary: Mapped[dict[str, Any]] = mapped_column(
+        JSON, nullable=False, default=dict, server_default=text("'{}'")
+    )
+    verified_share_secondary: Mapped[float] = mapped_column(
+        Float, nullable=False, default=0.0, server_default="0.0"
+    )
+    by_source_secondary: Mapped[dict[str, Any]] = mapped_column(
+        JSON, nullable=False, default=dict, server_default=text("'{}'")
+    )
+    by_recency_secondary: Mapped[dict[str, int]] = mapped_column(
+        JSON, nullable=False, default=dict, server_default=text("'{}'")
+    )
+    mention_ids_secondary: Mapped[list[str]] = mapped_column(
+        JSON, nullable=False, default=list, server_default=text("'[]'")
+    )
     computed_at: Mapped[datetime] = mapped_column(UtcDateTime(), default=_now_utc, nullable=False)
 
 
