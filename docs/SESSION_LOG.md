@@ -8,23 +8,30 @@ Running one-page chronicle. Updated **at session close**, when the operator says
 
 Paste at the start of your next session:
 
-> Resume pulse-check session 10. Read `CLAUDE.md` + `docs/SESSION_LOG.md`.
+> Resume pulse-check session 11. Read `CLAUDE.md` + `docs/SESSION_LOG.md`.
 >
-> **Audit session 9 before forward work.** Run regression baselines + DB sanity + code read-through per the next-session-starter checklist that was active during session 9 (see session-9 history entry below for the verbatim shape) and the "Current state" / session-9 open items below. Report deviations.
+> **Audit session 10 before forward work.** Run regression baselines + code read-through; report deviations.
+> - `pytest tests/unit/` → confirm **246 pass** (was 230 after session 9; +16 from contracts + dedup tests).
+> - `mypy pulse_check/` → confirm clean on **40 source files** (was 34; +6 synthesis modules).
+> - `ruff check pulse_check/synthesis/ tests/unit/synthesis/` → confirm clean.
+> - Read `pulse_check/synthesis/contracts.py` and `pulse_check/synthesis/dedup.py` end-to-end (both keystones for 10.3/10.4).
+> - Confirm `briefs.narrative` round-trips `BriefNarrative.model_dump()` (test `test_brief_narrative_round_trips_through_briefs_table` should still pass).
+> - Then proceed ONLY after audit is clean.
 >
-> **Then surface the bite pick.** Wave 2 ~75% after Option 3. Candidates listed in "Current state" below (Synthesis architecture · Bite 6.3 YouTube · Bite 6.4 retailer · backend/frontend Wave 2 finish). Recommend one with reasoning, wait for my call before touching code.
+> **Then surface the bite pick.** Wave 2 ~80% after synthesis skeleton + dedup. Candidates: bite 10.3 (Sonnet verbatim selector + production brief writer matching §6.3 schema; product-design questions on sparse-corpus fallback for "3 positive + 3 negative biased to high-intensity," brief section structure, empty-aspect handling — surface BEFORE code); bite 10.4 (citation validator + retry loop + `synthesize_a1` orchestrator + `scripts/synthesize.py` CLI; real Haiku+Sonnet smoke after this lands); bite 6.3 YouTube end-to-end; bite 6.4 retailer reviews (three open items unchanged); backend/frontend Wave 2 finish (operator has a claude.ai/design prototype to mimic for the BriefPanel/scorecard view — share when frontend bite starts). Recommend one with reasoning, wait for my call before touching code.
 >
 > Be very concise. Ultrathink. Use agents for read-heavy work.
 
 ## Current state
 
-- **Phase:** Wave 2 ~75%. Session 9 implemented Option 3 end-to-end — Alembic migration `b8560c93bbd8` adds eight `*_secondary` columns to `aggregates_aspect_sku`; `aggregate_a1` partitions tags into PRIMARY vs SECONDARY-only buckets (PRIMARY precedence on dual-attributed pairs) and runs the same eight-field arithmetic twice; ARCHITECTURE §3.3/§5/§6.1+§6.5/§7.1 updated to match; `preview_brief.py` adds a "Secondary signal" sidebar over the full aggregate set + filters PRIMARY-only into the LLM payload (strict isolation). Live DB rerun: 18 → **22 aggregate rows** (4 new SECONDARY-only `(product, aspect)` pairs); PRIMARY mentions_contributing=71 preserved exactly; SECONDARY mentions_contributing=578 now visible. Sample divergence: rog_strix_g16 price_value PRIMARY +0.59 vs SECONDARY −0.18 — the dual-track was load-bearing for output aha.
-- **Bite candidates for session 10** (operator picks):
-  - **Synthesis architecture** (natural Option-3 follow-on; productionizes what `preview_brief.py` previewed). Haiku near-duplicate dedup → Sonnet verbatim selector → Sonnet A1 brief writer with structured citation contract → citation validator. Estimated 2–3h.
-  - **Bite 6.3 — YouTube** end-to-end. Operator URL curation + first run; budget plumbing surprises (cf. session 7's Amazon discovery).
-  - **Bite 6.4 (still deferred) — retailer reviews.** Three open items unchanged: BestBuy network/Akamai timeout · pulse-check `result_sink` mapping for `('amazon','post')`/`('bestbuy','post')` · Amazon Strix empty-page diagnosis.
-  - **Backend/frontend Wave 2 finish.** `/products`/`/product/:id`/`/mentions`/`/brief` real handlers + frontend atoms (`VerbatimCard`, `AggregateNumber`, `EvidenceDrawer`, `BriefPanel`, `AspectRow`) + `/product/:id` page wired end-to-end + Wave 2 exit-criteria check.
-- **pulse-check: 230 unit tests passing · `mypy` clean on 34 source files · `ruff` clean.** (Was 225 at session-8 close; +5 from new dual-track tests in `test_a1.py`.)
+- **Phase:** Wave 2 ~80%. Session 9 shipped Option 3 (PRIMARY/SECONDARY dual-track aggregates). Session 10 added the synthesis package skeleton + §6.3 BriefNarrative Pydantic contracts (bite 10.1) and Haiku near-duplicate dedup with cache + validation (bite 10.2). Three pipeline modules remain skeletons (selector, brief_writer, citation_validator, orchestrator) — bites 10.3 and 10.4 will fill them. Operator decision in session 10: brief schema is §6.3 canonical (`sections/claims/cited_mention_ids`); citation validator is **soft-warn** (write the brief with `flagged_citation_issues` rather than block).
+- **Bite candidates for session 11** (operator picks):
+  - **Bite 10.3 — Sonnet selector + production brief writer.** Replaces `_build_prompts` from `preview_brief.py`. Has product-design questions to surface BEFORE code: sparse-corpus fallback for "3 positive + 3 negative biased to high-intensity," brief section structure (one section per aspect with mentions vs LLM-decided), empty-aspect handling. Estimated 2–3h.
+  - **Bite 10.4 — citation validator + orchestrator + CLI.** Soft-warn validator (4 checks per TESTING §6) + retry loop + `synthesize_a1` orchestrator + `scripts/synthesize.py` CLI. After this lands, full pipeline is ready for a real Haiku+Sonnet smoke on the 71-mention PRIMARY pool. Estimated ~2h.
+  - **Bite 6.3 — YouTube** end-to-end. Operator URL curation + first run; budget plumbing surprises.
+  - **Bite 6.4 (still deferred) — retailer reviews.** Three open items unchanged.
+  - **Backend/frontend Wave 2 finish.** `/products`/`/product/:id`/`/mentions`/`/brief` real handlers + frontend atoms + `/product/:id` page. Operator has a claude.ai/design prototype to mimic exactly for the BriefPanel/scorecard view — to be shared when frontend bite starts.
+- **pulse-check: 246 unit tests passing · `mypy` clean on 40 source files · `ruff` clean.** (Was 230 / 34 at session-9 close; +16 tests from `test_contracts.py` (7) + `test_dedup.py` (9); +6 mypy files from new synthesis modules.)
 - **scrapers-lib: 904 unit tests passing · 20 skipped · ruff clean on edited files.** Drift +60/+1 vs the older 844/19 baseline — flagged in session 9 audit; non-blocking (all green). `_version.py` is **`1.2.1` in HEAD with no working-tree diff** — the deferred-bump open item from sessions 7/8 is **resolved** (already committed; not by us).
 - **Capability + output aha both demonstrated for A1.** Session 8 unlocked density (33→1143 mentions); session 9 unlocks output aha (PRIMARY/SECONDARY divergence visible at the aggregate layer). Brief regenerated successfully with sidebar (citation integrity 8/0).
 - **Real corpus state:** 1143 mentions (33 reddit_post + 1110 reddit_comment) · 1380 mention_attributions (39 PRIMARY + 1341 SECONDARY) · 1143 content_type_tags (46 deal / 999 other / 98 review) · 649 aspect_tags (71 PRIMARY + 578 SECONDARY) · **22 aggregate rows** (was 18 pre-Option-3; +4 SECONDARY-only) · 28-entry gold-set JSONL unchanged · 3 preview-brief artifacts for `alienware_16_aurora` (session-6 + two from session 9; latest `alienware_16_aurora_20260507T203215Z.md`) · `llm_cache` has 3 rows for `prompt_version='preview_a1_v1'` (audit-trail; one orphan from the session-9 unfiltered intermediate run, harmless per the never-evict design).
@@ -56,10 +63,17 @@ Paste at the start of your next session:
     - **`docs/ARCHITECTURE.md`** — §3.3 dual-track table + intro paragraph; §5 tertiary-attribution paragraph (comment-inheritance via `metadata_["parent_id"]`); §6.1 Haiku-deviation pointer; new §6.5 Haiku batch-classifiers; §7.1 split-and-aggregate-twice algorithm.
     - **Live DB rerun:** `aggregate_a1` invoked once on the live corpus → 18 → **22 rows** (4 new SECONDARY-only `(product, aspect)` pairs). `mentions_contributing=71` preserved exactly; `mentions_contributing_secondary=578` newly visible. Sample divergence: `rog_strix_g16` price_value PRIMARY +0.59 vs SECONDARY −0.18; `rog_strix_g16` keyboard PRIMARY 0.0 / SECONDARY −0.48 (52 mentions).
     - **Brief regenerated:** `data/preview_briefs/alienware_16_aurora_20260507T203215Z.md` · 8 cited / 0 fabricated · sidebar rendered. Cache miss vs session-6 row was expected and explained — see "Open items added in session 9".
+  - **Synthesis architecture — bites 10.1 + 10.2 (session 10):**
+    - **`pulse_check/synthesis/contracts.py` (new)** — Pydantic v2 models locking the §6.3 brief shape: `Claim` (claim_text + cited_mention_ids ≥ 1), `BriefSection` (heading + claims ≥ 1), `BriefNarrative` (brief_title + sections ≥ 1). Plus `NumericalDrift` and `ValidationResult` (is_valid + four lists for fabricated/out-of-context/numerical-drift/empty-claims violations) for the citation validator.
+    - **`pulse_check/synthesis/{dedup,selector,brief_writer,citation_validator,orchestrator}.py`** — module skeletons each with typed signatures + docstrings + `raise NotImplementedError("... sub-bite 10.x")`. `__init__.py` re-exports contracts.
+    - **`tests/unit/synthesis/test_contracts.py` (new, 7 tests)** — `BriefNarrative.model_dump()` round-trips through `briefs.narrative` JSON column; Pydantic rejects empty citation list / empty text / empty claims / empty sections; `ValidationResult` defaults + drift payload.
+    - **`pulse_check/synthesis/dedup.py`** — `cluster_near_duplicates(session, mentions, *, client, prompt_version="a1_dedup_v1") -> dict[str, str]`. Routed to Haiku (`claude-haiku-4-5-20251001`), temperature=0.0, max_tokens=4096; uses `call_with_cache` for deterministic re-runs. Edge cases short-circuit without LLM call: empty list → `{}`, single mention → `{m.mention_id: "c0"}`. Validation: input/output mention_id sets must match exactly. Cluster IDs normalized to opaque `c0`, `c1`, ... in first-seen-in-input order. `client: AnthropicClient` is a required keyword arg (inversion-of-control for tests; was NOT in the 10.1 skeleton).
+    - **`tests/unit/synthesis/test_dedup.py` (new, 9 tests, mocked client)** — edge-case short-circuits; 3 distinct → 3 unique clusters; 2 paraphrases + 1 distinct collapse correctly; second call hits cache (`generate_json.call_count == 1`); validation errors on missing/extra mention IDs; malformed JSON variants.
+    - **No DB migration** — existing `briefs.narrative` JSON column accepts the shape. **No real Haiku call yet** — dedup is unit-tested with mocks only; real-corpus smoke deferred to 10.4 close.
 - **Not yet started (Wave 2 remainder, prioritized):**
   - **Bite 6.3 — YouTube:** operator URL-seed curation + first end-to-end YouTube fetcher exercise (expect plumbing gaps similar to session-7's Amazon discovery).
   - **Bite 6.4 (deferred) — retailer reviews:** three open items parked — BestBuy network/Akamai timeout diagnostics; pulse-check `result_sink` mapping for `('amazon','post')` and `('bestbuy','post')`; Amazon Strix empty-review-page diagnosis.
-  - Synthesis architecture: Haiku dedup + Sonnet verbatim selector + Sonnet A1 brief writer + citation validator (gated on corpus density).
+  - Synthesis architecture remainder: Sonnet verbatim selector + Sonnet A1 brief writer (bite 10.3) + citation validator + retry loop + `synthesize_a1` orchestrator + `scripts/synthesize.py` CLI (bite 10.4). 10.1 (skeleton + contracts) and 10.2 (Haiku dedup) shipped session 10.
   - Backend `/products`, `/product/:id`, `/mentions?ids=...`, `/brief/:id` real handlers.
   - Frontend atoms (`VerbatimCard`, `AggregateNumber`, `EvidenceDrawer`, `BriefPanel`, `AspectRow`).
   - `/product/:id` page wired end-to-end + Wave 2 exit-criteria check.
@@ -138,9 +152,49 @@ Added in session 9:
 - **PRIMARY aspect_tag count drift between sessions, attributable to within-response dedup.** Session 5 produced ~82 PRIMARY aspect_tags; session 8 closed at 71 PRIMARY. Difference is the dedup fix in `parse_response` (session 8) which removed duplicate (mention, aspect) tuples that were previously surviving as separate rows. Expected, not a regression. Implication: re-runs of `aggregate_a1` against historical aspect_tag sets won't reproduce exact session-5 row contents — minor caveat for any future "byte-identical reproducibility" check on PRIMARY values.
 - **`runs` table still empty** despite 22 aggregates_aspect_sku rows referencing `run_id='smoke_test'`. Carry-forward from session 6; SQLite doesn't enforce FK by default. Not blocking; flag if a future bite assumes joinability.
 
+Added in session 10:
+- **Dedup prompt is unit-tested with mocks, not validated against live Haiku.** `cluster_near_duplicates` has 9 unit tests covering schema/cache/validation, but the prompt itself (`a1_dedup_v1`) has never seen real Haiku output. First real call (in bite 10.4 smoke) needs an eyeball check on cluster quality on the 71-mention PRIMARY pool — especially the "don't cluster opposite-polarity mentions on the same topic" rule, which is the single most fragile constraint.
+- **10.1 skeleton signatures don't include `client: AnthropicClient`.** Bite 10.2 added `client` as a required keyword arg on `cluster_near_duplicates` for inversion-of-control. Bites 10.3 (selector, brief_writer) and 10.4 (citation_validator does NOT need it; orchestrator constructs internally) will need similar updates. Watch for the deviation when filling the skeletons; current skeleton signatures will need a small contract bump.
+- **`flagged_citation_issues` field is on the validator's `ValidationResult` but not on `briefs.narrative` schema yet.** Soft-warn policy says the orchestrator surfaces violations on the persisted brief. Implementation question for 10.4: encode under `narrative["flagged_citation_issues"]` (no migration; JSON-flexible) vs add a new `briefs` column (migration). Operator did not pre-decide; flag at 10.4 start.
+- **Mid-session scope bump.** Session 10 scope was originally locked to "10.1 only" via AskUserQuestion at session start, then bumped to "10.1 + 10.2" mid-session via "commit all and move forward." Both bites landed clean; bumping was the right call. Note for future: mid-session scope changes are fine when the prior bite went clean and momentum is clear, but the session log should record the bump explicitly so the rationale survives.
+
 ---
 
 ## Session history (newest first)
+
+### 2026-05-07 — session 10: synthesis package skeleton + §6.3 brief contracts (bite 10.1) + Haiku near-duplicate dedup (bite 10.2); +16 unit tests, +6 mypy files, all green
+
+**Context entering.** Session 9 closed at Wave 2 ~75% with Option 3 shipped (PRIMARY/SECONDARY dual-track aggregates) but **work was sitting uncommitted** on the working tree. First action of session 10 was to commit it (`8d6304d`). Synthesis architecture queued as the natural Option-3 follow-on — productionize what `preview_brief.py` previewed.
+
+**Audit pass.** GREEN. pulse-check 230 pass · mypy 34 files clean · ruff clean. Session-9 diff cross-checked against SESSION_LOG narrative — no divergence. One audit-flagged risk (session-9 work entirely uncommitted) resolved by committing.
+
+**Plan agent on synthesis architecture.** Read PRD/ARCHITECTURE/TASKS/SESSION_LOG + `scripts/preview_brief.py` + `pulse_check/synthesis/anthropic_client.py` + `pulse_check/llm_cache/cache.py`. State of layer: `llm_cache` + `briefs` table + `synthesis/anthropic_client.py` exist; net-new: dedup, selector, production brief writer (prototype uses wrong schema), citation validator. Proposed 4 sub-bites (10.1 skeleton + contracts → 10.2 Haiku dedup → 10.3 Sonnet selector + brief writer → 10.4 citation validator + orchestrator). Recommended starter: 10.1, ~1.5h, no LLM spend.
+
+**Operator decisions (3, all approved before code):**
+- (a) **Brief schema:** §6.3 canonical `sections/claims/cited_mention_ids` (over the prototype's flat `headline/findings/watchout`). Wave 4 frontend was designed against §6.3.
+- (b) **Citation validator:** **soft-warn** (write the brief with `flagged_citation_issues` field) over hard-fail. Small corpus + ±5% drift on counts will be brittle from Sonnet; soft-warn lets the operator read the warning rather than block the brief.
+- (c) **Session 10 scope:** initially "10.1 only," bumped mid-session to "10.1 + 10.2" via "commit all and move forward," then wrapped before 10.3 (which has product-design questions deserving fresh-context conversation).
+
+**Bite 10.1 — synthesis package skeleton + §6.3 contracts.**
+- **`pulse_check/synthesis/contracts.py` (new)** — Pydantic v2 models. `Claim` (claim_text + cited_mention_ids ≥ 1), `BriefSection` (heading + claims ≥ 1), `BriefNarrative` (brief_title + sections ≥ 1) — exact §6.3 shape. Plus `NumericalDrift` and `ValidationResult` for the citation validator.
+- **Skeleton modules** — `synthesis/{dedup,selector,brief_writer,citation_validator,orchestrator}.py`, each typed signature + docstring + `raise NotImplementedError("... sub-bite 10.x")`.
+- **`pulse_check/synthesis/__init__.py`** — re-exports contracts.
+- **`tests/unit/synthesis/test_contracts.py` (new, 7 tests)** — `BriefNarrative.model_dump()` round-trips through `briefs.narrative` JSON column; Pydantic rejects empty citation list / empty text / empty claims / empty sections; `ValidationResult` defaults + drift payload.
+- **No DB migration** — existing `briefs.narrative` JSON column accepts the shape.
+
+**Bite 10.2 — Haiku near-duplicate dedup.**
+- **`pulse_check/synthesis/dedup.py`** — `cluster_near_duplicates(session, mentions, *, client, prompt_version="a1_dedup_v1") -> dict[str, str]`. Routed to Haiku (`claude-haiku-4-5-20251001`), temperature=0.0, max_tokens=4096; uses `call_with_cache` for deterministic re-runs. Edge cases short-circuit without LLM call (empty list → `{}`, single mention → `{m.mention_id: "c0"}`). Cache payload sorted by mention_id for stability across mention-list orderings. Validation: input/output mention_id sets must match exactly; raises `LlmResponseError` on missing/extra IDs or non-list `assignments`. Cluster IDs normalized to opaque `c0`, `c1`, ... in first-seen-in-input order so downstream code is decoupled from Haiku's free-form labels. Added `client: AnthropicClient` as a required keyword arg (inversion-of-control for tests; was NOT in the 10.1 skeleton signature).
+- **`tests/unit/synthesis/test_dedup.py` (new, 9 tests, mocked client)** — edge-case short-circuits (no SDK call); 3-distinct → 3 unique clusters; 2 paraphrases + 1 distinct collapse correctly; second call hits cache (`generate_json.call_count == 1`); validation errors on missing/extra mention IDs; malformed JSON variants (non-object, non-list assignments).
+- **No real Haiku call yet** — 10.2 is unit-tested with mocks. Real-corpus smoke deferred to 10.4 close.
+
+**Final regression at session close:** `pytest tests/unit/` → **246 pass** (was 230; +16 from contracts + dedup tests). `mypy pulse_check/` → clean on **40 source files** (was 34; +6 synthesis modules). `ruff check` → clean.
+
+**Commits:**
+- `8d6304d` — Session 9 work (committed at session 10 open).
+- `e60dd95` — Session 10 bite 10.1: synthesis package skeleton + §6.3 brief contracts.
+- `0b4bb9e` — Session 10 bite 10.2: Haiku near-duplicate dedup with cache + validation.
+
+**Deferred to session 11:** Bite 10.3 (Sonnet selector + production brief writer; product-design questions on sparse-corpus fallback + brief structure + empty-aspect handling) and bite 10.4 (citation validator + retry loop + `synthesize_a1` orchestrator + `scripts/synthesize.py` CLI). Operator's frontend prototype from claude.ai/design (BriefPanel/scorecard mimic) is queued for the frontend bite — to be shared when that bite starts.
 
 ### 2026-05-07 — session 9: Option 3 — A1 aggregate PRIMARY/SECONDARY dual-track (migration + aggregator + tests + ARCHITECTURE + preview-brief renderer/strict-isolation filter); live rerun + brief regen
 
