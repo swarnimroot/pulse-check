@@ -31,6 +31,7 @@ from scrapers_lib import ProductSnapshot, RawMention, Scheduler
 # every enqueued job fails with "no fetcher for source ...".
 from scrapers_lib.tier1 import article, reddit, rss, youtube  # noqa: F401
 from scrapers_lib.tier3 import amazon, bestbuy  # noqa: F401
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from pulse_check.config.models import ProductConfig, ProductSet, RunConfig
@@ -39,9 +40,14 @@ from pulse_check.scraping.attribution import (
     SecondaryAttributionStats,
     apply_secondary_attribution,
 )
+from pulse_check.scraping.comment_inheritance import (
+    CommentInheritanceStats,
+    apply_comment_inheritance,
+)
 from pulse_check.scraping.ingester import IngestStats, ingest_batch
 from pulse_check.settings import get_settings
-from pulse_check.storage.models import Product
+from pulse_check.storage.enums import AttributionType, SourceType
+from pulse_check.storage.models import Mention, MentionAttribution, Product
 
 log = logging.getLogger(__name__)
 
@@ -52,7 +58,7 @@ def run_scrape(
     product_set: ProductSet,
     *,
     state_file: str | Path | None = None,
-) -> tuple[IngestStats, SecondaryAttributionStats]:
+) -> tuple[IngestStats, SecondaryAttributionStats, CommentInheritanceStats]:
     """Drain a full scrape for the given run config and persist to `session`.
 
     The caller owns the session's transaction lifetime. A fresh Scheduler is
@@ -75,20 +81,36 @@ def run_scrape(
     try:
         _enqueue_all_sources(scheduler, run_config, product_set)
         scheduler.run_worker(mode="until_empty")
+
+        # Reddit-deepen pass: pull comment trees on every primary-attributed
+        # reddit_post already in the DB (including ones just ingested above).
+        # Operates DB-side so re-runs deepen the corpus from prior scrapes too.
+        reddit_window = run_config.source_windows.reddit
+        if reddit_window is not None and reddit_window.enabled:
+            followups = _enqueue_reddit_comment_followups(
+                scheduler, session, product_set
+            )
+            if followups > 0:
+                scheduler.run_worker(mode="until_empty")
     finally:
         scheduler.close()
 
     secondary_stats = apply_secondary_attribution(session, product_set)
     session.commit()
 
+    inheritance_stats = apply_comment_inheritance(session)
+    session.commit()
+
     log.info(
-        "scrape complete: mentions new=%d existing=%d; attributions primary=%d secondary=%d",
+        "scrape complete: mentions new=%d existing=%d; "
+        "attributions primary=%d secondary=%d inherited=%d",
         ingest_stats.new_mentions,
         ingest_stats.existing_mentions,
         ingest_stats.new_attributions,
         secondary_stats.new_attributions,
+        inheritance_stats.new_attributions,
     )
-    return ingest_stats, secondary_stats
+    return ingest_stats, secondary_stats, inheritance_stats
 
 
 def _upsert_products(session: Session, product_set: ProductSet) -> None:
@@ -227,3 +249,45 @@ def _single_anchor(product: ProductConfig) -> object | None:
 def _reddit_url(subreddit: str) -> str:
     sub = subreddit.removeprefix("r/").removeprefix("/r/")
     return f"https://www.reddit.com/r/{sub}/"
+
+
+def _enqueue_reddit_comment_followups(
+    scheduler: Scheduler, session: Session, product_set: ProductSet
+) -> int:
+    """Enqueue `fetch_reddit_comments` for every distinct source_url of
+    primary-attributed reddit_post mentions in the DB. Returns the job count.
+
+    Anchors are passed identical to the listing pass so each comment runs
+    through scrapers-lib's per-item regex attribution (`_fan_out`); a comment
+    discussing a different product than the parent post lands attributed
+    correctly on its own merit. Idempotent at the ingest layer (mention_id
+    upsert), so re-running is safe.
+    """
+    all_anchors = to_anchors(product_set)
+    if not all_anchors:
+        return 0
+
+    rows = session.execute(
+        select(Mention.source_url)
+        .join(MentionAttribution, MentionAttribution.mention_id == Mention.mention_id)
+        .where(
+            Mention.source_type == SourceType.REDDIT_POST,
+            MentionAttribution.attribution_type == AttributionType.PRIMARY,
+        )
+        .distinct()
+    ).all()
+
+    count = 0
+    for (url,) in rows:
+        scheduler.enqueue(
+            url=url,
+            source="reddit_comments",
+            anchors=all_anchors,
+            # Bypass per-comment regex; pulse-check inherits parent-post
+            # primary attribution as SECONDARY via apply_comment_inheritance.
+            emit_all_comments=True,
+        )
+        count += 1
+
+    log.info("enqueued %d reddit comment-fetch followups", count)
+    return count

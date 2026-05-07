@@ -45,14 +45,18 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     with session_scope() as session:
-        ingest_stats, secondary_stats = run_scrape(session, run_config, product_set)
+        ingest_stats, secondary_stats, inheritance_stats = run_scrape(
+            session, run_config, product_set
+        )
 
     log.info(
-        "done: mentions new=%d existing=%d | primary=%d secondary=%d | snapshots skipped=%d",
+        "done: mentions new=%d existing=%d | primary=%d secondary=%d "
+        "inherited=%d | snapshots skipped=%d",
         ingest_stats.new_mentions,
         ingest_stats.existing_mentions,
         ingest_stats.new_attributions,
         secondary_stats.new_attributions,
+        inheritance_stats.new_attributions,
         ingest_stats.skipped_snapshots,
     )
     return 0

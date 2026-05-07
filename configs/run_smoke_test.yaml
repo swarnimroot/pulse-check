@@ -14,12 +14,17 @@ source_windows:
       - buildapc
       - SuggestALaptop
       - laptops
+  # Retailer-review paths paused per session-7 pivot (bite 6.4 deferred).
+  # Three open items: BestBuy network/Akamai timeout, pulse-check result_sink
+  # mapping for ('amazon','post')/('bestbuy','post'), Amazon Strix empty page.
+  # Re-enable when bite 6.4 returns. URLs in product_set_smoke_test.yaml
+  # remain populated as documentation.
   bestbuy_reviews:
-    enabled: true
+    enabled: false
     paginate: false
     backfill_months: 6
   amazon_reviews:
-    enabled: true
+    enabled: false
   youtube:
     enabled: false
   article:

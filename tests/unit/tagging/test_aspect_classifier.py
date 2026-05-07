@@ -169,6 +169,25 @@ def test_parse_response_raises_on_non_dict() -> None:
         parse_response([])
 
 
+def test_parse_response_dedupes_repeated_aspect_within_response() -> None:
+    # Haiku occasionally emits two entries for the same aspect on long
+    # comments. Keep first; dropping the duplicate prevents the
+    # aspect_tags UNIQUE constraint from failing the whole batch.
+    payload = {
+        "tags": [
+            {"aspect": "aesthetics", "polarity": "negative", "intensity": "medium"},
+            {"aspect": "aesthetics", "polarity": "positive", "intensity": "low"},
+            {"aspect": "thermals", "polarity": "negative", "intensity": "high"},
+        ]
+    }
+    preds = parse_response(payload)
+    assert len(preds) == 2
+    assert preds[0].aspect is Aspect.AESTHETICS
+    assert preds[0].polarity is Polarity.NEGATIVE  # first wins
+    assert preds[0].intensity is Intensity.MEDIUM
+    assert preds[1].aspect is Aspect.THERMALS
+
+
 def test_parse_response_raises_on_tags_not_list() -> None:
     with pytest.raises(LlmParseError):
         parse_response({"tags": "thermals"})

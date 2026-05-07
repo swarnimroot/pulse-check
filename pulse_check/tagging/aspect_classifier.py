@@ -344,6 +344,12 @@ def parse_response(parsed: Any) -> list[AspectPrediction]:
     aspect / polarity / intensity values are dropped with a warn-log so the
     classifier still returns a useful partial result rather than failing the
     whole batch on a single hallucinated label.
+
+    Within-response deduplication: if the LLM emits multiple entries for the
+    same aspect (observed sporadically on long Reddit comments where Haiku
+    splits one opinion across two tag dicts), only the first is kept. The
+    aspect_tags UNIQUE constraint on (mention, product, aspect, taxonomy,
+    prompt) would otherwise fail the whole batch on a single such mention.
     """
     if not isinstance(parsed, dict):
         msg = f"expected JSON object, got {type(parsed).__name__}"
@@ -355,6 +361,7 @@ def parse_response(parsed: Any) -> list[AspectPrediction]:
         raise LlmParseError(msg)
 
     out: list[AspectPrediction] = []
+    seen_aspects: set[Aspect] = set()
     for raw in tags:
         if not isinstance(raw, dict):
             log.warning("aspect_classifier: tag entry not an object: %r", raw)
@@ -364,6 +371,13 @@ def parse_response(parsed: Any) -> list[AspectPrediction]:
         intensity = _coerce_enum(raw.get("intensity"), Intensity, "intensity")
         if aspect is None or polarity is None or intensity is None:
             continue
+        if aspect in seen_aspects:
+            log.warning(
+                "aspect_classifier: duplicate aspect %s in response; keeping first occurrence",
+                aspect.value,
+            )
+            continue
+        seen_aspects.add(aspect)
         out.append(
             AspectPrediction(
                 aspect=aspect,

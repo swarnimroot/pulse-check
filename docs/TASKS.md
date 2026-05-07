@@ -1,6 +1,6 @@
 # pulse-check — Tasks
 
-**Status:** draft &nbsp;·&nbsp; **Paired docs:** [`PRD.md`](PRD.md), [`ARCHITECTURE.md`](ARCHITECTURE.md), [`TESTING.md`](TESTING.md) &nbsp;·&nbsp; **Last reconciled:** 2026-05-06 (session 6 audit)
+**Status:** draft &nbsp;·&nbsp; **Paired docs:** [`PRD.md`](PRD.md), [`ARCHITECTURE.md`](ARCHITECTURE.md), [`TESTING.md`](TESTING.md) &nbsp;·&nbsp; **Last reconciled:** 2026-05-07 (session 8 wrap-up)
 
 Wave-by-wave implementation plan matching the PRD's ~7–8 week single-operator estimate. Each wave has clear outputs, specific tasks, dependencies, and exit criteria. **Wave 2 is the A1-only cutpoint** — if v1 slips, A1 alone is a defensible ship.
 
@@ -84,9 +84,13 @@ Seed-list curation is the biggest operator-side time cost outside coding. Start 
 
 **Goal:** full A1 scorecard view for a given product; classifier passes its gold-set threshold.
 
-**Status:** ~50% complete. Tagging + gold-set build + A1 aggregation done on real corpus (session 5). Eval runner, full synthesis layer (clusterer / verbatim selector / brief writer / citation validator), A1 API endpoints, and scorecard frontend remain.
+**Status:** ~70% complete. Tagging + gold-set build + A1 aggregation done on real corpus (session 5). Content-type pre-classifier + tag-time gate (session 6, bite 6.1). Reddit-deepen via comment inheritance (session 8, bite 6.2-revised) — corpus 33 → 1143 mentions; aspect_tags 95 → 649. **Option 3 — A1 aggregate PRIMARY/SECONDARY column split — queued next** to make the SECONDARY-attributed comment corpus visible at the aggregate layer. Eval runner, full synthesis layer (clusterer / verbatim selector / brief writer / citation validator), A1 API endpoints, and scorecard frontend remain.
 
-**Deviation flag (session 5, approved):** aspect classifier swapped from Qwen 7B to Haiku for cost/quality reasons. Architecture §6 routing should reflect this on next ARCHITECTURE pass.
+**Deviation flags (approved, ARCHITECTURE pass pending):**
+- **Session 5:** aspect classifier swapped Qwen 7B → Haiku for cost/quality. ARCHITECTURE §6.1 routing needs the deviation note.
+- **Session 6:** new Haiku content-type pre-classifier (`review|deal|other`) + `--exclude-content-types` strict gate on `tag_corpus_aspects`. ARCHITECTURE §6 needs a §6.5 Haiku-batch-classifiers entry.
+- **Session 8:** comment-inheritance attribution mechanism (parent-link-based, propagates parent-post PRIMARY → comment SECONDARY) is a third attribution path beyond ARCHITECTURE §5's primary + secondary regex sweep. Folded into ARCHITECTURE during Option 3.
+- **Session 8 (locked, queued):** Option 3 — `aggregates_aspect_sku` gains parallel SECONDARY columns; `aggregate_a1` arithmetic runs over PRIMARY and SECONDARY pools independently. ARCHITECTURE §3.3 + §7.1 update during the implementation bite.
 
 **Exit criteria:**
 - Aspect + polarity + intensity classifier reaches ≥ 80% accuracy on the aspect_tagging gold set
@@ -102,6 +106,13 @@ Seed-list curation is the biggest operator-side time cost outside coding. Start 
 - [x] Qwen → **Haiku** aspect + polarity + intensity classifier — prompt + JSON schema + anchor examples per aspect *(provider swap landed in session 5)*
 - [x] Batch runner — iterate mentions in the corpus, call Qwen via the cached wrapper, write `aspect_tags` rows
 - [x] Snapshot test on prompt string
+- [x] Content-type pre-classifier (Haiku, `review|deal|other`) + `--exclude-content-types` gate on aspect-tag batch *(session 6, bite 6.1)*
+- [x] Within-response aspect dedup in `parse_response` *(session 8, fixes UNIQUE-constraint crash on Haiku occasional dupes)*
+
+**Scraping enrichment**
+- [x] Reddit comment fetcher integration with `emit_all_comments=True` bypass (orchestrator extension; scrapers-lib kwarg added) *(session 8, bite 6.2-revised round 1+2)*
+- [x] Comment inheritance — parent-post PRIMARY → comment SECONDARY via `metadata_["parent_id"]` lookup *(session 8, `apply_comment_inheritance` post-fetch step)*
+- [ ] Bite 6.4 (deferred) — BestBuy + Amazon retailer reviews path. Three open plumbing items: BestBuy network/Akamai timeout; pulse-check `result_sink` mapping for `('amazon','post')` and `('bestbuy','post')`; Amazon Strix empty-review-page diagnosis.
 
 **Gold set + eval**
 - [x] `scripts/build-gold-set.py --task aspect_tagging` — Sonnet labels ~150 sampled mentions *(28-entry gold set built on real corpus; below the 150 target — sample size to revisit when corpus grows)*
@@ -112,6 +123,7 @@ Seed-list curation is the biggest operator-side time cost outside coding. Start 
 **Aggregation**
 - [x] A1 aggregator — per `(run, product, aspect)` compute `aggregates_aspect_sku` rows with `mention_ids` provenance
 - [x] Unit tests — invariants (sum of polarity counts == total; provenance matches mentions)
+- [ ] **Option 3 — A1 aggregate PRIMARY/SECONDARY split.** Alembic migration adds `*_secondary` columns; `aggregate_a1` runs same arithmetic twice (PRIMARY pool + SECONDARY pool). Updates ARCHITECTURE §3.3 + §7.1 (and §5 + §6 deviation backlog). Sub-decisions before coding: which fields (4 baseline vs 8 full parity), naming convention, virtual-combined exposure. *(session 8 close, queued for session 9)*
 
 **Synthesis**
 - [ ] Haiku near-duplicate clusterer (usable for A2 too; build here so A1 can leverage)

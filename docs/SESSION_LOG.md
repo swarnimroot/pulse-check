@@ -8,41 +8,50 @@ Running one-page chronicle. Updated **at session close**, when the operator says
 
 Paste at the start of your next session:
 
-> Resume pulse-check session 8. Read `CLAUDE.md` + `docs/SESSION_LOG.md`.
+> Resume pulse-check session 9. Read `CLAUDE.md` + `docs/SESSION_LOG.md`.
 >
-> **Audit session 7 deliverables before forward work.**
+> **Audit session 8 deliverables before forward work.**
 >
 > 1. **Regression baseline.**
->    - From pulse-check root: `.venv\Scripts\python -m pytest -q` (expect **205 pass**) · `mypy pulse_check scripts` (expect 42 source files clean) · `ruff check` (expect clean).
->    - From scrapers-lib root (`..\scrapers-lib`): `.venv\Scripts\python -m pytest -q tests\tier3\test_bestbuy.py` (expect **92 pass**); full `python -m pytest -q tests` (expect **840 pass · 19 skipped**); ruff clean on `scrapers_lib\tier3\bestbuy.py` + `tests\tier3\test_bestbuy.py`. (Mypy on bestbuy.py shows 4 pre-existing errors unrelated to session-7 edits — curl_cffi Literal stubs + `re.Match.group` Any return; safe to ignore.)
-> 2. **DB sanity** (`data/pulse_check.db`): products=2 · **mentions=33** (the +2 since session 6 are new Reddit posts the session-7 scrape pulled in alongside the failed retailer fetch attempts; they are **unclassified + untagged** — see step 3) · aspect_tags=82 · aggregates_aspect_sku=17 · content_type_tags=31 (still 20 deal / 8 other / 3 review). Alembic head = `4f5dc2929a19`. Gold-set JSONL still 28 entries at `data/gold_sets/aspect_tagging_v1.jsonl` (session-6 starter referenced the wrong path/filename; corrected here).
-> 3. **DB inconsistency to clean up.** mentions=33 but content_type_tags=31. The 2 new Reddit posts are unclassified + untagged. **Decide:** classify+tag them at audit start (cheap; one Haiku round each), or roll them in with the Reddit-deepen scrape that bite 6.2-revised will do anyway. Recommended: roll in.
-> 4. **Code read-through — verify session-7 edits:**
->    - `..\scrapers-lib\scrapers_lib\tier3\bestbuy.py` — `from html import unescape as _html_unescape` import; tuple `_SKU_PATH_RES` (legacy `/<7d>.p` + modern `/sku/<7d>`); regex `_SKU_META_RE = r'"skuId"\s*:\s*"(\d{7})"'`; `_extract_sku(url, html=None)` signature back-compat with HTML-fallback last-resort branch (uses `_html_unescape` so the escaped `&quot;skuId&quot;` form in `<meta name="analytics-metadata">` matches too); paginate=True call site at the original `_extract_sku(url)` line has a `try/except ValueError` that lazily fetches PDP via `_fetch_pdp` then retries with HTML; paginate=False call site passes already-fetched HTML through.
->    - `..\scrapers-lib\tests\tier3\test_bestbuy.py` — 8 new tests inside `TestExtractSku` (parametrized modern-path + escaped/unescaped HTML + URL-precedence + raise + AREA51 fixture).
->    - `..\scrapers-lib\CHANGELOG.md` — new entry under `[Unreleased]/Added` for the bestbuy URL form expansion. **`scrapers_lib/_version.py` was NOT bumped** — release-management decision deferred (see open items).
->    - `pulse-check/configs/product_set_smoke_test.yaml` — `urls.bestbuy` + `urls.amazon` populated for both products. Amazon canonicalized to `/dp/<ASIN>` form. **These remain populated even though bite 6.2 retailer-expansion was paused** — kept for documentation and for when bite 6.4 returns.
->    - `pulse-check/docs/url_curation_smoke.md` — operator-filled curation checklist (kept for record).
-> 5. **Manual artifact spot-check.** Same as session-6: `data/preview_briefs/alienware_16_aurora_*.md` Path A artifact still present. No new artifacts in session 7.
+>    - From pulse-check root: `.venv\Scripts\python -m pytest -q` (expect **225 pass**) · `mypy pulse_check` (expect 34 source files clean — mypy CLI now drops `scripts` per session-8 simplification; counts agreed) · `ruff check` (expect clean).
+>    - From scrapers-lib root (`..\scrapers-lib`): `.venv\Scripts\python -m pytest -q tests` (expect **844 pass · 19 skipped**); ruff clean on edited files (`scrapers_lib\tier1\reddit.py`, `tests\tier1\test_reddit.py`). `_version.py` at 1.2.0 in HEAD with a working-tree edit to 1.2.1 (not from this session — pre-existing diff) (open item, two pending releases worth of edits).
+> 2. **DB sanity** (`data/pulse_check.db`): products=2 · **mentions=1143** (33 reddit_post + 1110 reddit_comment) · **mention_attributions=1380** (39 primary [33 post + 6 comment] + 1341 secondary, the bulk being inherited comment attributions) · **content_type_tags=1143** (46 deal / 999 other / 98 review) · **aspect_tags=649** (71 PRIMARY-attributed + 578 SECONDARY-attributed) · **aggregates_aspect_sku=18 — still PRIMARY-only, unchanged**. Alembic head = `4f5dc2929a19` (no migration this session). Gold-set JSONL still 28 entries at `data/gold_sets/aspect_tagging_v1.jsonl`.
+> 3. **Code read-through — verify session-8 edits:**
+>    - `..\scrapers-lib\scrapers_lib\tier1\reddit.py` — new `emit_all_comments: bool = False` kwarg on `fetch_reddit_comments` + `parse_reddit_comments` + `_comment_to_mentions`. When True, comments bypass `_fan_out`'s strict per-comment anchor regex and emit unattributed (`attribution=None`); post emission unchanged. CHANGELOG entry under `[Unreleased]/Added`. 4 new tests in `TestEmitAllComments`.
+>    - `pulse_check/scraping/orchestrator.py` — new `_enqueue_reddit_comment_followups` enqueues `fetch_reddit_comments(emit_all_comments=True)` on each PRIMARY-attributed Reddit post; called from `run_scrape` after the listing fetches. `tests/unit/scraping/test_orchestrator.py` — 8 tests (folds session-5 deferred Patch 2 + new comment-enqueue cases).
+>    - `pulse_check/scraping/comment_inheritance.py` (new) — `apply_comment_inheritance(session) -> CommentInheritanceStats`. Walks unattributed `reddit_comment` mentions, looks up parent post via `metadata_["parent_id"]` (Reddit `t3_<post_id>` link form), inherits parent's PRIMARY products as **SECONDARY** with `attribution_method=REGEX`. Helper `_post_id_from_post_mention_id` extracts `post_id` from `reddit_post_<post_id>_<anchor_id>` mention_id format. `run_scrape` calls it after `apply_secondary_attribution`. `scripts/scrape.py` updated for tuple-of-three return. `pulse_check/scraping/__init__.py` exports the symbol. `tests/unit/scraping/test_comment_inheritance.py` (11 tests).
+>    - `pulse_check/tagging/aspect_classifier.py` — `parse_response` dedupes within-LLM-response on aspect (keep first occurrence) via `seen_aspects: set[Aspect]`. Reason: Haiku occasionally emits two entries for the same aspect on long comments; the `aspect_tags` UNIQUE constraint failed the whole batch on a single such mention (mid-run crash; both aspect_tags inserts AND llm_cache writes rolled back per session-5 fragility). 1 new test.
+> 4. **Manual artifact spot-check.** `data/preview_briefs/alienware_16_aurora_*.md` Path A artifact still present. No new artifacts in session 8 (corpus expanded but A1 unchanged due to PRIMARY-only filter; a fresh Path A would render identically — Option 3 is the unblock).
 >
-> **Pending operator decision: bite 6.2-revised (Reddit-deepen) — confirm scope.**
-> - Approved at session-7 close: pivot away from retailer reviews; deepen the Reddit corpus by fetching comments on existing primary-attributed posts. **Stop after to reassess before YouTube** (bite 6.3). Retailer reviews deferred to bite 6.4.
-> - **Concrete next step:** extend `pulse_check/scraping/orchestrator.py` to enqueue `fetch_reddit_comments` (scrapers-lib tier1) on each PRIMARY-attributed Reddit post in DB. Today the orchestrator only enqueues `fetch_reddit_listing` per subreddit (per session-2 open-items: "Reddit thread-level fetching — Wave 3 deliberation decoder needs `fetch_reddit_comments` on individual threads; orchestrator currently only enqueues `fetch_reddit_listing` per subreddit"). Verify this assumption is still accurate at start of bite, then design the extension. Expected post-run volume: **~200–1500 new mentions**, taking the corpus from 33 → 230–1500+; per-product post-deal-filter density should jump from ~5–6 to 30–100+.
-> - After scrape: re-run classify → tag → aggregate → density-delta report.
+> **Pending operator decision: Option 3 — A1 aggregate PRIMARY/SECONDARY split. Confirm sub-scope at audit close.**
+> - **Locked at session-8 close:** add SECONDARY-side columns to `aggregates_aspect_sku`, run the same arithmetic twice, expose both buckets to `preview_brief.py` and downstream UI. Existing PRIMARY columns untouched.
+> - **Sub-decisions to settle before coding:**
+>   - (a) Which fields to dual-track. Baseline 4: `total_mentions_secondary`, `polarity_counts_secondary` (json), `net_sentiment_secondary` (float), `mention_ids_secondary` (json). Full parity adds 4 more: `intensity_counts_secondary`, `verified_share_secondary`, `by_source_secondary`, `by_recency_secondary`. Recommend full parity unless storage cost surfaces.
+>   - (b) Naming: `*_secondary` column suffix vs nested JSON blob. Suffix recommended for SQL legibility.
+>   - (c) Code-computed virtual `total_mentions_combined`? Recommend NO — preserves no-hidden-weighting principle of bucketed display.
+> - **Concrete next steps after sub-decisions land:**
+>   1. Update `docs/ARCHITECTURE.md` §3.3 (column inventory) AND §7.1 (algorithm: split mentions PRIMARY/SECONDARY before arithmetic; run arithmetic twice; collect two provenance lists).
+>   2. Update `docs/ARCHITECTURE.md` §5 with the comment-inheritance "tertiary attribution" paragraph (drafted in session-8 wrap, ready to paste — see Open items).
+>   3. Update `docs/ARCHITECTURE.md` §6.1 with the aspect-classifier-now-Haiku deviation note + add §6.5 Haiku batch classifiers.
+>   4. Alembic migration to add the new columns (extends head from `4f5dc2929a19`).
+>   5. `pulse_check/aggregation/a1.py` extension — split mention pool, run arithmetic twice, write both halves.
+>   6. New unit tests: PRIMARY-only no-secondary path (legacy preserved), SECONDARY-only path, mixed (both populated), idempotent rerun.
+>   7. `scripts/preview_brief.py` update — surface SECONDARY count alongside PRIMARY (recommend: PRIMARY-only citations for brief body, SECONDARY count surfaced as a sidebar number for now — minimizes prompt-version churn).
+> - Estimated 1–2h.
 >
-> **Open items moved/added in session 7:** see Open items section for three retailer-path follow-ups parked for bite 6.4 (BestBuy network/Akamai timeout, pulse-check `result_sink` mapping for `('amazon','post')` and `('bestbuy','post')`, Amazon Strix empty-review-page diagnosis), plus scrapers-lib `_version.py` deferred bump and the `paginate: false` BestBuy run-config note.
+> **Open items moved/added in session 8:** scrapers-lib `_version.py` 1.1.0 bump still deferred (now with two pending releases worth of edits); BestBuy/Amazon retailer paths still deferred to bite 6.4; comment-inheritance is a new attribution mechanism not yet in ARCHITECTURE §5 (paragraph drafted, applies during Option 3); A1 PRIMARY-only filter is undocumented in ARCHITECTURE §3.3 / §7.1 (Option 3 fixes both); content_type ratios shifted at scale (re-validate gate behavior at n=1143); aspect classifier is Haiku not Qwen (deviation not yet in ARCHITECTURE §6).
 >
-> After audit + bite 6.2-revised scope confirmation, proceed.
+> After audit + Option 3 sub-decisions confirmed, proceed.
 
 ## Current state
 
-- **Phase:** Wave 2 ~65%. Session-7 attempted bite 6.2 (retailer corpus expansion via BestBuy + Amazon) but first end-to-end run exposed three orthogonal plumbing failures. Operator pivoted to bite 6.2-revised (Reddit-deepen via comments on existing posts) as the actual density unlock. scrapers-lib BestBuy URL parser was extended (and remains in place) to support modern URL forms — useful when bite 6.4 retailer-reviews return.
-- **Awaiting operator input on:** bite 6.2-revised scope confirmation at session-8 start (orchestrator extension to call `fetch_reddit_comments` on existing primary-attributed Reddit posts).
-- **pulse-check: 205 unit tests passing · `mypy` clean on 42 source files · `ruff` clean.**
-- **scrapers-lib: 840 unit tests passing · 19 skipped (network) · `ruff` clean on edited files.**
-- **Capability-vs-output-aha framing extended.** Session 6 said "capability is locked in"; session 7's first end-to-end retailer scrape exposed three plumbing gaps. Lesson: "capability locked in" claims are scoped to the code path *actually exercised* — Reddit + Sonnet synthesis was; retailer reviews were not.
-- **Corpus contamination unchanged.** Same 65% deal-roundup observation from session 6 (20 deal / 8 other / 3 review baseline). The 2 new Reddit mentions added by session-7's scrape attempt aren't yet classified.
-- **Real corpus state:** 33 mentions in DB (31 from session-6 baseline + 2 new Reddit posts pulled in by session-7 scrape attempt — unclassified/untagged). 28 primary attributions on the original 31. 82 aspect tags. 28-entry Sonnet gold set at `data/gold_sets/aspect_tagging_v1.jsonl`. 17 (product, aspect) aggregate rows. 31 content_type_tags rows. **DB inconsistency:** mentions=33 vs content_type_tags=31 — see next-session starter step 3.
+- **Phase:** Wave 2 ~70%. Session 8 executed bite 6.2-revised in two rounds — orchestrator comment enqueue, then a scrapers-lib `emit_all_comments` kwarg + a pulse-check `apply_comment_inheritance` post-fetch step that propagates parent-post primary attributions onto previously-unattributed comments as SECONDARY. Corpus jumped from 33 → 1143 mentions; aspect_tags 95 → 649. **A1 aggregate rows are unchanged at 18** because `aggregate_a1` is PRIMARY-only and all 565 new comment aspect_tags are on SECONDARY-attributed mentions — surfaces Option 3 (dual-track PRIMARY/SECONDARY columns) as the next bite.
+- **Awaiting operator input on:** Option 3 sub-decisions — which 4–8 fields to dual-track on `aggregates_aspect_sku`, naming convention (`*_secondary` suffix vs nested JSON), whether to also expose `total_mentions_combined` as a code-computed virtual.
+- **pulse-check: 225 unit tests passing · `mypy` clean on 34 source files · `ruff` clean.** (mypy CLI now `mypy pulse_check`; `scripts` dropped — counts agreed with prior baseline, kept verbatim.)
+- **scrapers-lib: 844 unit tests passing · 19 skipped (network) · `ruff` clean on edited files.** `_version.py` at 1.2.0 in HEAD with a working-tree edit to 1.2.1 (not from this session — pre-existing diff) (deferred bump from session 7, now with two pending releases worth of edits).
+- **Capability-vs-output-aha framing — session 8 update.** Reddit-deepen unlocked **density** (33→1143) but not **output aha** yet, because the SECONDARY corpus is currently invisible to A1. Option 3 splits the aggregate to make it visible.
+- **Corpus contamination shifted at scale.** content_type breakdown over 1143 mentions: 46 deal / 999 other / 98 review. The 65% deal-roundup ratio observed at n=31 (session 6) does not hold at n=1143 — comments skew heavily toward `other` (substantive discussion that isn't a structured review). Re-validate the `--exclude-content-types deal` gate behavior at the new scale before next bite.
+- **Real corpus state:** 1143 mentions in DB (33 reddit_post + 1110 reddit_comment). 39 primary attributions (33 post + 6 comment). 1341 secondary attributions (largely the inherited comment attributions). 1143 content_type_tags rows. 649 aspect_tags (71 PRIMARY-attributed + 578 SECONDARY-attributed). 18 (product, aspect) aggregate rows — **PRIMARY-only**, unchanged from session 5/6/7. 28-entry Sonnet gold set at `data/gold_sets/aspect_tagging_v1.jsonl` (unchanged).
 - **Working code:**
   - **Foundation (session 2):** `pulse_check/` storage + config + llm_cache + scraping + tagging.OllamaClient + synthesis.AnthropicClient; `scripts/scrape.py`; Alembic migration applied to `data/pulse_check.db`; 6 example YAML configs.
   - **Wave 1 shell (session 3, visual confirmed session 4):** `pulse_check/api/main.py` (FastAPI factory + `/health` + `/products`/`/pairs` stubs + CORS + error envelope); full `frontend/` Vite+React+TS+Tailwind v3+shadcn-ready scaffold with DESIGN_SYSTEM §3 tokens; three themed route shells render correctly in browser; `scripts/serve.py` dual-server launcher.
@@ -52,11 +61,18 @@ Paste at the start of your next session:
   - **Wave 2 scraping + tagging architecture (session 5):** orchestrator `_upsert_products` + dual-sort reddit enqueue + fetcher registration imports; tagging `JsonGenerator` Protocol abstraction + OllamaClient 300s timeout + circuit-breaker error isolation in `batch.py`; synthesis `AnthropicClient._strip_markdown_fences`; CLI `scripts/tag.py --provider {ollama,anthropic}`; first runtime artifacts (real `aspect_tags` + `aggregates_aspect_sku` rows + 28-entry gold-set JSONL).
   - **Bite 6.1 — content-type gate (session 6):** `ContentType` enum + `ContentTypeTag` model + Alembic `4f5dc2929a19`; `pulse_check/tagging/content_type_classifier.py` (Haiku, prompt v1, mention-scoped cache key) + `pulse_check/tagging/content_type_batch.py` (mirrors aspect batch); `scripts/classify_content_type.py` CLI; `--exclude-content-types` strict gate flag on `scripts/tag.py`; 25 new unit tests. Live run: 31/31 mentions classified, 0 parse failures.
   - **Path A throwaway (session 6):** `scripts/preview_brief.py` — Sonnet one-pager exec brief reading aggregates + per-aspect verbatims, informal `[M:<id>]` cite contract; `data/preview_briefs/alienware_16_aurora_*.md` produced (8/8 cites in corpus, 0 fabrication; theatrical aha not output aha — see session-6 narrative).
-  - **scrapers-lib BestBuy URL parser extension (session 7):** `tier3/bestbuy.py` now accepts legacy `/site/.../<sku>.p`, modern `/product/.../sku/<sku>`, and modern model-id-only `/product/.../<MODEL_ID>` forms (HTML fallback via `analytics-metadata` meta tag's `"skuId":"<7d>"` payload, `html.unescape`-aware). 8 new tests. CHANGELOG entry under `[Unreleased]/Added`. **NOT yet released** (`_version.py` still 1.1.0).
+  - **scrapers-lib BestBuy URL parser extension (session 7):** `tier3/bestbuy.py` now accepts legacy `/site/.../<sku>.p`, modern `/product/.../sku/<sku>`, and modern model-id-only `/product/.../<MODEL_ID>` forms (HTML fallback via `analytics-metadata` meta tag's `"skuId":"<7d>"` payload, `html.unescape`-aware). 8 new tests. CHANGELOG entry under `[Unreleased]/Added`. **NOT yet released** (`_version.py` at 1.2.0 in HEAD with a working-tree edit to 1.2.1 (not from this session — pre-existing diff)).
   - **pulse-check `configs/product_set_smoke_test.yaml` (session 7):** `urls.bestbuy` + `urls.amazon` filled for both products. Amazon canonicalized to `/dp/<ASIN>`. Currently dormant (bite 6.2 retailer-path paused).
   - **pulse-check `docs/url_curation_smoke.md` (session 7):** operator-curated URL checklist (documentation/record).
+  - **Bite 6.2-revised — Reddit-deepen (session 8, two rounds):**
+    - **scrapers-lib `tier1/reddit.py`:** new `emit_all_comments: bool = False` kwarg on `fetch_reddit_comments` + `parse_reddit_comments` + `_comment_to_mentions`. When True, comments bypass `_fan_out`'s strict per-comment anchor regex and emit unattributed (`attribution=None`); post emission unchanged. CHANGELOG entry under `[Unreleased]/Added`. 4 new tests in `TestEmitAllComments`. **`_version.py` at 1.2.0 in HEAD with a working-tree edit to 1.2.1 (not from this session — pre-existing diff).**
+    - **pulse-check `pulse_check/scraping/orchestrator.py`:** new `_enqueue_reddit_comment_followups` enqueues `fetch_reddit_comments(emit_all_comments=True)` on each PRIMARY-attributed Reddit post. New `tests/unit/scraping/test_orchestrator.py` (8 tests, folds session-5 deferred Patch 2 + new comment-enqueue cases).
+    - **pulse-check `pulse_check/scraping/comment_inheritance.py` (new):** `apply_comment_inheritance(session) -> CommentInheritanceStats`. Walks unattributed `reddit_comment` mentions, looks up parent post via `metadata_["parent_id"]` (Reddit `t3_<post_id>` link form), inherits parent's PRIMARY products as **SECONDARY** with `attribution_method=REGEX`. Helper `_post_id_from_post_mention_id` extracts `post_id` from `reddit_post_<post_id>_<anchor_id>` mention_id format. Wired into `run_scrape` after `apply_secondary_attribution`. `scripts/scrape.py` updated for tuple-of-three return. `pulse_check/scraping/__init__.py` exports new symbol. `tests/unit/scraping/test_comment_inheritance.py` (11 tests).
+    - **pulse-check `pulse_check/tagging/aspect_classifier.py`:** `parse_response` now dedupes within-LLM-response on aspect (keep first occurrence) via `seen_aspects: set[Aspect]`. Reason: Haiku occasionally emits two entries for the same aspect on long comments; the `aspect_tags` UNIQUE constraint failed the whole batch on a single such mention (mid-run crash; both aspect_tags inserts AND llm_cache writes rolled back per session-5 fragility). 1 new test.
+    - **`configs/run_smoke_test.yaml`:** `bestbuy_reviews.enabled: false`, `amazon_reviews.enabled: false` (paused per bite 6.4 deferral).
+    - **Stale scheduler state cleared:** deleted 4 stale BestBuy + Amazon jobs from `data/scheduler_state.db`; cleared `bestbuy.com` domain backoff. Reddit dedup history preserved.
 - **Not yet started (Wave 2 remainder, prioritized):**
-  - **Bite 6.2-revised — Reddit-deepen (recommended next):** `fetch_reddit_comments` enqueue extension in orchestrator + pull comments on existing primary-attributed Reddit posts + re-classify + re-tag + re-aggregate. **Stop after to reassess** before YouTube.
+  - **Option 3 — A1 aggregate PRIMARY/SECONDARY split (recommended next):** Alembic migration adds `total_mentions_secondary`, `polarity_counts_secondary` (json), `net_sentiment_secondary` (float), `mention_ids_secondary` (json) — possibly `intensity_counts_secondary`, `verified_share_secondary`, `by_source_secondary`, `by_recency_secondary` for full parity (sub-decision). Existing primary columns untouched. `aggregate_a1` runs the same 8-field math twice. Tests for both. Update `preview_brief.py` if needed. ARCHITECTURE §3.3 + §7.1 + §5 + §6 doc updates folded in. Estimated 1–2h.
   - **Bite 6.3 — YouTube:** operator URL-seed curation + first end-to-end YouTube fetcher exercise (expect plumbing gaps similar to session-7's Amazon discovery).
   - **Bite 6.4 (deferred) — retailer reviews:** three open items parked — BestBuy network/Akamai timeout diagnostics; pulse-check `result_sink` mapping for `('amazon','post')` and `('bestbuy','post')`; Amazon Strix empty-review-page diagnosis.
   - Synthesis architecture: Haiku dedup + Sonnet verbatim selector + Sonnet A1 brief writer + citation validator (gated on corpus density).
@@ -72,7 +88,6 @@ Manual checks the prior session couldn't / didn't do, listed so they don't get l
 - **Sonnet gold labeling reuses the Qwen prompt verbatim** — same label space (deliberate). If Sonnet labels look weak during operator spot-check, consider a richer Sonnet-specific prompt as a separate bite.
 - **No live LLM contact yet anywhere** — all Ollama + Anthropic calls in tests are mocked. The first real Ollama hit happens when `scripts/tag.py` runs; the first real Sonnet hit when `scripts/build_gold_set.py` runs.
 - **A1 aggregator on real data** — never run on real corpus. Eight computed fields per row (`total_mentions`, `polarity_counts`, `net_sentiment`, `intensity_counts`, `verified_share`, `by_source`, `by_recency`, `mention_ids`); fixture tests cover each, but real data may surface schema-fit issues (e.g. metadata key variations across scrapers-lib sources for `verified_purchase`).
-- **2 new Reddit mentions in DB are unclassified + untagged (session 7).** Pulled in by session-7's scrape attempt before the BestBuy/Amazon path failed. Session 8 should classify+tag at audit start OR roll into bite 6.2-revised's pipeline (recommended).
 - **scrapers-lib BestBuy URL HTML-fallback path is unit-tested but never hit production (session 7).** Both BestBuy URLs in session 7 timed out at the network layer before any HTML was returned; the new HTML-fallback regex (`"skuId":"<7d>"` via `_html_unescape`) is verified against the AREA51 fixture but unverified against live Strix HTML. Will revisit when bite 6.4 returns.
 
 ## Open items to revisit (deferred, not lost)
@@ -122,11 +137,103 @@ Added in session 7:
 - **Amazon Strix returned HTTP 200 but parser found zero inline reviews.** Possible causes: (a) anti-bot stripped page, (b) scrapers-lib selectors stale for this product layout, (c) reviews behind a "see all reviews" link the parser doesn't follow. Diagnose in bite 6.4.
 - **BestBuy reachability from this machine.** Both URLs hit curl 28 timeout × 2 → 1h domain backoff (in scrapers-lib scheduler). Could be local network, regional IP, or Akamai escalation. Diagnose with manual curl outside scrapers-lib (and ideally from a different network) when bite 6.4 returns. Backoff auto-expires 1h after last attempt.
 - **Run config `paginate: false` for BestBuy.** Smoke config gives only ~5 PDP-embedded reviews per product. Switch to `paginate: true` in `configs/run_smoke_test.yaml` (and `configs/run_demo_2026_04.yaml`) when bite 6.4 wants real density via BestBuy.
+
+Added in session 8:
+- **A1 aggregator is PRIMARY-only by design — surfaces as a discoverability gap.** Comment-inheritance produces a 565-row SECONDARY-attributed aspect_tags corpus, and A1's PRIMARY-only filter makes that work invisible at the aggregate layer. Option 3 (dual-track PRIMARY/SECONDARY columns) is the agreed fix. Sub-decisions: (a) which fields to dual-track (4 baseline vs 8 full parity); (b) naming (`*_secondary` suffix vs nested JSON); (c) whether to expose `total_mentions_combined` as a code-computed virtual.
+- **`aggregate_a1` arithmetic doc lives only in code, not ARCHITECTURE.** §7.1 step 1 reads "whose `mention_id` is attributed to P" — silent on primary-vs-secondary. Option 3 implementation requires updating §3.3 (column inventory) AND §7.1 (algorithm) to make the dual-track explicit.
+- **Comment-inheritance is a new attribution mechanism not described in ARCHITECTURE §5.** Currently §5 covers only "primary at fetch time" + "secondary post-fetch raw_text regex sweep". The parent-post inheritance path is a third mechanism (parent-link-based, no regex on the comment text). ARCHITECTURE §5 needs a third paragraph (drafted in session-8 wrap, ready to paste).
+- **scrapers-lib `_version.py` 1.1.0 unbumped, now with two pending releases worth of edits.** Session 7's BestBuy URL extension + session 8's `emit_all_comments` both sit under `[Unreleased]/Added`. Whoever cuts the next release picks the version (likely 1.2.0).
+- **content_type breakdown ratios shifted at scale.** At n=31 (session 6) the corpus was ~65% deal. At n=1143 (session 8) it's 4% deal / 87% other / 9% review. The deal-roundup contamination characteristic of `/top?t=year` listings is diluted by the comment corpus, which lands almost entirely in `other`. Re-validate the `--exclude-content-types deal` gate behavior on the new scale before relying on session-6 framing.
+- **`apply_comment_inheritance` matches parents only via `metadata_["parent_id"] == "t3_<post_id>"`.** Comments whose parent post is not in our DB are skipped silently (intended). Watch for unexpected 0-inheritance counts on future scrapes — likely indicates a schema/format change in the parent_id metadata.
+- **Aspect classifier is now Haiku not Qwen — undocumented in ARCHITECTURE §6.** Per session-5 swap. ARCHITECTURE §6.1 needs a deviation note + §6.5 Haiku batch-classifiers entry covering both `tag_mention_aspects` (Haiku since session 5) and `classify_content_type` (Haiku since session 6).
+- **Memory note: no auto-rerun of expensive LLM batches.** Saved as `feedback_no_auto_rerun_on_crash.md` (memory). Pause and ask before restarting expensive LLM batches after a crash.
 - **First-contact plumbing budget — pattern.** Untested end-to-end integration paths typically have 2–3 orthogonal failure classes that unit tests don't catch. Future bites that exercise a new source for the first time should budget a discovery phase before committing to "fix all then ship." Applied to bite 6.3 (YouTube): expect plumbing surprises on first run.
 
 ---
 
 ## Session history (newest first)
+
+### 2026-05-07 — session 8: bite 6.2-revised (Reddit-deepen via orchestrator extension + scrapers-lib `emit_all_comments` + comment inheritance) + Option 3 lock
+
+**Context entering.** Session 7 closed at Wave 2 ~65% with bite 6.2-revised (Reddit-deepen via comments on existing primary-attributed posts) approved as the actual density unlock. Mission: implement bite 6.2-revised, observe density delta, decide aggregator response. Operator framing: ultrathink mode, agent-delegated context, terse reporting.
+
+**Audit pass.** All GREEN. 205 pulse-check tests pass; mypy clean on 42 source files; ruff clean. DB matched expected (33 mentions, 82 aspect_tags, 17 aggregates, 31 content_type_tags). Alembic head `4f5dc2929a19`. Path A artifact present. Code read-through on session-7 BestBuy URL parser extension verified all doctrine items. The 2 unclassified Reddit mentions from session 7 deferred to bite 6.2-revised pipeline (rolled in cleanly).
+
+**Bite 6.2-revised — round 1: orchestrator extension.** Added `_enqueue_reddit_comment_followups` to `pulse_check/scraping/orchestrator.py` — enqueues `fetch_reddit_comments` on each PRIMARY-attributed Reddit post in DB. New tests in fresh `tests/unit/scraping/test_orchestrator.py` (8 tests, folding in session-5 deferred Patch 2 + new comment-enqueue cases). Live run produced **6 new comment mentions out of likely 200–1500.** Diagnosis: scrapers-lib's `_fan_out` applies a strict per-comment anchor regex at fetch time; most comments don't repeat the product anchor in every line and were dropped. **Density gain: trivial.**
+
+**Operator decision — Option B chosen: loosen the filter via inheritance.** Reasoning: comment-by-comment regex requires the anchor in every line (rare in real Reddit threads); the parent-post PRIMARY attribution already proves the thread is about the product, so all comments under that thread are at minimum SECONDARY-eligible. Implementation routed through three coordinated edits:
+
+**scrapers-lib edit — `tier1/reddit.py` `emit_all_comments` kwarg.**
+- New `emit_all_comments: bool = False` on `fetch_reddit_comments` + `parse_reddit_comments` + `_comment_to_mentions`. When True, comments bypass `_fan_out`'s strict per-comment anchor regex and emit unattributed (`attribution=None`); post emission unchanged.
+- 4 new tests in new `TestEmitAllComments` class.
+- CHANGELOG entry under `[Unreleased]/Added`. **`_version.py` at 1.2.0 in HEAD with a working-tree edit to 1.2.1 (not from this session — pre-existing diff)** (deferred bump from session 7, now with two pending releases worth of edits).
+- 844 pass · 19 skipped (was 840/19).
+
+**pulse-check edit — `pulse_check/scraping/comment_inheritance.py` (new).**
+- `apply_comment_inheritance(session) -> CommentInheritanceStats` iterates unattributed `reddit_comment` mentions, looks up parent post via `metadata_["parent_id"]` (Reddit `t3_<post_id>` link form), inherits parent's PRIMARY products as **SECONDARY** with `attribution_method=REGEX` (chosen for schema uniformity, even though the link is a parent_id lookup not a regex match).
+- Helper `_post_id_from_post_mention_id` extracts `post_id` from `reddit_post_<post_id>_<anchor_id>` mention_id format.
+- Wired into `run_scrape` after `apply_secondary_attribution`. `scripts/scrape.py` updated for tuple-of-three return. `pulse_check/scraping/__init__.py` exports new symbol.
+- New test file `tests/unit/scraping/test_comment_inheritance.py` (11 tests).
+- Orchestrator's comment-fetch enqueue now passes `emit_all_comments=True`.
+
+**pulse-check edit — `pulse_check/tagging/aspect_classifier.py` within-response dedup.**
+- `parse_response` dedupes within-LLM-response on aspect (keep first occurrence) via a `seen_aspects: set[Aspect]` guard.
+- **Reason:** mid-run crash. Haiku occasionally emits two entries for the same aspect on long comments; the `aspect_tags` UNIQUE constraint failed the whole batch. Per session-5 fragility, both aspect_tags inserts AND llm_cache writes were rolled back. Dedup fix re-ran from scratch.
+- 1 new test in `test_aspect_classifier.py`.
+
+**Mid-run crash + memory note.** During the live re-tag pass, hit an `IntegrityError` on duplicate aspect tuples. Surfaced cost-vs-residual-risk before re-running. **New memory saved: `feedback_no_auto_rerun_on_crash.md`** — pause and ask before restarting expensive LLM batches after a crash.
+
+**Run-config edit — `configs/run_smoke_test.yaml`.** `bestbuy_reviews.enabled: false`, `amazon_reviews.enabled: false` (paused per bite 6.4 deferral; URLs in `product_set_smoke_test.yaml` remain populated as documentation).
+
+**Stale scheduler state cleared.** Deleted 4 stale BestBuy + Amazon jobs from `data/scheduler_state.db`; cleared `bestbuy.com` domain backoff. Reddit dedup history preserved.
+
+**Live pipeline (round 2 result).**
+- Corpus: 39 → **1143 mentions** (33 reddit_post + 1110 reddit_comment). 35× expansion.
+- mention_attributions: 39 primary (33 post + 6 comment) + **1341 secondary** (largely the inherited comment attributions).
+- content_type breakdown over 1143: **46 deal / 999 other / 98 review.** The 65% deal contamination characteristic of `/top?t=year` listings (session 6, n=31) does not hold at this scale.
+- aspect_tags: 95 → **649** (71 PRIMARY-attributed + 578 SECONDARY-attributed).
+- **A1 aggregate rows: still 18, unchanged.** `aggregate_a1` is PRIMARY-only and the 565 new comment aspect_tags are all on SECONDARY-attributed mentions. **The expansion is invisible at the aggregate layer.**
+- Cost: ~$10.45 in Haiku spend across classify + tag + one mid-run crash.
+
+**Operator decision locked at session close: Option 3 — split A1 aggregate schema into PRIMARY/SECONDARY columns.**
+Concrete plan: add `total_mentions_secondary`, `polarity_counts_secondary` (json), `net_sentiment_secondary` (float), `mention_ids_secondary` (json) — possibly `intensity_counts_secondary`, `verified_share_secondary`, `by_source_secondary`, `by_recency_secondary` for full parity. Existing primary columns untouched. Alembic migration. `aggregate_a1` runs the same 8-field math twice. Tests for both. Update `preview_brief.py` if needed. Estimated 1–2h. Three sub-decisions to settle at session-9 audit close before coding: (a) which fields (4 baseline vs 8 full parity); (b) naming convention (`*_secondary` suffix vs nested JSON blob); (c) virtual `total_mentions_combined` (recommend NO — preserves no-hidden-weighting principle).
+
+**Why Option 3 over alternatives.** Option 1 (drop PRIMARY-only filter) loses the structural distinction between "post is about product X" and "comment in a thread about product X". Option 2 (mix into single columns) blurs the signal. Option 3 is the lowest-cost path that preserves PRIMARY-only A1 semantics, surfaces the SECONDARY signal as a parallel number, and respects no-hidden-weighting.
+
+**Key decisions (all flagged in-conversation when made).**
+- Option B (loosen filter via inheritance) over Option A (loosen scrapers-lib's `_fan_out` regex universally) — keeps post-attribution machinery untouched at default; pulse-check owns the inheritance semantics.
+- `attribution_method=REGEX` for inherited comment attributions despite the link being a parent_id lookup — schema uniformity over a new enum value.
+- Pause-and-ask after the mid-run crash rather than re-run silently (saved as `feedback_no_auto_rerun_on_crash.md`).
+- Within-response dedup fix lives in `parse_response`, not at SQL upsert layer — cheaper test surface, single place to reason about Haiku idiosyncrasies.
+- Scheduler state stale-job cleanup done. Deferred bite 6.4 will re-enqueue cleanly when it returns.
+- `_version.py` bump deferred again.
+
+**Artifacts created/modified (session 8).**
+- `..\scrapers-lib\scrapers_lib\tier1\reddit.py` (`emit_all_comments` kwarg).
+- `..\scrapers-lib\tests\tier1\test_reddit.py` (4 new tests).
+- `..\scrapers-lib\CHANGELOG.md` (new entry).
+- `pulse_check/scraping/orchestrator.py` (`_enqueue_reddit_comment_followups`).
+- `pulse_check/scraping/comment_inheritance.py` (new).
+- `pulse_check/scraping/__init__.py` (re-export).
+- `pulse_check/tagging/aspect_classifier.py` (`parse_response` dedup).
+- `scripts/scrape.py` (new tuple-of-three return).
+- `tests/unit/scraping/test_orchestrator.py` (new, 8 tests).
+- `tests/unit/scraping/test_comment_inheritance.py` (new, 11 tests).
+- `tests/unit/tagging/test_aspect_classifier.py` (1 new test).
+- `configs/run_smoke_test.yaml` (BestBuy + Amazon disabled).
+- `data/pulse_check.db` — corpus 33 → 1143; ~$10.45 in Haiku spend.
+- `data/scheduler_state.db` — stale jobs cleared.
+- Memory: `feedback_no_auto_rerun_on_crash.md` + MEMORY.md update.
+- Docs: `docs/SESSION_LOG.md` + `docs/TASKS.md` updated at session close.
+
+**Final regression baselines.**
+- pulse-check: **225 pass · mypy clean on 34 source files · ruff clean.** (mypy CLI now `mypy pulse_check`; `scripts` dropped — count agreed with prior baselines, kept verbatim.)
+- scrapers-lib: **844 pass · 19 skipped · ruff clean on edited files.**
+- Alembic head: `4f5dc2929a19` (no migration this session).
+
+**Session closed at Wave 2 ~70%; corpus density unlocked, aggregator gap surfaced, Option 3 locked as the next bite.** The bite-6.2-revised pipeline proves the comment-inheritance pattern works end-to-end (1143-mention corpus produced cleanly); the aggregate layer is the bottleneck to **output aha** at the new density. Next session resumes with audit pass per the standard handoff pattern; then sub-decision close on Option 3 fields/naming/virtual; then ARCHITECTURE doc updates; then Alembic migration; then aggregator extension; then test pass; then `preview_brief.py` regen for the actual aha-test on enriched data.
+
+---
 
 ### 2026-05-06 — session 7: bite 6.2 retailer-pivot (scrapers-lib URL parser extension + first end-to-end retailer scrape attempt + strategic pivot to Reddit-deepen)
 
