@@ -1,471 +1,396 @@
 # pulse-check — Design System
 
-**Status:** draft &nbsp;·&nbsp; **Paired docs:** [`PRD.md`](PRD.md), [`ARCHITECTURE.md`](ARCHITECTURE.md)
+**Status:** v0.1 (locked at session-13 start) &nbsp;·&nbsp; **Paired docs:** [`PRD.md`](PRD.md), [`ARCHITECTURE.md`](ARCHITECTURE.md), [`SESSION_LOG.md`](SESSION_LOG.md)
 
-Tokens, component conventions, and screen inventory for the pulse-check webapp. Implementation stack: Tailwind CSS + shadcn/ui components on Vite + React + TypeScript. Desktop-only, dark-mode-first, exec-clarity over analyst-depth.
+Tokens, atoms, composite components, and screen inventory for the pulse-check webapp. Implementation stack: Tailwind CSS + shadcn/ui as tooling on Vite + React + TypeScript. **Tokens here are the source of truth**; Tailwind config consumes them as CSS custom properties.
 
----
-
-## 1. Intent
-
-What this doc *is*: a concrete starting set of design tokens, component patterns, and screen structures the build can start from. Everything here is **opinionated enough to build against** and **lean enough to revise** once the first screens land and we see real data.
-
-What this doc *is not*: a pixel-perfect mockup spec. The Alienware brand inputs we have (Pompeii output) are aesthetic direction, not a spec. Specific colors, scales, and layouts below are derived from the stated direction + shadcn's baseline + industry norms for exec dashboards, and will refine during build.
-
-One rule above all: **the design serves the content, not the brand.** An exec needs to see the finding in five seconds — not wade through chrome. Brand character applies to the frame; content areas stay disciplined and legible.
+> **Posture pivot, session 13.** The prior draft anchored a dark-mode gaming aesthetic. Operator locked a **light, internal-tooling aesthetic** at session-13 start — derived from a claude.ai/design prototype (`bundle: pulse-check`). This doc replaces the prior draft.
 
 ---
 
-## 2. Brand anchoring
+## 1. Posture
 
-From the operator-provided Pompeii brand output:
-
-- **Values:** Relentless Innovation, Uncompromising Quality, Community Collaboration, Performance Excellence
-- **Visual aesthetics:** Technological Innovation, Futuristic Immersion, Sleek Minimalism, Professional Reliability, High-Tech Humanism
-- **Tone of voice:** Authoritative, Futuristic, High-tech, Confident
-- **Font:** `alienware` (custom, proprietary)
-
-**Derived direction:**
-- Dark-mode-first interface — the default Alienware surface treatment; also best for data-dense screens over long reads.
-- Minimal chrome, high-contrast type, disciplined use of accent color.
-- Geometric / tech-sans typography for display; neutral humanist sans for body (readability wins over stylistic consistency).
-- No gamer-y excess — no RGB glow, no neon chrome, no ambient motion. Professional exec read.
-
-**Honest note on the font.** The `alienware` font is proprietary; it is unlikely we can redistribute it. The design uses a fallback chain: `alienware` (if licensed/installed) → `Eurostile` → `Exo 2` → `Rajdhani` → system sans. Display headings get the tech-sans stack; body copy uses `Inter` (clean, reliable, free).
+- **Light theme.** White surface (`#FFFFFF`), `#F4F5F7` for muted zones, `#17171C` for the rare dark surface (sidebars, cover slides).
+- **Internal tooling**, not a marketing surface. Information-dense; exec-clarity over analyst-depth.
+- **Brand identity = logo + a single purple accent (`#5F00F8`).** Used only for: discreet hover affordances, selected/active states, citation chips, and primary buttons.
+- **No gradients in content. No glow. No gaming flourish. No ambient motion.**
+- **Desktop-only**, min-width 1280px. No responsive collapse for v1.
+- **One rule above all:** the design serves the content. Numbers and verbatims dominate; chrome stays out of the way.
 
 ---
 
-## 3. Design tokens
+## 2. Tokens
 
-All tokens exposed as CSS custom properties in the Tailwind config. shadcn/ui theme variables map to these.
+All tokens declared as CSS custom properties on `:root`. Source: `tokens.css` (from the prototype bundle), reproduced here verbatim. Tailwind theme should consume these via `var(--aw-…)`.
 
-### 3.1 Color — surfaces (dark-mode primary)
+### 2.1 Surfaces
 
 | Token | Value | Use |
 |---|---|---|
-| `--surface-0` | `#0B0B0D` | App background (near-black, not pure) |
-| `--surface-1` | `#141416` | Card / panel |
-| `--surface-2` | `#1E1E22` | Elevated card (card-on-card, hover state) |
-| `--surface-3` | `#282830` | Popover / drawer |
-| `--border-subtle` | `#2A2A30` | Default card border |
-| `--border-strong` | `#3A3A42` | Focus / emphasis |
+| `--aw-surface` | `#FFFFFF` | Default canvas |
+| `--aw-surface-alt` | `#F4F5F7` | Subdued zones, table headers, drawer card stack |
+| `--aw-surface-dark` | `#17171C` | Sidebars, nav rails, cover slides only |
+| `--aw-surface-dark-alt` | `#21212A` | Hover row on dark surfaces |
 
-### 3.2 Color — text
+### 2.2 Text
 
 | Token | Value | Use |
 |---|---|---|
-| `--text-primary` | `#F5F5F7` | Headings, primary copy, aggregate numbers |
-| `--text-secondary` | `#9A9AA4` | Body labels, metadata |
-| `--text-tertiary` | `#6A6A74` | Captions, disabled, hints |
-| `--text-on-accent` | `#0B0B0D` | Text on accent-filled backgrounds |
+| `--aw-fg` | `#17171C` | Primary copy, aggregate numbers, headings |
+| `--aw-fg-secondary` | `#444444` | Body labels |
+| `--aw-fg-muted` | `#6B6B73` | Captions, helper text, disabled |
+| `--aw-fg-on-dark` | `#FFFFFF` | Text on dark surfaces |
+| `--aw-fg-on-accent` | `#FFFFFF` | Text on purple |
 
-### 3.3 Color — accent (Alienware signature)
-
-| Token | Value | Use |
-|---|---|---|
-| `--accent-primary` | `#00D4FF` | Alienware "plasma blue"; primary CTAs, links, focus rings |
-| `--accent-hover` | `#33DDFF` | Hover state |
-| `--accent-subtle` | `rgba(0, 212, 255, 0.12)` | Tint backgrounds, subtle fills |
-| `--accent-muted` | `#0097B8` | Secondary accent uses |
-
-### 3.4 Color — semantic (sentiment + intensity + addressability)
-
-Sentiment polarity (muted, not screaming — this is exec-read):
+### 2.3 Borders
 
 | Token | Value | Use |
 |---|---|---|
-| `--sentiment-positive` | `#3AB58A` | Positive sentiment pill, bar, score |
-| `--sentiment-neutral` | `#6A6A74` | Neutral sentiment |
-| `--sentiment-negative` | `#D35268` | Negative sentiment (muted red, not pure red) |
+| `--aw-border` | `#D9DCE7` | Standard divider, card border |
+| `--aw-border-strong` | `#AAAAAA` | Inputs, table cells, dashed empty states |
 
-Intensity (for tag chips + distribution bars):
-
-| Token | Value | Use |
-|---|---|---|
-| `--intensity-low` | `#5A6B7A` | Low-intensity mentions |
-| `--intensity-medium` | `#C48A3A` | Medium-intensity mentions |
-| `--intensity-high` | `#D35268` | High-intensity mentions (shared with neg-sentiment; contextually OK) |
-
-Addressability badges (A2):
+### 2.4 Accent — Alienware purple
 
 | Token | Value | Use |
 |---|---|---|
-| `--addr-messaging` | `#00D4FF` | Messaging/PR-addressable reasons (accent blue) |
-| `--addr-software` | `#3AB58A` | Software-addressable (green) |
-| `--addr-hardware` | `#C48A3A` | Hardware-addressable (amber — implies cost/complexity) |
-| `--addr-pricing` | `#9B6AD8` | Pricing-addressable (purple) |
-| `--addr-mixed` | `#6A6A74` | Mixed / ambiguous |
+| `--aw-accent` | `#5F00F8` | Primary buttons, citation chip hover, focus |
+| `--aw-accent-hover` | `#2C098C` | Hover/pressed accent |
+| `--aw-accent-soft` | `#EDE7FE` | Soft fill — citation chips at rest, selected rows, selection highlight |
 
-### 3.5 Typography
+**Discipline:** purple appears **once or twice per screen at most**. Never as a fill on large surfaces.
+
+### 2.5 Status
+
+| Token | Value | Use |
+|---|---|---|
+| `--aw-success` | `#1F8A3F` | Positive sentiment, "what is working" chip text |
+| `--aw-warning` | `#B8860B` | Medium intensity, neutral signal |
+| `--aw-danger` | `#C13030` | Negative sentiment, "complaints" chip text |
+| `--aw-success-soft` | `#E8F4EC` | Pos chip background |
+| `--aw-warning-soft` | `#FAF1DC` | Med chip background |
+| `--aw-danger-soft` | `#F8E5E5` | Neg chip background |
+
+### 2.6 Chart
+
+| Token | Value | Use |
+|---|---|---|
+| `--aw-chart-1` | `#5F00F8` | First series only (purple) |
+| `--aw-chart-2` | `#00F0F0` | **Second series only** (cyan); forbidden as content color elsewhere |
+| `--aw-chart-3..6` | neutrals | Tertiary series |
+
+### 2.7 Spacing (4px grid)
+
+| Token | px |
+|---|---|
+| `--aw-space-1` | 4 |
+| `--aw-space-2` | 8 |
+| `--aw-space-3` | 12 |
+| `--aw-space-4` | 16 |
+| `--aw-space-6` | 24 |
+| `--aw-space-8` | 32 |
+| `--aw-space-12` | 48 |
+| `--aw-space-16` | 64 |
+| `--aw-page-pad` | 32 |
+| `--aw-card-pad` | 24 |
+
+### 2.8 Radii
+
+| Token | px |
+|---|---|
+| `--aw-radius-sm` | 2 (chips, inline markers) |
+| `--aw-radius-md` | 4 (buttons, inputs, badges, drawer headers) |
+| `--aw-radius-lg` | 8 (cards, scrollers — **max**) |
+
+### 2.9 Shadows
+
+Single elevation. Do not invent more.
 
 ```
-Display:    alienware | Eurostile | Exo 2 | Rajdhani | sans-serif
-Body / UI:  Inter | system-ui | -apple-system | sans-serif
-Mono / num: ui-monospace | "Cascadia Code" | "JetBrains Mono" | monospace
+--aw-shadow-card: 0 1px 2px rgba(23,23,28,0.06), 0 1px 3px rgba(23,23,28,0.04);
 ```
 
-Body + UI use `Inter` via Google Fonts — reliable, free, excellent at small sizes.
+### 2.10 Motion
 
-Scale (Tailwind default, documented per usage):
+| Token | Value |
+|---|---|
+| `--aw-ease` | `cubic-bezier(0.2, 0, 0, 1)` |
+| `--aw-duration-1` | 120ms (hover, press) |
+| `--aw-duration-2` | 200ms (state transitions, drawer-in) |
+| `--aw-duration-3` | 320ms (layout) |
 
-| Role | Size | Weight | Tracking |
-|---|---|---|---|
-| Display (page headline) | 32px / 2rem | 600 | −1% |
-| H1 (section) | 24px / 1.5rem | 600 | normal |
-| H2 (subsection) | 20px / 1.25rem | 600 | normal |
-| H3 (card title) | 16px / 1rem | 600 | normal |
-| Body | 14px / 0.875rem | 400 | normal |
-| Body strong | 14px | 600 | normal |
-| Label / caption | 12px / 0.75rem | 500 | +2% (uppercase for chip labels) |
-| Aggregate number (large) | 40px–56px | 600 | tabular-nums |
-| Aggregate number (inline) | 16px | 600 | tabular-nums |
+### 2.11 Focus
 
-**Numbers use `font-variant-numeric: tabular-nums`** so columns of aggregate counts align cleanly. This is not optional.
-
-### 3.6 Spacing, radius, shadow
-
-Tailwind defaults unless otherwise noted.
-
-- **Spacing base:** 4px. Common rhythms: 4 / 8 / 12 / 16 / 24 / 32 / 48 / 64.
-- **Radius:** `4px` (chips / inputs), `8px` (cards / buttons), `12px` (drawers / dialogs). No heavy rounding.
-- **Shadow:** subtle, purposeful only. Default: `0 1px 2px rgba(0,0,0,.3)` for cards on `--surface-0`; stronger only for drawers/popovers.
+```
+--aw-focus-ring: 0 0 0 2px #FFFFFF, 0 0 0 4px var(--aw-accent);
+```
 
 ---
 
-## 4. Component conventions
+## 3. Typography
 
-Components build on shadcn/ui; conventions below define how the app *uses* them.
-
-### 4.1 VerbatimCard — the evidence atom
-
-Every drill-down renders a stack of these. Every claim the UI makes eventually leads here.
+### 3.1 Stack
 
 ```
-┌───────────────────────────────────────────────────┐
-│  [icon] Reddit · r/GamingLaptops  ·  ↗           │
-│  Posted Mar 14, 2026 · u/example_user              │
-│                                                    │
-│  "Picked the Strix G16 over the Area-51 18        │
-│   because Alienware runs way hotter under load.    │
-│   Tested both at Micro Center."                    │
-│                                                    │
-│  ┌─────────────────┬─────────────────────────┐    │
-│  │ thermals · neg  │ high intensity          │    │
-│  └─────────────────┴─────────────────────────┘    │
-│                                                    │
-│  [verified purchase] [owned 6 months] [↑ 142]     │
-└───────────────────────────────────────────────────┘
+--aw-font-sans: "Arial Nova", "Arial", "Helvetica Neue", Helvetica, sans-serif;
+--aw-font-mono: "SF Mono", "Consolas", "Roboto Mono", ui-monospace, monospace;
 ```
 
-Required elements:
-- **Source icon + source label + channel** (top-left). Source URL clickable (↗ icon).
-- **Publish date + author** (second line, `--text-secondary`).
-- **Verbatim text**, rendered from DB (never from LLM output). Quotation indent.
-- **Aspect tag chips** — `aspect · polarity` pill + `intensity` pill.
-- **Metadata chips** — verified_purchase, ownership_duration, upvotes / helpful_count, rating, etc. Only show chips that have actual values.
-- **Tombstone badge** (if `tombstoned_at` set) — small red-orange pill: "no longer available on source".
+**Pivot from prior posture:** the `Exo 2` + `Rajdhani` Google Fonts loaded by `frontend/index.html` (session 3) are no longer needed. Remove the font-link tags when 11.2 lands; system stack is the spec now.
 
-Variants:
-- **Compact** — list item in a stack, body text truncated to 3 lines with "show more"
-- **Expanded** — full text, shown in drawer or on hover expansion
+### 3.2 Scale (web)
 
-### 4.2 AggregateNumber — the drillable number
+| Token | Size |
+|---|---|
+| `--aw-text-xs` | 12px (eyebrow, captions, chips, drawer meta) |
+| `--aw-text-sm` | 14px (body default) |
+| `--aw-text-base` | 16px (BriefPanel claim text, h4) |
+| `--aw-text-md` | 18px (h3) |
+| `--aw-text-lg` | 24px (h2) |
+| `--aw-text-xl` | 32px (h1) |
 
-Any number that was computed from mentions is rendered as `AggregateNumber`. Implicit contract: **clicking opens the evidence drawer with the contributing mentions**.
+Line heights: `--aw-line-tight: 1.2`, `--aw-line-normal: 1.45`, `--aw-line-loose: 1.6`.
 
-Visual:
-- Tabular nums, `--text-primary`
-- Subtle underline-dot or magnifier icon on hover to signal clickability
-- Cursor pointer
-- Accessible: role="button", aria-label includes context ("61% win rate — 147 threads — show evidence")
+Weights: `--aw-weight-regular: 400`, `--aw-weight-medium: 500`, `--aw-weight-semibold: 600` (heading weight).
 
-Non-drillable metadata numbers (count-of-sources, last-updated-timestamp) render as plain text; no affordance.
+### 3.3 Numerics
 
-### 4.3 AspectRow — A1 scorecard row
-
-Rendered as a single row per aspect on the product scorecard. Horizontal, scannable.
-
-```
-┌──────────────┬──────────┬────────┬──────────────────────┬─────────┬───────────┬────┐
-│ Aspect       │  Net     │ Count  │ Intensity dist       │ Verif % │ Sources   │ ↗  │
-├──────────────┼──────────┼────────┼──────────────────────┼─────────┼───────────┼────┤
-│ Thermals     │   −0.42  │   342  │ ▓▓▓▓▓░░░░░ (32 H)   │   71%   │ ● ● ● ● ● │ ↗  │
-│ Performance  │   +0.18  │   289  │ ▓▓░░░░░░░░ (6 H)    │   74%   │ ● ● ● ●   │ ↗  │
-│ Keyboard     │   +0.51  │   201  │ ▓░░░░░░░░░ (2 H)    │   80%   │ ● ● ●     │ ↗  │
-│ ...                                                                              │
-└──────────────────────────────────────────────────────────────────────────────────┘
-```
-
-- `Net` — signed float, color-coded by sentiment token
-- `Count` — total mentions; AggregateNumber (drillable)
-- `Intensity dist` — small stacked bar (low / med / high on negative side) + inline "(X H)" count of high-intensity mentions
-- `Verif %` — share of contributing mentions with `verified_purchase=True`
-- `Sources` — filled dots per source type (Reddit / BestBuy / Amazon / YouTube / Article); unfilled if absent
-- `↗` — expand row into verbatim drill-down drawer
-
-### 4.4 ReasonRow — A2 per-reason row
-
-Same pattern as AspectRow but per reason bucket within a pair winner-side.
-
-```
-┌──────────────────────┬────────┬──────────────┬───────────────┬──────────┬────┐
-│ Reason               │ Count  │ Intensity    │ Addressability│ Preview  │ ↗  │
-├──────────────────────┼────────┼──────────────┼───────────────┼──────────┼────┤
-│ Thermal design       │   60   │ 28 H / 22 M  │ [hardware]    │ "runs... │ ↗  │
-│ Aesthetic restraint  │   44   │ 12 H / 18 M  │ [messaging]   │ "looks...│ ↗  │
-│ Software bloat       │   38   │ 19 H / 12 M  │ [software]    │ "Comm... │ ↗  │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
-
-Addressability chip uses the `--addr-*` token colors. Preview shows first ~40 chars of the Sonnet-selected representative verbatim.
-
-### 4.5 WinRateHeader — A2 headline
-
-Large, confident, centered on the pair view.
-
-```
-           Alienware 16 Aurora  vs.  ROG Strix G16
-
-                      39%    ·    61%
-                       147 of 240 resolved deliberation threads
-                                      chose the Strix G16
-
-                              [show all 240 threads ↗]
-```
-
-- Big numbers: `Aggregate number (large)` size, sentiment-neutral color
-- Subtitle: plain body copy with the count (AggregateNumber drillable)
-- Link: opens evidence drawer filtered to the 240 threads
-
-### 4.6 BriefPanel — Sonnet narrative with inline citations
-
-Renders `briefs.narrative` JSON as prose with inline citation markers.
-
-```
-  Top losing reasons
-
-  Thermals is the top-cited reason deliberators chose the Strix G16 over
-  the Area-51 18, appearing in 60 resolved threads. [1][2][3] These
-  complaints cluster around sustained-load temperatures and fan noise —
-  60% of cited threads call out the Alienware's cooling design specifically.
-
-                                       ─────
-
-  Addressability breakdown
-
-  All three top losing reasons are perception- or software-addressable...
-```
-
-- `[1][2][3]` — small superscript citation markers, styled as `--accent-primary` subscript
-- **Hover** a marker → small tooltip with the first cited verbatim (source + 1-line excerpt)
-- **Click** a marker → pins the evidence panel on the right, with all cited mentions for that claim, other markers in the brief deselect
-
-### 4.7 EvidenceDrawer — universal drill-down
-
-Always slides in from right when any AggregateNumber / citation / expand-row affordance is triggered. One at a time; clicking another affordance updates its content.
-
-```
-┌────────────────────────────────────────┐
-│ 342 mentions · thermals · Area-51 18   │  ← header: count + context
-│ [×]                                     │
-│ ─────                                   │
-│ [Filters: source ▾] [verified ◻]       │  ← filters (pre-computed)
-│  [recency ▾] [intensity ▾]             │
-│ ─────                                   │
-│ [VerbatimCard]                          │  ← stack of compact cards
-│ [VerbatimCard]                          │
-│ [VerbatimCard]                          │
-│ ...                                     │
-│ [Load more]                             │
-└────────────────────────────────────────┘
-```
-
-Width: ~440px on desktop. Body scrolls; header + filters pin.
-
-### 4.8 Chip / badge patterns
-
-One shape, tonal variants:
-
-- **Sentiment chip** — `aspect · polarity` shown together: `thermals · neg` with polarity color fill
-- **Intensity chip** — `low` / `med` / `high` with intensity token color
-- **Addressability chip** — `[messaging]` / `[software]` / `[hardware]` / `[pricing]` with `--addr-*` color
-- **Metadata chip** — `verified purchase`, `owned 6 months`, `↑ 142`, `★ 4.2` — monochrome, muted border
-- **Tombstone chip** — orange/red muted, "no longer available"
-
-All chips: `4px` radius, `10px–11px` text, `4px` vertical / `8px` horizontal padding.
-
-### 4.9 Charts
-
-shadcn/ui's Chart component (Recharts-based) is the default. Only three chart types needed for v1:
-
-- **Stacked bar** — intensity distribution per aspect/reason. Horizontal.
-- **Horizontal bar** — source-breakdown of an aspect's mentions.
-- **Sparkline** — optional recency trend per aspect (30d window).
-
-No pie charts. No 3D. No animations beyond a 150ms mount fade.
-
-Chart palette reuses `--sentiment-*` + `--intensity-*` tokens — never introduce new chart colors.
+All counts, scores, percentages: `font-variant-numeric: tabular-nums`. Numerics in the mono stack where alignment matters (run-meta strip, drillable counts, sparkline labels).
 
 ---
 
-## 5. Screen inventory
+## 4. Atoms
 
-Three routes + one overlay. Minimal.
+Each atom: prop / state inventory + key visual rules. Implementation lives at `frontend/src/components/<atom>.tsx`.
 
-### 5.1 `/` — Landing / selector
+### 4.1 Chip
 
-Shown at app open. Two tabs: "Standalone voice" (A1) and "Comparative deliberation" (A2). Under each, a selector:
-- **A1:** dropdown of all products in the current run → navigates to `/product/:product_id`
-- **A2:** dropdown of all configured pairs → navigates to `/pair/:pair_id`
+Small inline token. **Single shape**, semantic variants only — never invent new shapes for new states.
 
-Top-of-page: small run-metadata strip — "Run: demo_2026_04 · 6mo backfill · taxonomy v0 · generated 2026-04-23".
+Tones (from `CHIP_TONES` in prototype `atoms.jsx`):
 
-### 5.2 `/product/:product_id` — A1 scorecard
+| Tone | Use |
+|---|---|
+| `pos` / `neg` / `neu` | Sentiment polarity |
+| `high` / `med` / `low` | Intensity |
+| `messaging` / `software` / `hardware` / `pricing` / `mixed` | A2 addressability (Wave 3) |
+| `meta` | Generic neutral metadata (e.g., `↑ 142`, `★ 4.5`) |
+| `verified` | Verified-purchase signal |
+| `tombstone` | Deleted/no-longer-available marker (deferred per session-13 lock) |
 
-Page structure:
-```
-┌──────────────────────────────────────────────────┐
-│ [← back]  Alienware 16 Aurora                     │
-│ 2,847 mentions · 6mo window                       │
-├──────────────────────────────────────────────────┤
-│ [Cohort toggles: ◻ verified only  ◻ last 30d]    │
-├──────────────────────────────────────────────────┤
-│  AspectRow × 11 (table)                          │
-├──────────────────────────────────────────────────┤
-│  BriefPanel — A1 standalone brief                 │
-└──────────────────────────────────────────────────┘
-```
+**Geometry:** 18px height, 6px horizontal padding, 2px radius (`--aw-radius-sm`), 11px text, 500 weight.
 
-### 5.3 `/pair/:pair_id` — A2 pair view
+### 4.2 DrillNumber
 
-```
-┌──────────────────────────────────────────────────┐
-│ [← back]    [pair selector ▾]                    │
-├──────────────────────────────────────────────────┤
-│                   WinRateHeader                   │
-├──────────────────────────────────────────────────┤
-│  Left column                Right column          │
-│  Why [primary] won          Why [competitor] won  │
-│  ReasonRow × 6              ReasonRow × 6         │
-├──────────────────────────────────────────────────┤
-│  BriefPanel — A2 comparative brief                │
-└──────────────────────────────────────────────────┘
-```
+Discreet hover affordance for any aggregate count. Cursor `zoom-in` on hover; underline appears in `--aw-accent`. Click opens the EvidenceDrawer with the relevant `mention_ids` pool.
 
-### 5.4 Evidence drawer
+Props: `value`, `onClick`, `align`, `title`.
 
-Overlay, not a route. Any AggregateNumber / expand-row / citation opens it. Described in §4.7.
+### 4.3 CiteChip (replaces prototype `CiteMarker [n]`)
 
----
+**Pivot from prototype:** the prototype renders inline `[1][2]` numeric markers tied to a separate `citation_map`. Our backend (§6.3 four-quadrant brief) already attaches `cited_mention_ids` to each `Claim`, so we render a **citation chip per claim** instead — e.g., `[3 mentions]` — with the same hover-preview + click-to-pin behavior. No `[n]` numbering. No marker-to-id map.
 
-## 6. Interaction & motion
+Visual: pill at end of claim text, `--aw-accent-soft` background, `--aw-accent-hover` text, 11px size, hover flips to `--aw-accent` fill / white text. On hover: tooltip with first mention's source mark + channel + date + first 180 chars of quote. On click: opens the CitationPanel pinned to the right.
 
-Minimal and purposeful. The aesthetic is confident-quiet, not animated-loud.
+### 4.4 SourceMark
 
-- **Hover states:** color shift (100ms), optional subtle translate-y for cards (`transform: translateY(-1px)`)
-- **Drawer open:** 240ms ease-out slide-in from right
-- **Tab switch:** instant; content area gets a 120ms fade
-- **Citation pin:** 120ms fade-in for the right-side evidence panel
-- **Chart mount:** 150ms bar-grow or fade-in
+Small letter-mark for source identity. **Not decorative** — functional disambiguator on dense card lists.
 
-NOT in scope: parallax, auto-scrolling, ambient shimmer, RGB effects, glitch / scanline chrome.
+| Source | BG | Letter |
+|---|---|---|
+| reddit | `#FF4500` | R |
+| bestbuy | `#0046BE` | B |
+| amazon | `#232F3E` | A |
+| youtube | `#FF0000` | Y |
+| article | `#444444` | · |
 
----
+12–14px square, 2px radius, white letter. Used on VerbatimCard, citation tooltip, and drawer card stacks.
 
-## 7. Accessibility
+### 4.5 SourceDots
 
-- WCAG AA contrast ratios for all text/background pairs
-- Focus rings visible (`--accent-primary` outline, 2px, 2px offset) — never removed
-- All drillable numbers + citation markers are `role="button"` with descriptive `aria-label`s
-- Keyboard: tab order follows reading order; Esc closes drawers; Enter/Space activate drillables
-- Screen reader: AggregateNumber announces "147, clickable — show 147 contributing mentions"
-- Respect `prefers-reduced-motion` — disable transforms, keep fades only
-- No color-only information: sentiment always carries a label (`neg` / `pos`) alongside color; intensity always carries a count alongside fill
+Five small dots in fixed source order (`reddit · bestbuy · amazon · youtube · article`). Filled where the source has any mention for this aspect. Used in the **expanded** AspectRow only — keeps the at-rest row clean.
 
----
+### 4.6 IntensityBar
 
-## 8. Implementation notes
+Horizontal stacked bar (high / med / low). Total width 100–120px. Colors: high `#C13030`, med `#B8860B`, low `#D9DCE7`. Tooltip exposes the raw counts. Expanded AspectRow only.
 
-### 8.1 Tailwind config
+### 4.7 Sparkline
 
-Tokens exposed as CSS variables; Tailwind `theme.extend.colors` maps to `var(--...)`. Example shape:
+26-week recency volume. SVG polyline, 1.5px stroke, `--aw-accent`. 120×24 typical. Expanded AspectRow only.
 
-```js
-// tailwind.config.js (sketch, not final)
-module.exports = {
-  darkMode: ['class'],
-  theme: {
-    extend: {
-      colors: {
-        surface: {
-          0: 'var(--surface-0)',
-          1: 'var(--surface-1)',
-          2: 'var(--surface-2)',
-          3: 'var(--surface-3)',
-        },
-        text: {
-          primary: 'var(--text-primary)',
-          secondary: 'var(--text-secondary)',
-          tertiary: 'var(--text-tertiary)',
-        },
-        accent: {
-          DEFAULT: 'var(--accent-primary)',
-          hover: 'var(--accent-hover)',
-          subtle: 'var(--accent-subtle)',
-          muted: 'var(--accent-muted)',
-        },
-        sentiment: {
-          positive: 'var(--sentiment-positive)',
-          neutral: 'var(--sentiment-neutral)',
-          negative: 'var(--sentiment-negative)',
-        },
-        intensity: {
-          low: 'var(--intensity-low)',
-          medium: 'var(--intensity-medium)',
-          high: 'var(--intensity-high)',
-        },
-        addr: {
-          messaging: 'var(--addr-messaging)',
-          software: 'var(--addr-software)',
-          hardware: 'var(--addr-hardware)',
-          pricing: 'var(--addr-pricing)',
-          mixed: 'var(--addr-mixed)',
-        },
-      },
-      fontFamily: {
-        display: ['alienware', 'Eurostile', 'Exo 2', 'Rajdhani', 'sans-serif'],
-        sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
-        mono: ['ui-monospace', 'Cascadia Code', 'JetBrains Mono', 'monospace'],
-      },
-    },
-  },
-};
-```
+> **Backend dependency:** the 26-week series isn't materialized in `aggregates_aspect_sku.by_recency` today — that field carries coarser bucket counts. 11.2 will derive the series at API-handler time from `mentions.published_at` for each aspect's `mention_ids`. Track open item if not.
 
-### 8.2 shadcn/ui integration
+### 4.8 VerbatimCard
 
-- Install shadcn/ui CLI; generate component stubs as needed (Card, Table, Sheet for drawer, Dialog, Tabs, Select, Popover, Tooltip, Badge, Chart, Separator).
-- Theme variables (`--background`, `--foreground`, `--muted`, `--primary`, etc.) map to our surface/text/accent tokens in a single `app.css`.
-- Dark-mode is the only mode — no theme toggle in v1.
+The single most-rendered atom on the page. Section order, top-to-bottom:
 
-### 8.3 Font strategy
+1. **Source mark + source label + channel** + url-out icon (top-right).
+2. **Posted date · author** (muted, 11px).
+3. **Quote** in a left-bordered blockquote, 13px, 1.5 line height. Truncate at 180 chars with show-more / show-less.
+4. **Tag row 1:** aspect-polarity chip + intensity chip.
+5. **Tag row 2 (only if data exists):** `verified purchase` (when present) + `↑ <upvotes>` (Reddit only) + `★ <rating>` (retailer only).
 
-- `Inter` loaded from Google Fonts via `<link>` in the HTML head (subset: `latin`).
-- Display fallback chain declared in CSS; if the `alienware` font file is available + licensed, declare it via `@font-face`. Otherwise the chain quietly degrades to Exo 2 (Google Fonts) → Rajdhani (Google Fonts) → system sans. All usable.
-
-### 8.4 Dark-mode-only for v1
-
-Light mode is explicitly out of scope for v1 (PRD §4.2). The Tailwind `darkMode: 'class'` setting is kept for forward compatibility, but the app root always has the `dark` class applied. No toggle, no user preference read. Revisit if exec feedback requests it later.
+**Locked exclusions per session-13:** no ownership phrase ("owned 6 months"), no tombstone marker. Re-add when there's a real workflow demand.
 
 ---
 
-## 9. What's explicitly not specified here
+## 5. Composite components
 
-These will land during build, with decisions flagged in-conversation per CLAUDE.md §doc-evolution:
+### 5.1 AspectRow + AspectColumn (the scroller)
 
-- Exact chart widths, paddings, and responsive breakpoints under 1280px
-- Empty-state illustrations / copy (when a product has <100 mentions for a pair)
-- Loading skeletons (shadcn defaults will do initially)
-- Error states (network, 404, partial-data)
-- Exact copy tone for UI microcopy — to be drafted during build in the Authoritative-Confident voice
-- Pair selector UX when the pair plan grows past ~15 (pagination / search — not a v1 concern at 10)
+**Locked layout per session-13:** two scrollers per Standalone page — left = positive net sentiment, right = negative net sentiment.
+
+**Each scroller has 3 stacked sections in scroll order:**
+
+| Section | Contents | Sort |
+|---|---|---|
+| **A** | Top-3 PRIMARY rows (by `total_mentions`) for this polarity | mentions desc |
+| **B** | Top-3 SECONDARY rows (by `total_mentions_secondary`), **excluding any aspect already in A of this scroller** | mentions desc |
+| **C** | Long tail — every other aspect with any mentions in this polarity, **excluding A and B of this scroller** | mentions desc |
+
+**No within-scroller repeats.** Cross-scroller divergence is permitted: an aspect with `PRIMARY pos = 0.59` and `SECONDARY neg = −0.18` (real example: rog_strix_g16 price-value) appears in **left scroller Section A** AND **right scroller Section B**. A small `primary` / `secondary` tone chip on the row tells the eye which bucket the metrics represent.
+
+**Row at rest:** `aspect · net · mentions (drillable) · expand`. Single line, ~41px tall.
+
+**Row expanded:** reveals `IntensityBar + high count`, `verifiedPct`, `SourceDots`, `Sparkline` in a 2×2 inset grid. Background `--aw-surface-alt`.
+
+**Header:** polarity chip with count (e.g., `WHAT IS WORKING (6)` / `COMPLAINTS (5)`). The prior "Positives" / "Negatives" eyebrow text was removed from the prototype mid-iteration; chip-with-count carries the meaning.
+
+**Section dividers within scroller:** TBD — see §9 open questions.
+
+**Empty state:** dashed-border card with neutral copy. Right scroller is α-placeholder territory on both pilot products today (zero PRIMARY-backed cons); Section B (top-3 SECONDARY neg) lifts up immediately.
+
+### 5.2 BriefPanel
+
+**Locked four-section structure** (per §6.3 four-quadrant lock + session-13 brief shape decision). Each section maps to one quadrant of the §6.3 selector grammar:
+
+| Section | Quadrant | Cap |
+|---|---|---|
+| `Q1` PRIMARY positive (e.g., `High-confidence strengths`) | Q1 | up to 3 claims |
+| `Q2` PRIMARY negative (e.g., `High-confidence weaknesses`) | Q2 | up to 3 claims; α-placeholder when empty |
+| `Q3` SECONDARY positive (e.g., `Low-signal strengths (public chatter)`) | Q3 | up to 3 claims |
+| `Q4` SECONDARY negative (e.g., `Low-signal weaknesses (public chatter)`) | Q4 | up to 3 claims |
+
+> **Heading literals come from the persisted `narrative.sections[i].heading`**, not from a frontend constant — Sonnet-generated headings on the live briefs read `"High-confidence strengths"`, `"High-confidence weaknesses"`, `"Low-signal strengths (public chatter)"`, `"Low-signal weaknesses (public chatter)"`. Frontend must render whatever the backend returns, in order. Section→quadrant mapping is positional (sections[0]=Q1, sections[1]=Q2, sections[2]=Q3, sections[3]=Q4), as fixed by the brief writer.
+
+Each claim: short bullet text (Sonnet-written) ending in a `CiteChip` showing mention count. `claim_text` is the only thing the LLM authors; `cited_mention_ids` come from the deterministic selector (§6.3).
+
+**Header:** `Brief` heading + small `AUTO-GENERATED` eyebrow.
+
+**Background:** white card with `--aw-shadow-card`, 24px padding, 16px gap between sections.
+
+### 5.3 EvidenceDrawer
+
+Right-side overlay, **440px wide**, persistent until dismissed. **No scrim** — the page stays interactive; user can re-trigger drill from another row without closing.
+
+Sections:
+1. **Pinned header.** `Evidence` eyebrow · `<count> mentions · <aspect>` · `<product name>` subtitle. Close button.
+2. **Pinned filters.** `source` (select), `verified` (checkbox), `recency` (select, no-op v1), `intensity` (select). Filter changes update the visible set immediately client-side.
+3. **Card stack.** `--aw-surface-alt` background, 16px padding, 10px gap, vertical scroll. `Load more` button at the foot.
+
+Animation: slide-in from right, 200ms `--aw-ease`. Esc closes.
+
+### 5.4 CitationPanel
+
+Right-side panel, **380px wide**, narrower than EvidenceDrawer. Opens for `CiteChip` clicks. No filters — just the cited mentions for that claim.
+
+**Co-existence rule:** if EvidenceDrawer is also open (440px), CitationPanel offsets to `right: 440px`. Both visible simultaneously when an exec is checking citations against an aggregate.
+
+### 5.5 RunMetaStrip
+
+Thin band at top of every Standalone / Compare page. Locked label format per session-13:
+
+```
+1,143 mentions · 6-month window · last refreshed 2026-05-07
+```
+
+**Excluded:** run_id, taxonomy version, generated-by-pipeline metadata. The strip exists to communicate provenance + freshness, not internals.
+
+Geometry: 28px tall, `--aw-surface-alt` background, 11px mono numerics, muted text, single bottom border.
+
+### 5.6 Dropdown (Company / Product / pair selectors)
+
+Custom dropdown (not native `<select>`). Click-toggle list anchored to the trigger button. Selected option highlighted with `--aw-accent-soft` fill + 600 weight. Optional `meta` text right-aligned in each option (e.g., `2,847 mentions`).
+
+32px height for selectors; 24px for inline filter selects in the drawer.
+
+### 5.7 Cohort toggles
+
+**Hidden v1 per session-13.** Re-add when there's a real workflow demand.
+
+---
+
+## 6. Screen inventory
+
+### 6.1 About (`#/`)
+
+Default landing route.
+
+- RunMetaStrip
+- Title + 1-line intro: `pulse-check surfaces what owners are actually saying about your products.`
+- **Standalone selector** card: `Company` dropdown (filters product list) + `Product` dropdown + `Open standalone →` button.
+- **Compare placeholder** card: greyed-out, `Wave 3 — coming soon` badge. No selectors active.
+- **No 5-stage explainer** for v1. Add when the pilot is mature.
+
+### 6.2 Standalone (`#/standalone[/:productId]`)
+
+A1 product voice page. Locked layout per session-13:
+
+1. RunMetaStrip
+2. Header strip: `Home` back button · `A1 · Standalone voice` eyebrow · selector (right-aligned).
+3. Sub-header: product name h1 · `<n> mentions · <window>` (drillable count opens drawer with all mention_ids).
+4. **Two-column scroller:** §5.1 — left positive | right negative, each with Sections A / B / C.
+5. **BriefPanel:** §5.2 — four labeled sections with citation chips.
+
+Empty state when no `productId` in route: dashed empty-state card prompting selector use.
+
+### 6.3 Compare (`#/compare`) — Wave 3 placeholder
+
+`Wave 3 — coming soon` empty state. No selectors. Operator can point at this during demo to communicate the roadmap.
+
+---
+
+## 7. Anti-patterns
+
+What this design **must not** do — these will read as off-brand and need rework if introduced:
+
+- **Gradients in content.** Solid fills only.
+- **Glow / drop-shadow effects** beyond `--aw-shadow-card`. Single elevation, no neon.
+- **Gaming flourish** — no RGB strips, no hexagonal frames, no cyberpunk type, no animated scan lines.
+- **Dark backgrounds in content areas.** `--aw-surface-dark` is reserved for sidebars / cover slides, not the scorecard or brief panel.
+- **Multiple citation styles.** One brief = one citation paradigm (chips per claim, no `[n]` markers). Don't mix.
+- **Ambient motion.** Animations only on state transitions (hover, drawer in/out, mount fade). No looping motion.
+- **Brand color overuse.** Purple is for affordance and accent. Never as a content fill on a card or panel.
+- **Reinventing chip shapes.** New states get new tones, not new shapes.
+- **`--aw-chart-cyan` as a content color.** Chart series 2 only.
+
+---
+
+## 8. Implementation pointers
+
+- **Entry HTML** of the prototype: `frontend/public/pulse-check.html` reference at `/tmp/pulse-design/pulse-check/project/pulse-check.html`. Hash routing pattern: `#/`, `#/standalone[/:productId]`, `#/compare`.
+- **Prototype source**: `/tmp/pulse-design/pulse-check/project/{atoms,product,drawer,selector}.jsx`. Translate to TS+React; tokens reference via `var(--aw-…)`. Keep prototype's structure where it earns its keep; rewrite where ours diverges (CiteChip vs CiteMarker, four-quadrant BriefPanel vs three-section).
+- **Tailwind config** consumes the tokens via `extend.colors`, `extend.spacing`, etc. Don't duplicate values in component code.
+- **Backend contracts** locked in 11.1: `pulse_check/api/schemas.py` — `ProductSummary`, `ProductDetail` (with PRIMARY+SECONDARY `AspectRow`), `MentionView`, `BriefView`. Frontend codes against these.
+
+---
+
+## 9. Open questions
+
+Tracked here so they don't get lost:
+
+- **Section A/B/C dividers in the scroller.** Visual treatment TBD — could be a thin label row (`PRIMARY ⌃` / `SECONDARY ⌃` / `OTHER ⌃`), a sticky sub-header, or just a subtle background shift. Decide when 11.2 starts.
+- **CiteChip exact wording.** `[3 mentions]` vs `3 mentions` vs `3·` vs `★ 3`. Pick during 11.2 build, with the operator's eye.
+- **Sparkline backend wiring.** 26-week series needs to come from somewhere — either extend `aggregates_aspect_sku` with a `recency_26w` JSON list, or compute in API handler from `mentions.published_at` for the aspect's mention_ids. Compute-at-handler is cheaper now; extend the aggregator if it gets slow.
+- **Source coverage display.** 5 dots is the prototype pattern; could also be source marks. Stay with dots for at-rest density; review when 11.2 lands.
+- **Long-tail Section C visual weight.** Should Section C rows be muted (smaller text, reduced opacity) to communicate lower priority, or rendered identical to A/B with the section header alone carrying the hierarchy? Decide during build.
+
+---
+
+## 10. Where things live
+
+- Tokens: this file (§2) + `frontend/src/styles/tokens.css` (consumed by Tailwind config).
+- Atom components: `frontend/src/components/atoms/`.
+- Composite components: `frontend/src/components/<name>.tsx`.
+- Pages: `frontend/src/routes/`.
+- API contracts they render against: `pulse_check/api/schemas.py`.
+- Brief shape: `pulse_check/synthesis/contracts.py` (BriefNarrative).

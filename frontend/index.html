@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" class="dark">
+<html lang="en">
   <head>
     <!-- Ensure relative asset URLs resolve under the current mount path even
          when the page was loaded without a trailing slash. Sets a synthetic
@@ -16,22 +16,11 @@
     </script>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="color-scheme" content="dark" />
+    <meta name="color-scheme" content="light" />
     <title>pulse-check</title>
 
-    <!-- Inter — body + UI (DESIGN_SYSTEM §3.5). -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
-      rel="stylesheet"
-    />
-    <!-- Display fallback chain per DESIGN_SYSTEM §8.3: Eurostile (proprietary) ->
-         Exo 2 -> Rajdhani -> system sans. We only load the Google-hosted fallbacks. -->
-    <link
-      href="https://fonts.googleapis.com/css2?family=Exo+2:wght@500;600;700&family=Rajdhani:wght@500;600;700&display=swap"
-      rel="stylesheet"
-    />
+    <!-- System-stack pivot (session 13 + bite 11.2.d): no web fonts loaded.
+         Body font stack is Arial Nova → Arial → Helvetica per DESIGN_SYSTEM §3.1. -->
   </head>
   <body>
     <div id="root"></div>

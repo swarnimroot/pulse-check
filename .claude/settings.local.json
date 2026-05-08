@@ -154,7 +154,20 @@
       "Bash(.\\\\.venv\\\\Scripts\\\\python.exe *)",
       "Bash(cat)",
       "Read(//mnt/c/Users/AW-testing/Downloads/Workspace/**)",
-      "Bash(grep -n \"10\\\\.[1234]\\\\|Last reconciled\\\\|Wave 2\\\\|10\\\\\\\\.\" docs/TASKS.md)"
+      "Bash(grep -n \"10\\\\.[1234]\\\\|Last reconciled\\\\|Wave 2\\\\|10\\\\\\\\.\" docs/TASKS.md)",
+      "Bash(Select-Object -ExpandProperty Name)",
+      "WebFetch(domain:api.anthropic.com)",
+      "Bash(mkdir -p /tmp/pulse-design)",
+      "Read(//tmp/**)",
+      "Bash(tar -xzf \"C:/Users/AW-testing/.claude/projects/C--Users-AW-testing-Downloads-Workspace-pulse-check/e8a614f5-8325-4b8b-b83b-87b335cdc3a9/tool-results/webfetch-1778208025662-6e2mu5.bin\")",
+      "Bash(cp \"/c/Users/AW-testing/.claude/projects/C--Users-AW-testing-Downloads-Workspace-pulse-check/e8a614f5-8325-4b8b-b83b-87b335cdc3a9/tool-results/webfetch-1778208025662-6e2mu5.bin\" /tmp/pulse-design.tgz)",
+      "Bash(tar -xzf /tmp/pulse-design.tgz -C /tmp/pulse-design)",
+      "Bash(xargs grep -l \"Brief\\\\|brief_id\")",
+      "Bash(.venv\\\\Scripts\\\\python.exe -m pytest tests/unit/ -q)",
+      "Bash(.venv\\\\Scripts\\\\python.exe -m mypy pulse_check/)",
+      "Bash(.venv\\\\Scripts\\\\python.exe -m ruff check pulse_check/ tests/ scripts/)",
+      "Bash(Select-Object Name, PSIsContainer)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5173/)"
     ]
   }
 }

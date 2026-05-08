@@ -2,116 +2,121 @@ import type { Config } from "tailwindcss";
 import animate from "tailwindcss-animate";
 
 /**
- * Tailwind config wired to DESIGN_SYSTEM §3 tokens.
+ * Tailwind config wired to DESIGN_SYSTEM §2 tokens.
  *
- * All colour values resolve to CSS custom properties defined in
- * `src/index.css`. This keeps raw hex values in one place so the token table
- * in the design doc stays the single source of truth. Future shadcn/ui
- * components pick up the theme via the mapped semantic names
- * (`background`, `foreground`, `primary`, ...).
+ * Raw colour values live in `src/index.css` as `--aw-*` custom properties;
+ * Tailwind class names resolve to var() refs so component code never touches
+ * raw hex. Both shadcn semantic aliases (`background`, `foreground`,
+ * `primary`, ...) and direct token names (`surface`, `accent`, `success`)
+ * are exposed.
  */
 const config: Config = {
-  darkMode: ["class"],
   content: ["./index.html", "./src/**/*.{ts,tsx}"],
   theme: {
     extend: {
       colors: {
-        // Raw surface stack from DESIGN_SYSTEM §3.1.
+        // Direct §2 tokens.
         surface: {
-          0: "var(--surface-0)",
-          1: "var(--surface-1)",
-          2: "var(--surface-2)",
-          3: "var(--surface-3)",
+          DEFAULT: "var(--aw-surface)",
+          alt: "var(--aw-surface-alt)",
+          dark: "var(--aw-surface-dark)",
+          "dark-alt": "var(--aw-surface-dark-alt)",
         },
-        // Text stack from §3.2.
-        "text-primary": "var(--text-primary)",
-        "text-secondary": "var(--text-secondary)",
-        "text-tertiary": "var(--text-tertiary)",
-        "text-on-accent": "var(--text-on-accent)",
-        // Accent stack from §3.3.
+        fg: {
+          DEFAULT: "var(--aw-fg)",
+          secondary: "var(--aw-fg-secondary)",
+          muted: "var(--aw-fg-muted)",
+          "on-dark": "var(--aw-fg-on-dark)",
+          "on-accent": "var(--aw-fg-on-accent)",
+        },
         accent: {
-          DEFAULT: "var(--accent-primary)",
-          hover: "var(--accent-hover)",
-          subtle: "var(--accent-subtle)",
-          muted: "var(--accent-muted)",
+          DEFAULT: "var(--aw-accent)",
+          hover: "var(--aw-accent-hover)",
+          soft: "var(--aw-accent-soft)",
         },
-        // Sentiment / intensity / addressability tokens §3.4.
-        sentiment: {
-          positive: "var(--sentiment-positive)",
-          neutral: "var(--sentiment-neutral)",
-          negative: "var(--sentiment-negative)",
+        success: {
+          DEFAULT: "var(--aw-success)",
+          soft: "var(--aw-success-soft)",
         },
-        intensity: {
-          low: "var(--intensity-low)",
-          medium: "var(--intensity-medium)",
-          high: "var(--intensity-high)",
+        warning: {
+          DEFAULT: "var(--aw-warning)",
+          soft: "var(--aw-warning-soft)",
         },
-        addr: {
-          messaging: "var(--addr-messaging)",
-          software: "var(--addr-software)",
-          hardware: "var(--addr-hardware)",
-          pricing: "var(--addr-pricing)",
-          mixed: "var(--addr-mixed)",
+        danger: {
+          DEFAULT: "var(--aw-danger)",
+          soft: "var(--aw-danger-soft)",
         },
-        // Borders — kept separate so `border-subtle` etc. is usable directly.
-        "border-subtle": "var(--border-subtle)",
-        "border-strong": "var(--border-strong)",
-        // shadcn/ui semantic aliases — map to our tokens so shadcn components
-        // inherit the theme without further wiring.
-        background: "var(--surface-0)",
-        foreground: "var(--text-primary)",
+        chart: {
+          1: "var(--aw-chart-1)",
+          2: "var(--aw-chart-2)",
+          3: "var(--aw-chart-3)",
+          4: "var(--aw-chart-4)",
+          5: "var(--aw-chart-5)",
+          6: "var(--aw-chart-6)",
+        },
+        // shadcn/ui semantic aliases.
+        background: "var(--aw-surface)",
+        foreground: "var(--aw-fg)",
         card: {
-          DEFAULT: "var(--surface-1)",
-          foreground: "var(--text-primary)",
+          DEFAULT: "var(--aw-surface)",
+          foreground: "var(--aw-fg)",
         },
         popover: {
-          DEFAULT: "var(--surface-3)",
-          foreground: "var(--text-primary)",
+          DEFAULT: "var(--aw-surface)",
+          foreground: "var(--aw-fg)",
         },
         primary: {
-          DEFAULT: "var(--accent-primary)",
-          foreground: "var(--text-on-accent)",
+          DEFAULT: "var(--aw-accent)",
+          foreground: "var(--aw-fg-on-accent)",
         },
         secondary: {
-          DEFAULT: "var(--surface-2)",
-          foreground: "var(--text-primary)",
+          DEFAULT: "var(--aw-surface-alt)",
+          foreground: "var(--aw-fg)",
         },
         muted: {
-          DEFAULT: "var(--surface-2)",
-          foreground: "var(--text-secondary)",
+          DEFAULT: "var(--aw-surface-alt)",
+          foreground: "var(--aw-fg-muted)",
         },
         destructive: {
-          DEFAULT: "var(--sentiment-negative)",
-          foreground: "var(--text-primary)",
+          DEFAULT: "var(--aw-danger)",
+          foreground: "var(--aw-fg-on-accent)",
         },
-        border: "var(--border-subtle)",
-        input: "var(--border-subtle)",
-        ring: "var(--accent-primary)",
+        border: "var(--aw-border)",
+        "border-strong": "var(--aw-border-strong)",
+        input: "var(--aw-border)",
+        ring: "var(--aw-accent)",
       },
       borderRadius: {
-        sm: "4px",
-        DEFAULT: "8px",
-        md: "8px",
-        lg: "12px",
+        // §2.8 — sm 2 / md 4 / lg 8 (max).
+        sm: "2px",
+        DEFAULT: "4px",
+        md: "4px",
+        lg: "8px",
       },
       fontFamily: {
-        display: ["alienware", "Eurostile", "Exo 2", "Rajdhani", "sans-serif"],
-        sans: ["Inter", "system-ui", "-apple-system", "sans-serif"],
-        mono: ["ui-monospace", "Cascadia Code", "JetBrains Mono", "monospace"],
+        // §3.1 — system stack (display fonts retired session 13).
+        sans: ['"Arial Nova"', '"Arial"', '"Helvetica Neue"', "Helvetica", "sans-serif"],
+        mono: ['"SF Mono"', '"Consolas"', '"Roboto Mono"', "ui-monospace", "monospace"],
       },
       fontSize: {
-        // §3.5 display scale. Tailwind lets us declare [size, { lineHeight, letterSpacing, fontWeight }].
-        display: ["2rem", { lineHeight: "2.5rem", letterSpacing: "-0.01em", fontWeight: "600" }],
-        h1: ["1.5rem", { lineHeight: "2rem", fontWeight: "600" }],
-        h2: ["1.25rem", { lineHeight: "1.75rem", fontWeight: "600" }],
-        h3: ["1rem", { lineHeight: "1.5rem", fontWeight: "600" }],
-        body: ["0.875rem", { lineHeight: "1.25rem" }],
-        label: ["0.75rem", { lineHeight: "1rem", letterSpacing: "0.02em", fontWeight: "500" }],
-        "agg-lg": ["3rem", { lineHeight: "3.25rem", fontWeight: "600" }],
-        "agg-inline": ["1rem", { lineHeight: "1.25rem", fontWeight: "600" }],
+        // §3.2 — fixed scale.
+        xs: ["12px", { lineHeight: "1.45" }],
+        sm: ["14px", { lineHeight: "1.45" }],
+        base: ["16px", { lineHeight: "1.45" }],
+        md: ["18px", { lineHeight: "1.45", fontWeight: "600" }],
+        lg: ["24px", { lineHeight: "1.2", fontWeight: "600" }],
+        xl: ["32px", { lineHeight: "1.2", fontWeight: "600" }],
       },
       boxShadow: {
-        card: "0 1px 2px rgba(0, 0, 0, 0.3)",
+        card: "var(--aw-shadow-card)",
+      },
+      transitionTimingFunction: {
+        aw: "var(--aw-ease)",
+      },
+      transitionDuration: {
+        1: "var(--aw-duration-1)",
+        2: "var(--aw-duration-2)",
+        3: "var(--aw-duration-3)",
       },
     },
   },

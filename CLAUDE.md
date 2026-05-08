@@ -26,6 +26,7 @@ Operator is non-technical on implementation-level detail. Architecture docs are 
 2. Once approved, Claude **updates the relevant doc** before moving on. Docs are the source of truth.
 3. Claude never silently changes behavior that contradicts docs.
 4. Operator may skip technical doc sections (schema, LLM signatures, aggregation arithmetic) and trust the skeleton; plain-English sections (non-goals, workflow, definitional defaults, trade-offs) are where non-technical review matters.
+5. **`docs/TASKS.md` is the live work surface — updated immediately, not at session close.** Triggers: (a) bite start, (b) sub-bite naming, (c) sub-bite close, (d) plan deviation, (e) operator approval that closes a TASKS.md item, (f) bite close. Sub-bites also land in their wave section the moment they're named — not just the "Current bite" tracker block — so history persists when the active bite rotates. Session close is a recap of already-reconciled state, not the place where reconciliation happens. The next-session audit checklist diffs `[x]` set in TASKS.md against the prior session's claimed bite-closes; mismatches are flagged before any forward work.
 
 ## Session continuity
 
@@ -41,7 +42,7 @@ All persistent state under `data/` (gitignored). Layout in [ARCHITECTURE §2](do
 
 ## UI posture
 
-Desktop-only, dark-mode-first, Alienware aesthetic, shadcn/ui components on Tailwind, exec-clarity over analyst-depth. Full tokens and components in [`docs/DESIGN_SYSTEM.md`](docs/DESIGN_SYSTEM.md) *(pending draft)*.
+Desktop-only (min-width 1280px), light theme, internal-tooling aesthetic — white surface, Alienware purple `#5F00F8` accent only, no gradients in content, no glow, no gaming flourish. Information-dense, exec-clarity over analyst-depth. shadcn/ui on Tailwind as implementation tooling; tokens are the source of truth. Full tokens, atoms, and screen inventory in [`docs/DESIGN_SYSTEM.md`](docs/DESIGN_SYSTEM.md). (Posture pivoted from dark-mode-first at session-13 start; rationale in SESSION_LOG.)
 
 ## Where to look when in doubt
 

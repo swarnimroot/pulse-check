@@ -1,8 +1,33 @@
 # pulse-check — Tasks
 
-**Status:** draft &nbsp;·&nbsp; **Paired docs:** [`PRD.md`](PRD.md), [`ARCHITECTURE.md`](ARCHITECTURE.md), [`TESTING.md`](TESTING.md) &nbsp;·&nbsp; **Last reconciled:** 2026-05-07 (session 12 wrap-up)
+**Status:** draft &nbsp;·&nbsp; **Paired docs:** [`PRD.md`](PRD.md), [`ARCHITECTURE.md`](ARCHITECTURE.md), [`TESTING.md`](TESTING.md) &nbsp;·&nbsp; **Last reconciled:** 2026-05-08 (session 15 — bite 11.2 close)
 
 Wave-by-wave implementation plan matching the PRD's ~7–8 week single-operator estimate. Each wave has clear outputs, specific tasks, dependencies, and exit criteria. **Wave 2 is the A1-only cutpoint** — if v1 slips, A1 alone is a defensible ship.
+
+---
+
+## Current bite
+
+Live tracker — updated immediately on bite start, sub-bite close, deviation, or bite close (per `CLAUDE.md` doc-evolution clause 5). Sub-bites also land in their wave section so history persists when the active bite rotates.
+
+**Active:** 11.2 — closed in session 15. **Next bite to green-light:** 11.3 — frontend pages + live wiring.
+
+- [x] 11.2.a — Light-theme token swap (`frontend/src/index.css` rewritten with `--aw-*` tokens from DESIGN_SYSTEM §2 verbatim; `tailwind.config.ts` updated to read new var names + light-theme fontSize/borderRadius scales; shadcn semantic aliases preserved)
+- [x] 11.2.b — Atoms: Chip, DrillNumber, CiteChip, SourceMark, SourceDots, IntensityBar, Sparkline, VerbatimCard (all in `frontend/src/components/atoms/` + barrel index; types mirrored from `pulse_check/api/schemas.py` in `frontend/src/lib/types.ts`)
+- [x] 11.2.c — Composites: EvidenceDrawer (440px, 4 filters with recency disabled per v1), CitationPanel (380px, `offsetForDrawer` prop pushes to right=440 when drawer co-open), RunMetaStrip (non-jargon: total mentions · window · last refreshed)
+- [x] 11.2.d — Dropped Exo 2 + Rajdhani Google Font links from `frontend/index.html`. **Deviation:** Inter `<link>` block also dropped + body font-family set to system stack per DESIGN_SYSTEM §3.1 (Arial Nova → Arial → Helvetica). `class="dark"` removed from `<html>`; `color-scheme` flipped to `light`. Flag for operator: scope was literally Exo 2 + Rajdhani; Inter removal aligns with §3.1 spec but expanded actual scope.
+- [x] 11.2.e — Fixtures (`frontend/src/fixtures/sample.ts`: 12 mentions × 5 source types, 6 AspectRows, 1 BriefView, 1 RunMeta) + `Showcase` page wired at `/showcase` rendering every atom + composite. TS clean (`tsc -b --noEmit` passes); dev server boots.
+
+**Carryover into 11.3:**
+- Existing `Landing` / `Product` / `Pair` pages still reference dead Tailwind classes from the dark scaffold (`bg-surface-0`, `text-text-primary`, `font-display`, `text-display`, etc.). Tailwind silently no-ops on these so the build is clean, but the placeholders render unstyled. 11.3 rebuilds them anyway — leaving as-is for now.
+- Sparkline accepts arbitrary `data: number[]`. 26-week recency series isn't materialized in `aggregates_aspect_sku.by_recency`; 11.3 derives it at API-handler time from `mentions.published_at` for each aspect's `mention_ids`.
+- DESIGN_SYSTEM §3.1 vs HTML reconciliation: §3.1 specifies system stack only; 11.2.d cleanup completes that pivot in the HTML. Already aligned post-bite — no doc edit needed.
+
+**Blocked / waiting on operator:**
+- [ ] 6.3 — YouTube end-to-end (operator URL curation pending)
+- [ ] 6.4 (deferred) — BestBuy + Amazon retailer reviews (three open plumbing items; see Wave 2 → Scraping enrichment)
+
+**Next:** 11.3 — frontend pages + live wiring (depends on 11.2)
 
 ---
 
@@ -84,7 +109,7 @@ Seed-list curation is the biggest operator-side time cost outside coding. Start 
 
 **Goal:** full A1 scorecard view for a given product; classifier passes its gold-set threshold.
 
-**Status:** ~95% complete. Tagging + gold-set build + A1 aggregation done on real corpus (session 5). Content-type pre-classifier + tag-time gate (session 6, bite 6.1). Reddit-deepen via comment inheritance (session 8, bite 6.2-revised) — corpus 33 → 1143 mentions; aspect_tags 95 → 649. **Option 3 — A1 aggregate PRIMARY/SECONDARY column split — DONE (session 9, alembic `b8560c93bbd8`).** **Synthesis package skeleton + §6.3 BriefNarrative Pydantic contracts (session 10, bite 10.1)** + **Haiku near-duplicate dedup with cache + validation (session 10, bite 10.2)**. **Deterministic verbatim selector + Sonnet four-quadrant brief writer + ARCHITECTURE §6.3 A1 layout lock (session 11, bite 10.3).** **Citation validator + retry loop + `synthesize_a1` orchestrator + `scripts/synthesize.py` CLI + first live Haiku+Sonnet smoke on both pilot products (session 12, bite 10.4).** Eval runner, A1 API endpoints, and scorecard frontend remain.
+**Status:** ~98% complete. Tagging + gold-set build + A1 aggregation done on real corpus (session 5). Content-type pre-classifier + tag-time gate (session 6, bite 6.1). Reddit-deepen via comment inheritance (session 8, bite 6.2-revised) — corpus 33 → 1143 mentions; aspect_tags 95 → 649. **Option 3 — A1 aggregate PRIMARY/SECONDARY column split — DONE (session 9, alembic `b8560c93bbd8`).** **Synthesis package skeleton + §6.3 BriefNarrative Pydantic contracts (session 10, bite 10.1)** + **Haiku near-duplicate dedup with cache + validation (session 10, bite 10.2)**. **Deterministic verbatim selector + Sonnet four-quadrant brief writer + ARCHITECTURE §6.3 A1 layout lock (session 11, bite 10.3).** **Citation validator + retry loop + `synthesize_a1` orchestrator + `scripts/synthesize.py` CLI + first live Haiku+Sonnet smoke on both pilot products (session 12, bite 10.4).** **Backend API handlers (`/products`, `/product/:id`, `/mentions?ids=`, `/brief/:id`) + Pydantic schemas + 21 handler tests + DESIGN_SYSTEM full rewrite (session 13, bite 11.1).** Eval runner, frontend atoms (11.2), and pages + live wiring (11.3) remain.
 
 **Deviation flags (all approved + folded into ARCHITECTURE in session 9):**
 - ~~**Session 5:** aspect classifier swapped Qwen 7B → Haiku.~~ Folded into ARCHITECTURE §6.1 (deviation note pointing at §6.5) + §6.5 (Haiku batch classifiers table).
@@ -136,17 +161,24 @@ Seed-list curation is the biggest operator-side time cost outside coding. Start 
 - [ ] Integration test — end-to-end brief generation on fixture corpus *(deferred — orchestrator is covered by 7 unit tests against in-memory SQLite; full integration test against `data/pulse_check.db` is Wave 4 work)*
 
 **API**
-- [ ] `/products` — list products in current run *(stub-only in `api/main.py`; needs population)*
-- [ ] `/product/:id` — scorecard data (aspects + aggregates + brief)
-- [ ] `/mentions?ids=...` — resolve mention_ids to full cards (used by evidence drawer)
-- [ ] `/brief/:id` — single brief with citations
+- [x] `/products` — list products in current run *(session 13, bite 11.1)*
+- [x] `/product/:id` — scorecard data (aspects + aggregates + brief) — `_latest_run_id_for_product` queries `aggregates_aspect_sku.computed_at` desc since `runs` table is empty in live DB *(session 13, bite 11.1)*
+- [x] `/mentions?ids=...` — resolve mention_ids to full cards; CSV ids, 500-id batch cap, preserves caller order, drops unknowns silently *(session 13, bite 11.1)*
+- [x] `/brief/:id` — single brief with citations; passes through `briefs.narrative` JSON unchanged with `flagged_citation_issues` riding along as a top-level key *(session 13, bite 11.1)*
 
-**Frontend**
-- [ ] Page `/product/:id` — AspectRow table, BriefPanel, cohort toggles *(Wave 1 shell only)*
-- [ ] `VerbatimCard` component with all chips + tombstone badge
-- [ ] `AggregateNumber` component with drawer trigger
-- [ ] `EvidenceDrawer` with filters (source, verified, recency, intensity)
-- [ ] `BriefPanel` — inline citation markers with hover-tooltip + click-to-pin
+**Frontend — bite 11.2 (atoms + drawer, fixture-only; no live wiring)** *(session 15 — closed)*
+- [x] Light-theme token swap — `frontend/src/index.css` + `frontend/tailwind.config.ts` rewritten to `--aw-*` tokens per DESIGN_SYSTEM §2 verbatim
+- [x] Atoms: Chip (14 tones), DrillNumber, CiteChip (per-claim, not numbered, tooltip + click-to-pin), SourceMark (5 sources, prefix-normalized), SourceDots, IntensityBar, Sparkline, VerbatimCard (no ownership/tombstone fields per session-13 lock)
+- [x] Composites: EvidenceDrawer (440px, source/verified/recency-disabled/intensity filters, Esc closes, page interactive), CitationPanel (380px, `offsetForDrawer` prop), RunMetaStrip (non-jargon labels)
+- [x] Dropped Exo 2 + Rajdhani Google Font links. **Deviation flagged:** Inter link also dropped + body font-family set to system stack per DESIGN_SYSTEM §3.1; `class="dark"` removed; `color-scheme` flipped to `light`.
+- [x] Showcase page (`frontend/src/pages/Showcase.tsx`) wired at `/showcase`; renders all atoms + composites against fixture data (`frontend/src/fixtures/sample.ts` — 12 mentions × 5 source types, 6 AspectRows, 1 BriefView). TS clean; dev server boots; operator visual confirm pending.
+
+**Frontend — bite 11.3 (pages + live wiring; depends on 11.2)**
+- [ ] Pages: About (lean), Standalone, Compare (placeholder, "Wave 3 — coming soon")
+- [ ] Hash router: `#/`, `#/standalone[/:productId]`, `#/compare`
+- [ ] Selector dropdowns
+- [ ] Wire to live backend handlers (`/products`, `/product/:id`, `/mentions?ids=`, `/brief/:id`)
+- [ ] End-to-end smoke against `brief_id=1, 2`
 
 ---
 
