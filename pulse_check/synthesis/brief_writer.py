@@ -36,7 +36,9 @@ from pulse_check.synthesis.selector import AspectSelection, SelectedVerbatim
 log = logging.getLogger(__name__)
 
 BRIEF_PROMPT_VERSION = "a1_brief_v1"
-_SONNET_MODEL = "claude-sonnet-4-6"
+BRIEF_PROMPT_VERSION_STRICT = "a1_brief_v1_strict"
+BRIEF_MODEL = "claude-sonnet-4-6"
+_SONNET_MODEL = BRIEF_MODEL  # internal alias preserved for grep stability
 _TEMPERATURE = 0.0
 _MAX_TOKENS = 4096
 
@@ -190,6 +192,17 @@ def _build_sonnet_payload(
     }
 
 
+_SONNET_PROMPT_STRICT_PREAMBLE = """STRICT MODE -- a previous attempt at this \
+brief was flagged for citation issues. You MUST:
+- Use ONLY the verbatim text supplied in the input. Do NOT invent or paraphrase \
+evidence not present in the verbatims.
+- Do NOT introduce specific counts (e.g. "60 threads", "10 users") in \
+`claim_text` unless the count is directly visible in the verbatims.
+- Do NOT fabricate aspect IDs or quadrant IDs. Use only what the input supplies.
+
+"""
+
+
 _SONNET_PROMPT = """You are a product-listening analyst writing a one-page \
 voice-of-customer brief.
 
@@ -228,6 +241,12 @@ INPUT:
 """
 
 
+_BRIEF_PROMPT_TEMPLATES: dict[str, str] = {
+    BRIEF_PROMPT_VERSION: _SONNET_PROMPT,
+    BRIEF_PROMPT_VERSION_STRICT: _SONNET_PROMPT_STRICT_PREAMBLE + _SONNET_PROMPT,
+}
+
+
 def write_a1_brief(
     session: Session,
     *,
@@ -248,6 +267,12 @@ def write_a1_brief(
     (ARCHITECTURE §6.3 A1 brief layout). Sections 1, 3, 4 are omitted when
     their qualifying-aspect set is empty.
     """
+    try:
+        prompt_template = _BRIEF_PROMPT_TEMPLATES[prompt_version]
+    except KeyError as exc:
+        msg = f"unknown brief prompt_version: {prompt_version!r}"
+        raise ValueError(msg) from exc
+
     plans = _route_aspects_to_quadrants(aggregates, selections)
     all_empty = all(not p.aspect_entries for p in plans)
 
@@ -288,7 +313,7 @@ def write_a1_brief(
     def _compute() -> LlmResponse:
         return client.generate_json(
             model=_SONNET_MODEL,
-            prompt=_SONNET_PROMPT.format(
+            prompt=prompt_template.format(
                 payload_json=json.dumps(payload, ensure_ascii=False, sort_keys=True)
             ),
             temperature=_TEMPERATURE,

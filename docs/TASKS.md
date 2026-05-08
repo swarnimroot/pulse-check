@@ -1,6 +1,6 @@
 # pulse-check — Tasks
 
-**Status:** draft &nbsp;·&nbsp; **Paired docs:** [`PRD.md`](PRD.md), [`ARCHITECTURE.md`](ARCHITECTURE.md), [`TESTING.md`](TESTING.md) &nbsp;·&nbsp; **Last reconciled:** 2026-05-07 (session 11 wrap-up)
+**Status:** draft &nbsp;·&nbsp; **Paired docs:** [`PRD.md`](PRD.md), [`ARCHITECTURE.md`](ARCHITECTURE.md), [`TESTING.md`](TESTING.md) &nbsp;·&nbsp; **Last reconciled:** 2026-05-07 (session 12 wrap-up)
 
 Wave-by-wave implementation plan matching the PRD's ~7–8 week single-operator estimate. Each wave has clear outputs, specific tasks, dependencies, and exit criteria. **Wave 2 is the A1-only cutpoint** — if v1 slips, A1 alone is a defensible ship.
 
@@ -84,7 +84,7 @@ Seed-list curation is the biggest operator-side time cost outside coding. Start 
 
 **Goal:** full A1 scorecard view for a given product; classifier passes its gold-set threshold.
 
-**Status:** ~85% complete. Tagging + gold-set build + A1 aggregation done on real corpus (session 5). Content-type pre-classifier + tag-time gate (session 6, bite 6.1). Reddit-deepen via comment inheritance (session 8, bite 6.2-revised) — corpus 33 → 1143 mentions; aspect_tags 95 → 649. **Option 3 — A1 aggregate PRIMARY/SECONDARY column split — DONE (session 9, alembic `b8560c93bbd8`).** **Synthesis package skeleton + §6.3 BriefNarrative Pydantic contracts (session 10, bite 10.1)** + **Haiku near-duplicate dedup with cache + validation (session 10, bite 10.2)**. **Deterministic verbatim selector + Sonnet four-quadrant brief writer + ARCHITECTURE §6.3 A1 layout lock (session 11, bite 10.3).** Eval runner, citation validator + retry loop, `synthesize_a1` orchestrator + `scripts/synthesize.py` CLI, A1 API endpoints, and scorecard frontend remain.
+**Status:** ~95% complete. Tagging + gold-set build + A1 aggregation done on real corpus (session 5). Content-type pre-classifier + tag-time gate (session 6, bite 6.1). Reddit-deepen via comment inheritance (session 8, bite 6.2-revised) — corpus 33 → 1143 mentions; aspect_tags 95 → 649. **Option 3 — A1 aggregate PRIMARY/SECONDARY column split — DONE (session 9, alembic `b8560c93bbd8`).** **Synthesis package skeleton + §6.3 BriefNarrative Pydantic contracts (session 10, bite 10.1)** + **Haiku near-duplicate dedup with cache + validation (session 10, bite 10.2)**. **Deterministic verbatim selector + Sonnet four-quadrant brief writer + ARCHITECTURE §6.3 A1 layout lock (session 11, bite 10.3).** **Citation validator + retry loop + `synthesize_a1` orchestrator + `scripts/synthesize.py` CLI + first live Haiku+Sonnet smoke on both pilot products (session 12, bite 10.4).** Eval runner, A1 API endpoints, and scorecard frontend remain.
 
 **Deviation flags (all approved + folded into ARCHITECTURE in session 9):**
 - ~~**Session 5:** aspect classifier swapped Qwen 7B → Haiku.~~ Folded into ARCHITECTURE §6.1 (deviation note pointing at §6.5) + §6.5 (Haiku batch classifiers table).
@@ -130,9 +130,10 @@ Seed-list curation is the biggest operator-side time cost outside coding. Start 
 - [x] Haiku near-duplicate clusterer — `cluster_near_duplicates(session, mentions, *, client) -> dict[str, str]` with `call_with_cache` + edge-case short-circuits + input/output mention_id validation + opaque cluster_id normalization. 9 mocked-client tests. *(session 10, bite 10.2)*
 - [x] Deterministic verbatim selector — returns IDs only; per (polarity, bucket) ranks `aspect_tags.intensity` desc, dedups by cluster, caps at 3. `select_a1_verbatims(...) -> AspectSelection` (4-tuple per polarity × bucket). NEUTRAL never cited. **No LLM call.** 9 tests. *(session 11, bite 10.3)*
 - [x] Sonnet A1 brief writer with citation contract per ARCHITECTURE §6.3 — `write_a1_brief(...) -> BriefNarrative`. Pure-Python four-quadrant routing (Q1 PRIMARY pos ≥3 / Q2 PRIMARY neg ≥3 / Q3 SECONDARY pos ≥1 not in Q1 / Q4 SECONDARY neg ≥1 not in Q2); Sonnet writes only `brief_title` + per-(quadrant, aspect) `claim_text`. Empty Q2 always renders α placeholder. All-quadrants-empty short-circuits Sonnet. `Claim.cited_mention_ids` constraint relaxed to `min_length=0` for the placeholder claim. 9 tests (mocked client). *(session 11, bite 10.3)*
-- [ ] Citation validator — rejects fabricated IDs, soft-warn policy with `flagged_citation_issues` field per TESTING §6 *(bite 10.4)*
-- [ ] `synthesize_a1` orchestrator + `scripts/synthesize.py` CLI *(bite 10.4)*
-- [ ] Integration test — end-to-end brief generation on fixture corpus *(bite 10.4)*
+- [x] Citation validator — `validate_citations(session, *, narrative, aggregates, allowed_pool, drift_tolerance) -> ValidationResult`. Four soft-warn checks (fabricated_ids / out_of_context_ids / numerical_drift via `\d+\s+(user|mention|thread|...)` pattern / empty_claims with §6.3 placeholder exempt). 11 tests. *(session 12, bite 10.4)*
+- [x] `synthesize_a1` orchestrator + `scripts/synthesize.py` CLI — load aggregates → Haiku dedup PRIMARY pool → loop selector per aspect → brief writer → validator → on `fabricated_ids` retry once with `prompt_version = a1_brief_v1_strict` → persist `Brief` row with `flagged_citation_issues` injected as top-level key on `briefs.narrative` JSON. 7 tests. *(session 12, bite 10.4)*
+- [x] First live Haiku + Sonnet smoke — `brief_id=1` (alienware_16_aurora) + `brief_id=2` (rog_strix_g16) persisted; both 4-section briefs (Q2 α placeholder on both — 0 PRIMARY-neg ≥3 aspects on either product per current corpus); validator clean (0 fabricated / 0 out-of-context / 0 drift / 0 empty), no retry fired; ~$0.50 spend. *(session 12, bite 10.4)*
+- [ ] Integration test — end-to-end brief generation on fixture corpus *(deferred — orchestrator is covered by 7 unit tests against in-memory SQLite; full integration test against `data/pulse_check.db` is Wave 4 work)*
 
 **API**
 - [ ] `/products` — list products in current run *(stub-only in `api/main.py`; needs population)*
