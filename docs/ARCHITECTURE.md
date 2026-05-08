@@ -457,11 +457,24 @@ Briefs must cite evidence for every claim. Sonnet is prompted to return a struct
 ```
 
 Post-generation validation:
-1. Every `cited_mention_ids` entry must resolve to a real `mentions.mention_id` — fabricated IDs trigger a retry with a stricter prompt.
+1. Every `cited_mention_ids` entry must resolve to a real `mentions.mention_id` — fabricated IDs trigger a retry with a stricter prompt. An empty `cited_mention_ids` list is permitted only for the explicit placeholder claim defined under "A1 brief layout" below.
 2. The cited mentions must actually be in the context Sonnet received — no cross-brief leakage.
 3. If a claim carries a specific number ("60 threads"), that number must be derivable from an aggregate row whose `mention_ids` match the cited IDs — enforced by the aggregation layer, not Sonnet.
 
 This structure renders naturally in the UI: each `claim_text` is one sentence or paragraph; hovering or clicking it opens a panel with the cited mentions as drillable cards.
+
+**A1 brief layout (operator-locked, session 11).** The contract above is generic; the A1 brief uses four sections in fixed order, prompt_version `a1_brief_v1`:
+
+| # | Heading | Inclusion rule | Cap |
+|---|---|---|---|
+| 1 | High-confidence strengths | aspects with PRIMARY positive ≥ 3, ranked by count desc | up to 3 aspects |
+| 2 | High-confidence weaknesses | aspects with PRIMARY negative ≥ 3, ranked by count desc | up to 3 aspects |
+| 3 | Low-signal strengths (public chatter) | aspects with SECONDARY positive ≥ 1 not in §1, ranked by count desc | up to 3 aspects |
+| 4 | Low-signal weaknesses (public chatter) | aspects with SECONDARY negative ≥ 1 not in §2, ranked by count desc | up to 3 aspects |
+
+One claim per aspect per section. Each claim cites up to 3 mentions for that aspect — PRIMARY for sections 1–2, SECONDARY for sections 3–4 — selected deterministically by `aspect_tags.intensity` rank (high > medium > low) with near-duplicate cluster-dedup applied (see §6.4). No padding: sections render with fewer than the cap when the data doesn't support more.
+
+**Empty section 2 — placeholder rule.** When zero aspects qualify for high-confidence weaknesses, section 2 still renders with one placeholder claim: `claim_text = "No top-of-mind criticism in PRIMARY chatter — see §4 below"`, `cited_mention_ids = []`. This is the sole case where an empty citation list is contractually permitted (see validation rule 1).
 
 ### 6.4 Haiku — near-duplicate dedup
 

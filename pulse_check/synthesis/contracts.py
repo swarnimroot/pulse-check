@@ -15,15 +15,17 @@ from pydantic import BaseModel, Field
 
 
 class Claim(BaseModel):
-    """One factual statement in the brief, citing one or more mention IDs.
+    """One factual statement in the brief, citing zero or more mention IDs.
 
-    `cited_mention_ids` MUST be non-empty; an empty list is a semantic error
-    that the citation validator also catches as a defense-in-depth check
-    (TESTING §6).
+    `cited_mention_ids` is normally non-empty; the citation validator catches
+    fabrication and out-of-context IDs as a defense-in-depth check (TESTING
+    §6). Empty list is permitted ONLY for the §6.3 "A1 brief layout"
+    placeholder claim (empty section 2 — operator-locked, session 11). The
+    validator is aware of this exemption.
     """
 
     claim_text: str = Field(..., min_length=1)
-    cited_mention_ids: list[str] = Field(..., min_length=1)
+    cited_mention_ids: list[str] = Field(..., min_length=0)
 
 
 class BriefSection(BaseModel):

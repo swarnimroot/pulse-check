@@ -149,7 +149,12 @@
       "PowerShell(.venv\\\\Scripts\\\\python -c \"import sqlite3; c=sqlite3.connect\\('data/pulse_check.db'\\); print\\('after:', c.execute\\('SELECT COUNT\\(1\\) FROM llm_cache WHERE prompt_version=?',\\('preview_a1_v1',\\)\\).fetchone\\(\\)\\)\")",
       "Bash(where mypy *)",
       "Bash(.venv/Scripts/mypy.exe pulse_check/synthesis/)",
-      "Bash(.venv/Scripts/mypy.exe pulse_check)"
+      "Bash(.venv/Scripts/mypy.exe pulse_check)",
+      "Bash(dir *)",
+      "Bash(.\\\\.venv\\\\Scripts\\\\python.exe *)",
+      "Bash(cat)",
+      "Read(//mnt/c/Users/AW-testing/Downloads/Workspace/**)",
+      "Bash(grep -n \"10\\\\.[1234]\\\\|Last reconciled\\\\|Wave 2\\\\|10\\\\\\\\.\" docs/TASKS.md)"
     ]
   }
 }

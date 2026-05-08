@@ -8,30 +8,27 @@ Running one-page chronicle. Updated **at session close**, when the operator says
 
 Paste at the start of your next session:
 
-> Resume pulse-check session 11. Read `CLAUDE.md` + `docs/SESSION_LOG.md`.
->
-> **Audit session 10 before forward work.** Run regression baselines + code read-through; report deviations.
-> - `pytest tests/unit/` → confirm **246 pass** (was 230 after session 9; +16 from contracts + dedup tests).
-> - `mypy pulse_check/` → confirm clean on **40 source files** (was 34; +6 synthesis modules).
-> - `ruff check pulse_check/synthesis/ tests/unit/synthesis/` → confirm clean.
-> - Read `pulse_check/synthesis/contracts.py` and `pulse_check/synthesis/dedup.py` end-to-end (both keystones for 10.3/10.4).
-> - Confirm `briefs.narrative` round-trips `BriefNarrative.model_dump()` (test `test_brief_narrative_round_trips_through_briefs_table` should still pass).
-> - Then proceed ONLY after audit is clean.
->
-> **Then surface the bite pick.** Wave 2 ~80% after synthesis skeleton + dedup. Candidates: bite 10.3 (Sonnet verbatim selector + production brief writer matching §6.3 schema; product-design questions on sparse-corpus fallback for "3 positive + 3 negative biased to high-intensity," brief section structure, empty-aspect handling — surface BEFORE code); bite 10.4 (citation validator + retry loop + `synthesize_a1` orchestrator + `scripts/synthesize.py` CLI; real Haiku+Sonnet smoke after this lands); bite 6.3 YouTube end-to-end; bite 6.4 retailer reviews (three open items unchanged); backend/frontend Wave 2 finish (operator has a claude.ai/design prototype to mimic for the BriefPanel/scorecard view — share when frontend bite starts). Recommend one with reasoning, wait for my call before touching code.
->
-> Be very concise. Ultrathink. Use agents for read-heavy work.
+> Resume pulse-check session 12. Read `CLAUDE.md` + `docs/SESSION_LOG.md`. Audit session 11 first per the "Audit checklist (session 11 → 12)" below — verify regression baselines + read the new synthesis keystones — before touching forward work. Then surface the bite pick from "Current state" with reasoning and wait for my call before code. Be very concise. Ultrathink. Use agents for read-heavy work.
+
+### Audit checklist (session 11 → 12)
+
+- Use `.venv/Scripts/python.exe` for tooling — only working Python interpreter on this machine (global `python` lacks `pydantic-settings`/`mypy`/`ruff`).
+- `pytest tests/unit/` → confirm **264 pass** (was 246; +18 from selector + brief_writer tests).
+- `mypy pulse_check/` → confirm clean on **40 source files** (no count change — selector + brief_writer replaced existing skeletons).
+- `ruff check pulse_check/ tests/` → confirm clean.
+- Read `pulse_check/synthesis/selector.py` + `pulse_check/synthesis/brief_writer.py` end-to-end (10.4 builds on both).
+- Spot-check `docs/ARCHITECTURE.md` §6.3 "A1 brief layout" — the four-quadrant lock 10.4's validator must mirror.
+- Confirm `Claim.cited_mention_ids` `min_length=0` relaxation in `pulse_check/synthesis/contracts.py` (placeholder support).
 
 ## Current state
 
-- **Phase:** Wave 2 ~80%. Session 9 shipped Option 3 (PRIMARY/SECONDARY dual-track aggregates). Session 10 added the synthesis package skeleton + §6.3 BriefNarrative Pydantic contracts (bite 10.1) and Haiku near-duplicate dedup with cache + validation (bite 10.2). Three pipeline modules remain skeletons (selector, brief_writer, citation_validator, orchestrator) — bites 10.3 and 10.4 will fill them. Operator decision in session 10: brief schema is §6.3 canonical (`sections/claims/cited_mention_ids`); citation validator is **soft-warn** (write the brief with `flagged_citation_issues` rather than block).
-- **Bite candidates for session 11** (operator picks):
-  - **Bite 10.3 — Sonnet selector + production brief writer.** Replaces `_build_prompts` from `preview_brief.py`. Has product-design questions to surface BEFORE code: sparse-corpus fallback for "3 positive + 3 negative biased to high-intensity," brief section structure (one section per aspect with mentions vs LLM-decided), empty-aspect handling. Estimated 2–3h.
-  - **Bite 10.4 — citation validator + orchestrator + CLI.** Soft-warn validator (4 checks per TESTING §6) + retry loop + `synthesize_a1` orchestrator + `scripts/synthesize.py` CLI. After this lands, full pipeline is ready for a real Haiku+Sonnet smoke on the 71-mention PRIMARY pool. Estimated ~2h.
+- **Phase:** Wave 2 ~85%. Session 9 shipped Option 3 (PRIMARY/SECONDARY dual-track aggregates). Session 10 added synthesis skeleton + §6.3 contracts (10.1) + Haiku dedup (10.2). **Session 11 added the deterministic verbatim selector + Sonnet brief writer (bite 10.3)** — the §6.3 four-quadrant A1 brief layout is operator-locked in ARCHITECTURE.md. Two pipeline modules remain skeletons (citation_validator, orchestrator) — bite 10.4 fills them and unblocks the first real Haiku+Sonnet smoke. Operator decisions still in force from session 10 (brief schema is §6.3; validator is soft-warn) plus session 11 four-quadrant locks (see §6.3).
+- **Bite candidates for session 12** (operator picks):
+  - **Bite 10.4 — citation validator + orchestrator + CLI.** Soft-warn validator (4 checks per TESTING §6) + retry loop + `synthesize_a1` orchestrator + `scripts/synthesize.py` CLI. After this lands, the full A1 pipeline is ready for the first real Haiku+Sonnet smoke on the 71-mention PRIMARY pool. Estimated ~2h.
   - **Bite 6.3 — YouTube** end-to-end. Operator URL curation + first run; budget plumbing surprises.
   - **Bite 6.4 (still deferred) — retailer reviews.** Three open items unchanged.
   - **Backend/frontend Wave 2 finish.** `/products`/`/product/:id`/`/mentions`/`/brief` real handlers + frontend atoms + `/product/:id` page. Operator has a claude.ai/design prototype to mimic exactly for the BriefPanel/scorecard view — to be shared when frontend bite starts.
-- **pulse-check: 246 unit tests passing · `mypy` clean on 40 source files · `ruff` clean.** (Was 230 / 34 at session-9 close; +16 tests from `test_contracts.py` (7) + `test_dedup.py` (9); +6 mypy files from new synthesis modules.)
+- **pulse-check: 264 unit tests passing · `mypy` clean on 40 source files · `ruff` clean.** (Was 246 / 40 at session-10 close; +18 tests from `test_selector.py` (9) + `test_brief_writer.py` (9); mypy file count unchanged because selector + brief_writer replaced existing skeletons.)
 - **scrapers-lib: 904 unit tests passing · 20 skipped · ruff clean on edited files.** Drift +60/+1 vs the older 844/19 baseline — flagged in session 9 audit; non-blocking (all green). `_version.py` is **`1.2.1` in HEAD with no working-tree diff** — the deferred-bump open item from sessions 7/8 is **resolved** (already committed; not by us).
 - **Capability + output aha both demonstrated for A1.** Session 8 unlocked density (33→1143 mentions); session 9 unlocks output aha (PRIMARY/SECONDARY divergence visible at the aggregate layer). Brief regenerated successfully with sidebar (citation integrity 8/0).
 - **Real corpus state:** 1143 mentions (33 reddit_post + 1110 reddit_comment) · 1380 mention_attributions (39 PRIMARY + 1341 SECONDARY) · 1143 content_type_tags (46 deal / 999 other / 98 review) · 649 aspect_tags (71 PRIMARY + 578 SECONDARY) · **22 aggregate rows** (was 18 pre-Option-3; +4 SECONDARY-only) · 28-entry gold-set JSONL unchanged · 3 preview-brief artifacts for `alienware_16_aurora` (session-6 + two from session 9; latest `alienware_16_aurora_20260507T203215Z.md`) · `llm_cache` has 3 rows for `prompt_version='preview_a1_v1'` (audit-trail; one orphan from the session-9 unfiltered intermediate run, harmless per the never-evict design).
@@ -70,10 +67,19 @@ Paste at the start of your next session:
     - **`pulse_check/synthesis/dedup.py`** — `cluster_near_duplicates(session, mentions, *, client, prompt_version="a1_dedup_v1") -> dict[str, str]`. Routed to Haiku (`claude-haiku-4-5-20251001`), temperature=0.0, max_tokens=4096; uses `call_with_cache` for deterministic re-runs. Edge cases short-circuit without LLM call: empty list → `{}`, single mention → `{m.mention_id: "c0"}`. Validation: input/output mention_id sets must match exactly. Cluster IDs normalized to opaque `c0`, `c1`, ... in first-seen-in-input order. `client: AnthropicClient` is a required keyword arg (inversion-of-control for tests; was NOT in the 10.1 skeleton).
     - **`tests/unit/synthesis/test_dedup.py` (new, 9 tests, mocked client)** — edge-case short-circuits; 3 distinct → 3 unique clusters; 2 paraphrases + 1 distinct collapse correctly; second call hits cache (`generate_json.call_count == 1`); validation errors on missing/extra mention IDs; malformed JSON variants.
     - **No DB migration** — existing `briefs.narrative` JSON column accepts the shape. **No real Haiku call yet** — dedup is unit-tested with mocks only; real-corpus smoke deferred to 10.4 close.
+  - **Bite 10.3 — selector + brief writer + §6.3 four-quadrant lock (session 11):**
+    - **`docs/ARCHITECTURE.md` §6.3 "A1 brief layout"** — operator-locked four-quadrant table (Q1 PRIMARY pos ≥3 / Q2 PRIMARY neg ≥3 / Q3 SECONDARY pos ≥1 not in Q1 / Q4 SECONDARY neg ≥1 not in Q2). Up to 3 aspects per quadrant ranked by relevant count desc; up to 3 mentions per aspect ranked by `aspect_tags.intensity` (HIGH > MEDIUM > LOW) with cluster-dedup. Empty Q2 placeholder rule documented; validation rule 1 amended to permit empty `cited_mention_ids` only for that placeholder. Prompt_version `a1_brief_v1`.
+    - **`pulse_check/synthesis/contracts.py`** — `Claim.cited_mention_ids` constraint relaxed `min_length=1` → `min_length=0`; docstring notes the placeholder is the sole exemption. Citation validator (10.4) compensates via fabrication checks on any non-empty list.
+    - **`pulse_check/synthesis/selector.py`** (full rewrite) — public `select_a1_verbatims(session, *, product_id, aspect, primary_mention_pool, secondary_mention_pool, clusters=None) -> AspectSelection`. New dataclasses `SelectedVerbatim` and `AspectSelection` (per-aspect 4-tuple by polarity × bucket). Per (polarity, bucket): fetch `aspect_tags`, filter to target polarity (NEUTRAL never cited), sort by intensity rank desc + mention_id asc, dedup by cluster, cap at 3. **Deterministic — no LLM call.** Removed `SELECTOR_PROMPT_VERSION` from session-10 skeleton (no prompt = no version).
+    - **`pulse_check/synthesis/brief_writer.py`** (full rewrite) — public `write_a1_brief(session, *, client, product, aggregates, selections, prompt_version="a1_brief_v1") -> BriefNarrative`. Pure-Python `_route_aspects_to_quadrants` enforces locked rules. Sonnet (`claude-sonnet-4-6`, T=0, max_tokens=4096) writes only `brief_title` + per-aspect `claim_text`; the writer assembles the §6.3 BriefNarrative deterministically (no fabricated mention IDs possible). Empty Q2 always renders α placeholder. **All-quadrants-empty case short-circuits Sonnet** — emits brief titled `"{display_name} — A1 voice"` + only the placeholder section. `call_with_cache` keyed on the structured Sonnet input payload.
+    - **`tests/unit/synthesis/test_contracts.py`** — `test_claim_rejects_empty_citation_list` flipped to `test_claim_allows_empty_citation_list_for_placeholder`.
+    - **`tests/unit/synthesis/test_selector.py` (new, 9 tests)** — empty pools, intensity ranking, cap at 3, SECONDARY routing, cluster dedup, NEUTRAL never cited, missing-aspect-tag silently skipped, clusters=None bypass, polarity split.
+    - **`tests/unit/synthesis/test_brief_writer.py` (new, 9 tests, mocked AnthropicClient)** — Q1 routing, Q1 cap-at-3 ranked desc, Q2 placeholder + empty citations, Q3 excludes Q1 aspects, low-signal-only routes to Q3, second-call cache hit, missing claim_text raises, empty brief_title raises, no-qualifying-aspects short-circuits Sonnet.
+    - **No real Sonnet call yet** — brief writer is mocked-only; first real run deferred to 10.4 close.
 - **Not yet started (Wave 2 remainder, prioritized):**
   - **Bite 6.3 — YouTube:** operator URL-seed curation + first end-to-end YouTube fetcher exercise (expect plumbing gaps similar to session-7's Amazon discovery).
   - **Bite 6.4 (deferred) — retailer reviews:** three open items parked — BestBuy network/Akamai timeout diagnostics; pulse-check `result_sink` mapping for `('amazon','post')` and `('bestbuy','post')`; Amazon Strix empty-review-page diagnosis.
-  - Synthesis architecture remainder: Sonnet verbatim selector + Sonnet A1 brief writer (bite 10.3) + citation validator + retry loop + `synthesize_a1` orchestrator + `scripts/synthesize.py` CLI (bite 10.4). 10.1 (skeleton + contracts) and 10.2 (Haiku dedup) shipped session 10.
+  - Synthesis architecture remainder: citation validator + retry loop + `synthesize_a1` orchestrator + `scripts/synthesize.py` CLI (bite 10.4). 10.1–10.3 shipped sessions 10 + 11.
   - Backend `/products`, `/product/:id`, `/mentions?ids=...`, `/brief/:id` real handlers.
   - Frontend atoms (`VerbatimCard`, `AggregateNumber`, `EvidenceDrawer`, `BriefPanel`, `AspectRow`).
   - `/product/:id` page wired end-to-end + Wave 2 exit-criteria check.
@@ -158,9 +164,53 @@ Added in session 10:
 - **`flagged_citation_issues` field is on the validator's `ValidationResult` but not on `briefs.narrative` schema yet.** Soft-warn policy says the orchestrator surfaces violations on the persisted brief. Implementation question for 10.4: encode under `narrative["flagged_citation_issues"]` (no migration; JSON-flexible) vs add a new `briefs` column (migration). Operator did not pre-decide; flag at 10.4 start.
 - **Mid-session scope bump.** Session 10 scope was originally locked to "10.1 only" via AskUserQuestion at session start, then bumped to "10.1 + 10.2" mid-session via "commit all and move forward." Both bites landed clean; bumping was the right call. Note for future: mid-session scope changes are fine when the prior bite went clean and momentum is clear, but the session log should record the bump explicitly so the rationale survives.
 
+Added in session 11:
+- **No real Sonnet call yet on the brief writer.** 9 unit tests pass against a mocked AnthropicClient; the prompt itself (`a1_brief_v1`) has never seen real Sonnet output. First real run in bite 10.4 close. **Expectation given current corpus** (zero PRIMARY-backed criticism on either product per session-11 audit): Q2 will render the α placeholder for both products on the first real run.
+- **Selector trusts caller for PRIMARY/SECONDARY pool disjointness.** No assertion that `set(primary_pool) ∩ set(secondary_pool) == ∅`. A mention in both pools would silently route to both buckets. Current callers (`aggregate.mention_ids` + `mention_ids_secondary` per session-9 PRIMARY-precedence design) honor disjointness; flag if a future caller violates.
+- **`Claim.cited_mention_ids` constraint relaxed `min_length=1` → `min_length=0`.** Contract softening to permit the §6.3 placeholder claim (empty Q2). The structural Pydantic guard against accidental empty lists is gone — citation validator (bite 10.4) must enforce that any non-empty list contains only real, in-context mention IDs, AND that empty lists appear only on the placeholder claim.
+- **Selector signature deviated from session-10 skeleton.** Skeleton had `SELECTOR_PROMPT_VERSION` + `clusters` parameter implying Sonnet-based selection. Operator approved deterministic-over-Sonnet for cost + test simplicity + evidence-first separation; both removed (`prompt_version` parameter dropped from public signature). Brief writer's Sonnet still writes claim_text per quadrant aspect.
+- **Brief writer short-circuits Sonnet when all four quadrants are empty.** Edge case: a product with no qualifying aspects in any quadrant produces a brief titled `"{display_name} — A1 voice"` with only the Q2 placeholder section; no Sonnet call is made. Cost-saving + correct behavior; one branch to remember when reading the 10.4 orchestrator.
+- **venv path quirk.** `pytest`/`mypy`/`ruff` only resolve under `.venv/Scripts/python.exe` on this machine — global `python` lacks `pydantic-settings`/`mypy`/`ruff`. Spelled out in next-session starter; consider a README.md (currently pending) entry when README work begins.
+- **Brief writer's `_polarity_count` defensively coerces non-int values to 0.** Guards against unexpected types in the JSON `polarity_counts` column. Acceptable defensive coding; flag if a future schema change introduces float/string counts.
+
 ---
 
 ## Session history (newest first)
+
+### 2026-05-07 — session 11: bite 10.3 — deterministic verbatim selector + Sonnet brief writer (four-quadrant §6.3 layout) + ARCHITECTURE §6.3 A1 layout lock; +18 unit tests, all green
+
+**Context entering.** Session 10 closed at Wave 2 ~80% with synthesis skeleton (10.1) + Haiku dedup (10.2) shipped. Bite 10.3 (selector + brief writer) explicitly deferred to fresh-context conversation because of three product-design questions on sparse-corpus fallback / brief structure / empty-aspect handling that needed operator-design input before code.
+
+**Audit pass.** GREEN. pulse-check **246 pass** · mypy clean on 40 source files · ruff clean. Working tree clean at `bd4e6f9`. Code read on `synthesis/contracts.py` + `synthesis/dedup.py` end-to-end via subagent — both solid; one cosmetic nit at `dedup.py:154` (redundant `str(x)` on a set of already-strings); not blocking. `test_brief_narrative_round_trips_through_briefs_table` confirmed as a real SQLAlchemy round-trip through `briefs.narrative` JSON column. **One environmental gotcha:** `pytest`/`mypy`/`ruff` only resolve under `.venv/Scripts/python.exe` (global `python` lacks the deps); captured in next-session starter.
+
+**Bite pick conversation.** Recommended 10.3 over 10.4/6.3/6.4/frontend with reasoning: 10.4 needs 10.3 first (validator has nothing to validate); 10.3 has product-design questions to surface before code; frontend needs the §6.3 brief shape settled. Operator approved.
+
+**Three product-design questions surfaced — concrete, with corpus numbers.** A subagent gathered §6.3 spec position + current throwaway behavior + real-corpus sparsity numbers from the live SQLite. Headline finding: **0 of 18 PRIMARY aggregates satisfy the spec's "3 pos + 3 neg" rule** on either product (e.g. `rog_strix_g16 performance: 6 pos, 0 neg`). This converted Q1 from a "fallback" question into the primary-rule question.
+
+**Operator decisions (locked, all flagged in-conversation before code):**
+- (Q1=a) **Verbatim selector:** per aspect, up to 3 PRIMARY-pos + up to 3 PRIMARY-neg, **no padding**, cap 6.
+- (Q2 layout pixels) **Parked** for the operator's claude.ai/design prototype to be shared at frontend bite. JSON contract decidable now without it.
+- (Q3 = c-extended → four quadrants) **Brief layout:** four sections in fixed order: high-confidence strengths/weaknesses (PRIMARY ≥ 3 of polarity), low-signal strengths/weaknesses (SECONDARY ≥ 1 of polarity, not in §1/§2). Per quadrant: up to 3 aspects, ranked by relevant count desc.
+- (Q3 placeholder = α) **Empty Q2** renders one placeholder claim `"No top-of-mind criticism in PRIMARY chatter — see §4 below"` with `cited_mention_ids=[]`.
+- **Operator pushback on my proposed symmetric "3 each / 3 each" target.** A subagent feasibility check confirmed both products fail symmetric layout (0 high-confidence cons on either, structural per how Reddit attribution works — criticism lives in comments = SECONDARY). Asymmetric with α placeholder for empty Q2 was the resolution.
+- **Selector route:** **deterministic** over Sonnet — cheaper, simpler tests, evidence-first separation (selector picks IDs; Sonnet writes claim_text in the brief writer).
+- **High-confidence threshold:** ≥ 3 PRIMARY mentions of that polarity. (Lowering to ≥ 2 doesn't help — cons stay at 0 on the live corpus anyway.)
+
+**ARCHITECTURE.md §6.3 update.** Added "A1 brief layout (operator-locked, session 11)" subsection — four-quadrant table + ranking rules + placeholder claim contract. Validation rule 1 amended to permit empty `cited_mention_ids` only for the placeholder claim. `prompt_version` `a1_brief_v1` documented.
+
+**Implementation.** See "Working code → Bite 10.3 — selector + brief writer + §6.3 four-quadrant lock (session 11)" in Current state above for the full file-level inventory. Tests parity with `test_dedup.py` mocked-client pattern (9 selector + 9 brief_writer = 18 new).
+
+**Verification.**
+- `pytest tests/unit/` → **264 pass** (was 246; +18).
+- `mypy pulse_check/` → clean on 40 source files (no count change — selector + brief_writer replaced existing skeletons).
+- `ruff check pulse_check/ tests/` → clean.
+
+**Real Sonnet call still pending.** Brief writer is mocked-only. First real run is part of bite 10.4 close on the live 71-mention PRIMARY pool. Expectation per corpus reality: Q2 (high-confidence cons) renders α placeholder for both pilot products.
+
+**Commits:**
+- `<sha-tbd>` — Session 11 bite 10.3: deterministic selector + Sonnet brief writer + §6.3 four-quadrant lock + 18 tests; SESSION_LOG + TASKS update.
+
+**Deferred to session 12:** Bite 10.4 — citation validator (4 soft-warn checks per TESTING §6) + retry loop + `synthesize_a1` orchestrator + `scripts/synthesize.py` CLI + first real Haiku+Sonnet smoke. Operator's claude.ai/design prototype still queued for the frontend bite.
 
 ### 2026-05-07 — session 10: synthesis package skeleton + §6.3 brief contracts (bite 10.1) + Haiku near-duplicate dedup (bite 10.2); +16 unit tests, +6 mypy files, all green
 

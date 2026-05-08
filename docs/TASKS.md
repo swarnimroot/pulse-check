@@ -1,6 +1,6 @@
 # pulse-check — Tasks
 
-**Status:** draft &nbsp;·&nbsp; **Paired docs:** [`PRD.md`](PRD.md), [`ARCHITECTURE.md`](ARCHITECTURE.md), [`TESTING.md`](TESTING.md) &nbsp;·&nbsp; **Last reconciled:** 2026-05-07 (session 10 wrap-up)
+**Status:** draft &nbsp;·&nbsp; **Paired docs:** [`PRD.md`](PRD.md), [`ARCHITECTURE.md`](ARCHITECTURE.md), [`TESTING.md`](TESTING.md) &nbsp;·&nbsp; **Last reconciled:** 2026-05-07 (session 11 wrap-up)
 
 Wave-by-wave implementation plan matching the PRD's ~7–8 week single-operator estimate. Each wave has clear outputs, specific tasks, dependencies, and exit criteria. **Wave 2 is the A1-only cutpoint** — if v1 slips, A1 alone is a defensible ship.
 
@@ -84,7 +84,7 @@ Seed-list curation is the biggest operator-side time cost outside coding. Start 
 
 **Goal:** full A1 scorecard view for a given product; classifier passes its gold-set threshold.
 
-**Status:** ~80% complete. Tagging + gold-set build + A1 aggregation done on real corpus (session 5). Content-type pre-classifier + tag-time gate (session 6, bite 6.1). Reddit-deepen via comment inheritance (session 8, bite 6.2-revised) — corpus 33 → 1143 mentions; aspect_tags 95 → 649. **Option 3 — A1 aggregate PRIMARY/SECONDARY column split — DONE (session 9, alembic `b8560c93bbd8`).** **Synthesis package skeleton + §6.3 BriefNarrative Pydantic contracts (session 10, bite 10.1)** + **Haiku near-duplicate dedup with cache + validation (session 10, bite 10.2)**. Eval runner, Sonnet verbatim selector, A1 brief writer, citation validator + retry loop, `synthesize_a1` orchestrator + `scripts/synthesize.py` CLI, A1 API endpoints, and scorecard frontend remain.
+**Status:** ~85% complete. Tagging + gold-set build + A1 aggregation done on real corpus (session 5). Content-type pre-classifier + tag-time gate (session 6, bite 6.1). Reddit-deepen via comment inheritance (session 8, bite 6.2-revised) — corpus 33 → 1143 mentions; aspect_tags 95 → 649. **Option 3 — A1 aggregate PRIMARY/SECONDARY column split — DONE (session 9, alembic `b8560c93bbd8`).** **Synthesis package skeleton + §6.3 BriefNarrative Pydantic contracts (session 10, bite 10.1)** + **Haiku near-duplicate dedup with cache + validation (session 10, bite 10.2)**. **Deterministic verbatim selector + Sonnet four-quadrant brief writer + ARCHITECTURE §6.3 A1 layout lock (session 11, bite 10.3).** Eval runner, citation validator + retry loop, `synthesize_a1` orchestrator + `scripts/synthesize.py` CLI, A1 API endpoints, and scorecard frontend remain.
 
 **Deviation flags (all approved + folded into ARCHITECTURE in session 9):**
 - ~~**Session 5:** aspect classifier swapped Qwen 7B → Haiku.~~ Folded into ARCHITECTURE §6.1 (deviation note pointing at §6.5) + §6.5 (Haiku batch classifiers table).
@@ -128,8 +128,8 @@ Seed-list curation is the biggest operator-side time cost outside coding. Start 
 **Synthesis**
 - [x] Synthesis package skeleton + §6.3 brief contracts — `pulse_check/synthesis/contracts.py` (`Claim`, `BriefSection`, `BriefNarrative`, `NumericalDrift`, `ValidationResult`); skeleton modules `dedup`/`selector`/`brief_writer`/`citation_validator`/`orchestrator`. `BriefNarrative.model_dump()` round-trips through `briefs.narrative` JSON column. *(session 10, bite 10.1)*
 - [x] Haiku near-duplicate clusterer — `cluster_near_duplicates(session, mentions, *, client) -> dict[str, str]` with `call_with_cache` + edge-case short-circuits + input/output mention_id validation + opaque cluster_id normalization. 9 mocked-client tests. *(session 10, bite 10.2)*
-- [ ] Sonnet verbatim selector — returns IDs only *(bite 10.3)*
-- [ ] Sonnet A1 brief writer with citation contract per ARCHITECTURE §6.3 *(bite 10.3)*
+- [x] Deterministic verbatim selector — returns IDs only; per (polarity, bucket) ranks `aspect_tags.intensity` desc, dedups by cluster, caps at 3. `select_a1_verbatims(...) -> AspectSelection` (4-tuple per polarity × bucket). NEUTRAL never cited. **No LLM call.** 9 tests. *(session 11, bite 10.3)*
+- [x] Sonnet A1 brief writer with citation contract per ARCHITECTURE §6.3 — `write_a1_brief(...) -> BriefNarrative`. Pure-Python four-quadrant routing (Q1 PRIMARY pos ≥3 / Q2 PRIMARY neg ≥3 / Q3 SECONDARY pos ≥1 not in Q1 / Q4 SECONDARY neg ≥1 not in Q2); Sonnet writes only `brief_title` + per-(quadrant, aspect) `claim_text`. Empty Q2 always renders α placeholder. All-quadrants-empty short-circuits Sonnet. `Claim.cited_mention_ids` constraint relaxed to `min_length=0` for the placeholder claim. 9 tests (mocked client). *(session 11, bite 10.3)*
 - [ ] Citation validator — rejects fabricated IDs, soft-warn policy with `flagged_citation_issues` field per TESTING §6 *(bite 10.4)*
 - [ ] `synthesize_a1` orchestrator + `scripts/synthesize.py` CLI *(bite 10.4)*
 - [ ] Integration test — end-to-end brief generation on fixture corpus *(bite 10.4)*
