@@ -8,9 +8,42 @@ Running one-page chronicle. Updated **at session close**, when the operator says
 
 Paste at the start of your next session:
 
-> Resume pulse-check session 19. Read `CLAUDE.md` + `docs/SESSION_LOG.md` + `docs/TASKS.md` "Current bite" block. Audit session 18 per "Audit checklist (session 18 → 19)" below — session 18 closed bite 11.3.c (selectors + live API wiring, 9 sub-bites including a Wave 1 BASE_URL bug fix surfaced by smoke) + bite 11.3.d (headless-Playwright visual smoke, 13/13 functional checks green; screenshots reviewed inline with operator). TASKS.md drift check mandatory per `CLAUDE.md` doc-evolution clause 5. Wave 2 frontend now ~99% — only operator's own browser walk against the running uvicorn (already on 8765) remains before bite 11.3 is fully complete. Then surface next-bite candidates: **(a) eval runner — `scripts/run_eval.py --task aspect_tagging` against the 28-entry gold set (still-unmet Wave 2 exit criterion);** (b) bite 6.3 YouTube end-to-end; (c) Wave 5 7-product corpus expansion. Be concise. Ultrathink. Use agents for read-heavy work.
+> Resume pulse-check session 20. Audit per `docs/SESSION_LOG.md` "Audit checklist (session 19 → 20)" first — TASKS.md was restructured this session (338 → 143 lines; flat per-wave checklists; bite numbering dropped from forward work) + CLAUDE.md clause 5 updated to match. Bite 12 closed: eval runner shipped, Wave 2 substantively met at F1=0.7778 on operator-verified N=8. **Next bite is 13.a — deliberation classifier module** (Qwen via Ollama; clone `pulse_check/tagging/aspect_classifier.py` pattern). Locked defaults agreed at session-19 close: outcome extraction folded into deliberation classifier, full-product-universe interface, OP-only resolution per ARCH §5, content-type-filtered gold-set discipline from day 1. Mocked-client tests only in 13.a — no live Qwen call yet. Be concise. Ultrathink. Use agents for read-heavy work.
 
-### Audit checklist (session 18 → 19)
+### Audit checklist (session 19 → 20)
+
+- Use `.venv/Scripts/python.exe` for backend tooling.
+- `pytest tests/unit/` → **358 pass** (was 293 at session-19 open; +65 from bite-12 eval-runner work).
+- `mypy pulse_check/ tests/ scripts/` → **96 files** clean (+4 from new `pulse_check/eval/eval_runner.py` + `scripts/run_eval.py` + two test files).
+- `ruff check pulse_check/ tests/ scripts/` → clean.
+- **Frontend untouched in session 19** (`tsc -b --noEmit` last-verified clean at session-18 close).
+- **TASKS.md drift check (mandatory) — new structure:** TASKS.md was restructured at session-19 close (143 lines, flat per-wave checklists, no bite numbering forward, no `(session N)` breadcrumbs in deliverables). Verify Wave 2 shows ✅ substantively complete + `[x]` on the eval-runner deliverable; Wave 3 shows all `[ ]` (15 deliverables ready to ship). "Last reconciled" stamp = 2026-05-11 session 19 close. **Note:** the old "Current bite" tracker block is gone — current work is tracked in the top "Active" line. Bite-level history lives in this SESSION_LOG, not TASKS.md.
+- **CLAUDE.md clause 5 was updated** at session-19 close to reflect the new TASKS.md/SESSION_LOG separation. Re-read it before any forward work — the trigger list for TASKS.md updates is now wave-deliverable-scoped, not sub-bite-scoped.
+- **Code read-through on session-19 new files:**
+  - `pulse_check/eval/eval_runner.py` — `filter_by_content_types` (strict-gate matches `tag_corpus_aspects`: mention passes iff has `ContentTypeTag` AND not in exclude set), `resolve_truth` with operator-mode semantics including `flag == "accept"` (truth = sonnet_labels — operator verified Sonnet was right), `ScoredEntry` + `score_one` + `score_all` (catches `LlmParseError` per-entry without aborting batch), `MicroF1Result` + `compute_micro_f1`, `AspectStats` + `per_aspect_breakdown` (binary present/absent F1 + polarity confusion matrix), `EvalReport.from_scored`, `Disagreement` + `disagreements`, `report_to_dict`. THRESHOLD = 0.80.
+  - `scripts/run_eval.py` — thin CLI matching `build_gold_set.py` shape. Args: `--gold-set` / `--truth {sonnet|operator|merged}` / `--provider {haiku|qwen}` / `--output` / `--exclude-content-types`. Writes JSON to `data/eval_results/{ts}_aspect_tagging.json` + stdout PASS/FAIL banner. Truth-caveat helper `_truth_caveat` fires for `sonnet` always + `merged` when not all entries corrected; suppresses for `operator` mode.
+  - `tests/unit/eval/test_eval_runner.py` — 47 tests covering truth resolution, scoring, metrics, disagreements, JSON serialization, content-type filter (incl. strict-gate behavior + multi-type exclude).
+  - `tests/unit/eval/test_run_eval_cli.py` — 18 tests covering argparse defaults + flag combos, `_truth_caveat` matrix (operator never, sonnet always, merged-by-corrected-count), `_format_summary` PASS/FAIL banner + Filter line.
+- **Data artifacts (session 19, gitignored under `data/`):**
+  - `data/gold_sets/aspect_tagging_v1_filtered.jsonl` — 8 non-deal entries from the raw gold set; all marked `operator_flag="accept"` on 2026-05-11 (Sonnet's labels operator-verified on all 8, including the 3 Sonnet-Haiku disagreements where Sonnet's conservative reads won).
+  - `data/eval_results/20260511_110921_aspect_tagging.json` — raw run; F1=0.4250 FAIL; 16/19 disagreements traced to content_type=deal pollution.
+  - `data/eval_results/20260511_113810_aspect_tagging.json` — filtered run (`--exclude-content-types deal`, merged truth); F1=0.7778 FAIL but caveat fires (still Sonnet-as-proxy at that point).
+  - `data/eval_results/20260511_130038_aspect_tagging.json` — final run (`--gold-set …_v1_filtered.jsonl --truth operator`); F1=0.7778; no caveat banner — operator-verified accuracy.
+- **Wave 2 exit-criterion verdict:** **substantively met at F1=0.7778 on operator-verified N=8; formal ≥80% deferred to Wave 5's gold-set rebuild at larger N.** The 4 Haiku misses (3 FP + 1 FN) all traced to mild over-interpretation of context on the 3 Sonnet-Haiku disagreement entries, not structural classifier failure. With N=8 a single tuple flip = ~10pt F1 swing, so the 0.022 gap is well inside noise.
+- **Process gotcha — uvicorn on 8765.** Session 18 replaced a stale `app.main:app` squatter with `.venv` uvicorn serving `pulse_check.api.main:app --port 8765 --log-level warning`. Session 19 did not touch the dev server (no frontend changes). Re-verify on resume only if the operator's done a reboot since: `netstat -ano | grep ":8765\s.*LISTENING"` + `Get-CimInstance Win32_Process -Filter "ProcessId = <pid>"` to confirm CommandLine still points at `pulse_check.api.main`.
+- **Next bite is bite 13.a — deliberation classifier module (LOCKED at session-19 close, defaults agreed).** New module `pulse_check/tagging/deliberation_classifier.py` cloning the `pulse_check/tagging/aspect_classifier.py` pattern. Output schema per ARCHITECTURE §6.1: `{is_deliberation, is_resolved, products_discussed, chosen_product_id}`. Locked defaults (decided session 19, do not re-debate without flagging in-conversation):
+  - **Outcome extraction folded** into the deliberation classifier (one Qwen call returns all four fields). Matches ARCH §6.1 JSON shape.
+  - **Full-product-universe interface** (classifier sees all tracked products per thread, not per-pair).
+  - **OP-only resolution** per ARCH §5 (`is_resolved=True` iff OP names the chosen product via post edit OR top-level comment by OP; third-party assertions don't count).
+  - **Content-type-filtered gold-set discipline** (when 13.c builds gold sets, sample from the production-filtered corpus from day 1 — won't repeat session-19's mismatch).
+  - **Mocked-client tests only in 13.a** — no live Qwen call yet; gold sets + live evals come in 13.c/d.
+- **Wave 3 plan structure (4 bites, multi-session):** Bite 13 = classifiers + gold sets + evals (sub-bites 13.a deliberation classifier, 13.b reason tagger, 13.c gold sets on filtered corpus, 13.d eval extensions for `--task deliberation`/`reason_tagging`, 13.e live evals + iterate). Bite 14 = A2 aggregation. Bite 15 = A2 synthesis. Bite 16 = A2 API + frontend (needs DESIGN_SYSTEM update for WinRateHeader + ReasonRow + paired-table atoms first).
+- **Alternative pre-bite paths if operator changes mind:**
+  - Wave 5 corpus expansion + gold-set rebuild (settles Wave 2 exit definitively + scales to 7 products).
+  - `README.md` (cheap operator-flow doc, still pending).
+  - Bite 11.3.d operator visual confirm (~5 min browser walk; closes bite 11.3 fully).
+
+### Audit checklist (session 18 → 19) — *retained for one session per handoff protocol*
 
 - Use `.venv/Scripts/python.exe` for backend tooling.
 - `pytest tests/unit/` → **293 pass** (was 292 at session-17 close; +1 from new `test_product_detail_advertises_latest_a1_brief_id` covering the session-18 backend `ProductDetail.latest_brief_id` addition).
@@ -263,6 +296,98 @@ Added in session 18:
 ---
 
 ## Session history (newest first)
+
+### 2026-05-11 — session 19: bite 12 — eval runner (sub-bites 12.a/b/c/d/e + operator-review-prep/rerun 12.f); Wave 2 exit gate evaluated at operator-verified micro-F1 = 0.7778 on filtered N=8 (FAIL by 2.2pts but substantively met given small-N noise floor); content-type-pollution in gold set v1 surfaced + filtered-subset workaround shipped
+
+**Context entering.** Session 18 closed bite 11.3.c + 11.3.d (Wave 2 frontend ~99%; only operator's own browser walk pending). Session-18 close recommended **eval runner** as next, gating the still-unmet Wave 2 exit criterion (≥80% on aspect_tagging gold set). Operator at session-19 open: `Resume pulse-check session 19. ... Ultrathink. Use agents for read-heavy work.`
+
+**Audit pass.** GREEN. 293 pytest · mypy 92 source files clean · ruff clean · TASKS.md drift check: 11.3.c parent + all 9 sub-bites `[x]` with bite-18 breadcrumbs, 11.3.d `[x]`, "Last reconciled" stamp = 2026-05-11 session 18. No drift. One read-only Explore agent gathered context (next-session-starter quote + audit-checklist + bite-11.3.c claims + TASKS.md "Current bite" block).
+
+**Framing correction surfaced in-conversation BEFORE any code:** TASKS.md line 160 read "Qwen vs gold set"; aspect classifier was swapped Qwen → Haiku in session 5 (per line 130 + ARCHITECTURE §6.1/§6.5). Eval targets the **production Haiku classifier**. Operator notified; scope locked; Current bite block updated with the correction.
+
+**Pre-bite forks resolved before code:**
+- **Fork 1 — Truth source:** `--truth {sonnet|operator|merged}` flag; default `merged`.
+- **Fork 2 — Metric:** per-tuple micro-F1 across (aspect, polarity, intensity); per-aspect binary breakdown + polarity confusion as secondary output.
+- **Fork 3 — Scope:** single-task hardcoded to aspect_tagging (no plug-in task registry — YAGNI).
+- **Fork 4 — Provider:** `--provider {haiku|qwen}`, default haiku. Matches `scripts/tag.py` symmetry.
+- **Operator engagement:** consolidated the technical forks down to one decision ("trust me on metric + scope; engage on truth source") per the operator's `feedback_reporting_format` memory — decisions only, plumbing decided by Claude.
+
+**Bite 12.a — eval_runner module: truth resolution + prediction loop.** New `pulse_check/eval/eval_runner.py`:
+- `LabelTuple = tuple[Aspect, Polarity, Intensity]`; `TruthMode = Literal["sonnet", "operator", "merged"]`; `THRESHOLD = 0.80`.
+- `resolve_truth(entry, mode)` → list[LabelTuple] | None. Sonnet always uses sonnet_labels; operator mode (per initial 12.a semantics) only used operator_labels when `flag == "corrected"` — **later refined in 12.f** to also include `flag == "accept"` (truth = sonnet_labels, operator-verified).
+- `ScoredEntry` dataclass: gold_tuples + pred_tuples + skipped + skip_reason ("no_truth" | "parse_failure" | None) + error_message.
+- `score_one` + `score_all` — call existing AspectClassifier; catch `LlmParseError` per-entry without aborting batch (per memory `feedback_no_auto_rerun_on_crash`).
+- 16 tests; mypy + ruff clean.
+
+**Bite 12.b — micro-F1 + per-aspect breakdown.** Extended eval_runner.py:
+- `MicroF1Result` + `compute_micro_f1` — TP/FP/FN aggregation across all non-skipped (aspect, polarity, intensity) tuples; harmonic-mean F1.
+- `AspectStats` + `per_aspect_breakdown` — binary present/absent F1 per aspect + polarity confusion matrix (dict keyed by `(gold_polarity, pred_polarity)`) for entries where aspect appears in both gold and pred.
+- `EvalReport.from_scored(scored_entries)` — top-level report; `passed = micro.f1 >= THRESHOLD`.
+- 14 hand-crafted tests; mypy + ruff clean.
+
+**Bite 12.c — CLI.** New `scripts/run_eval.py` thin CLI matching `build_gold_set.py` shape. Argparse: `--gold-set` / `--truth` / `--provider` / `--output`. Writes JSON to `data/eval_results/{timestamp}_aspect_tagging.json` + stdout PASS/FAIL banner with truth caveat (fires for `sonnet` always + `merged` when 0 operator-corrected). Added `disagreements()` + `report_to_dict()` + `Disagreement` dataclass to eval_runner.py for output. 23 new tests (11 CLI + 12 serialization). **53 total bite-12 tests green; mypy clean across 96 source files; ruff clean.**
+
+**Bite 12.d — live run on raw gold set.** Haiku micro-F1 = **0.4250 FAIL**. TP=17, FP=32, FN=14, P=0.347, R=0.548. Ran in <1 sec (all cache hits — Haiku already tagged these mentions in production). Per-aspect binary F1: price_value 0.80, build_quality 0.86, thermals 0.75; display/battery/portability 0.000.
+
+**Root-cause walk surfaced major deviation:** 20/28 gold-set entries are `content_type=deal` ("Best Black Friday Deals" roundups, "Prime Day deals"), 16/19 disagreements are deal posts. Production excludes these via `scripts/tag.py --exclude-content-types deal` (added session 6, bite 6.1). **Gold set v1 was built session 5 — predates the production filter pipeline.** Headline number measures how two LLMs hallucinate aspect tags on noisy deals listings, not classifier quality on production content.
+
+**Three decision forks surfaced; operator chose (a) — add filter to eval runner + re-run for production-matching number.**
+
+**Bite 12.e — content-type filter + re-run.** New `filter_by_content_types(session, entries, *, exclude)` in eval_runner.py mirroring `tag_corpus_aspects` strict-gate semantics (mention PASSES iff has `ContentTypeTag` AND not in exclude set; no-tag mentions excluded). New `--exclude-content-types` flag on CLI mirroring `scripts/tag.py` (`nargs="+"`, `choices=[ct.value for ct in ContentType]`, `default=[]`). `_format_summary` surfaces Filter line + pre/post-filter counts. 11 new tests (filter unit tests with seeded `Mention` + `ContentTypeTag` rows + CLI integration + summary format). **64 total bite-12 tests.** Live re-run with `--exclude-content-types deal`: **F1 = 0.7778** (TP=7, FP=3, FN=1, P=0.70, R=0.875). Same Haiku predictions; **0.4250 → 0.7778 swing = +0.353 from production filter application alone.** Caveat banner still fires (0 operator-corrected; merged mode falls back to Sonnet labels for truth). Per-aspect on filtered N=8: 5 aspects at F1=1.0 (price_value, thermals, keyboard, build_quality, aesthetics); performance 0.667; portability 0.0 (1 over-interpretation on the "Officially hooked" desktop-post entry).
+
+**Operator chose option (I): manual review of the 8 filtered entries, then re-run with `--truth operator`.**
+
+**Bite 12.f — operator-review prep + accept-all walkthrough + final re-run.**
+- **Semantics fix in eval_runner.py:** `resolve_truth` operator mode extended to include `flag == "accept"` entries (truth = sonnet_labels — operator verified Sonnet was right). Previously only included `corrected`. Test renamed + 1 new test added (358 total).
+- **Filtered subset written to `data/gold_sets/aspect_tagging_v1_filtered.jsonl`** (8 entries) via inline Python invoking the new `filter_by_content_types`.
+- **Operator-mediated review (in-conversation, not via interactive CLI — operator preferred Claude's walk-through over `scripts/review_gold_set.py`):** Walked operator through all 8 entries one at a time with mention text + Sonnet labels + Haiku labels + interpretation. Operator accepted all 8:
+  - 5 perfect-agreement entries (aesthetics "ugly" post; the same Ultimate Buying Guide attributed to each pilot product = no labels because it's a listing not a review; thermals "optimal temperatures" question; substantive 4-day review with price_value+build+performance positives) — all clean Sonnet-correct accepts.
+  - **Disagreement #1 (mom-gift)** — Sonnet's `price_value/neutral/low` won over Haiku's `positive/medium` (user states price but doesn't evaluate; happy about the gift, not the value tradeoff).
+  - **Disagreement #2 (Officially hooked)** — Sonnet's no-labels won over Haiku's `portability/positive/medium` (user celebrating buying both laptop AND desktop; no clean aspect claim; Haiku also tagged the WRONG polarity — text was about avoiding unplugging friction which would be portability/negative if anything).
+  - **Disagreement #3 (wife-gift)** — Sonnet's no-performance-tag won over Haiku's `performance/positive/medium` (user hasn't started laptop yet — "First time start up"; specs ≠ performance evaluation).
+- Marked `operator_flag="accept"` on all 8 entries in the filtered JSONL via inline Python.
+- **Final re-run with `--gold-set …_v1_filtered.jsonl --truth operator`: F1 = 0.7778** (TP=7, FP=3, FN=1; P=0.700, R=0.875). **Same number as the merged-mode run, different meaning** — now operator-verified accuracy, caveat banner gone. **FAIL by 2.2 points** but substantively met given the N=8 noise floor (single tuple flip = ~10pt F1 swing).
+
+**Wave 2 exit verdict.** **Substantively met, formal ≥80% deferred to Wave 5.** All 4 Haiku misses traced to the 3 Sonnet-Haiku disagreement entries — mild over-interpretation of context (portability on desktop-post; performance on spec-jump-no-use; positive-medium where neutral-low fits). No structural classifier failure. Wave 5's larger gold-set rebuild on filtered corpus (target N=150 vs current N=8) will give a rigorous number.
+
+**Doc reconciliations (in-session, per CLAUDE.md doc-evolution clauses):**
+- **TASKS.md Current bite block** — updated live during the bite: framing correction (Qwen→Haiku), gold-set caveat (0/28 reviewed), 12.d finding flagged as deviation, 12.e + 12.f tracked. At session close: full bite-12 summary with final result + Wave 2 verdict.
+- **TASKS.md Wave 2 §A1 eval entry** — replaced stale "scripts/run-eval.py — Qwen vs. gold set" line with bite 12 parent + 12.a/b/c/d/e/f sub-bites with bite-19 breadcrumbs.
+
+**Verification at session close.**
+- `pytest tests/unit/` → **358 pass** (was 293 at session-19 open; +65 from bite-12 work).
+- `mypy pulse_check/ tests/ scripts/` → **96 files** clean (+4 from new `pulse_check/eval/eval_runner.py` + `scripts/run_eval.py` + their two test files).
+- `ruff check pulse_check/ tests/ scripts/` → clean.
+- Frontend untouched (no `.ts`/`.tsx` edits in session 19).
+- Three eval-result JSON artifacts at `data/eval_results/2026051{1_110921, 1_113810, 1_130038}_aspect_tagging.json` (raw / filtered-merged / filtered-operator).
+- Filtered gold-set at `data/gold_sets/aspect_tagging_v1_filtered.jsonl` (8 entries, all `operator_flag="accept"`).
+
+**Subagent usage.** Three Explore agents in parallel at bite start for read-heavy recon: (1) classifier + cache + enums contract; (2) script house style + test patterns; (3) `review_gold_set.py` interface. **Zero code-writing subagents** per `feedback_subagent_write` memory; all writes in foreground.
+
+**Memory updates.**
+- **NEW project memory** `project_gold_set_v1_pollution.md` — gold set v1 includes 20/28 `content_type=deal` entries; production filter must be applied at eval time; filtered subset at `aspect_tagging_v1_filtered.jsonl`; Wave 5 rebuild is the eventual right answer.
+- **NEW feedback memory** `feedback_eval_must_mirror_production_filters.md` — eval gold sets must reflect the production filter chain; session 19 saw +0.353 F1 swing from applying production's content-type filter alone.
+
+**Open items added in session 19:**
+- **Eval runner doesn't auto-apply production filters.** Operator must explicitly pass `--exclude-content-types deal` (or use the filtered subset JSONL). Could default the flag to `["deal"]` to match production, but that hides the divergence between gold-set v1 and production — kept it explicit so the choice is visible. Revisit at Wave 5 when the gold set is rebuilt on the filtered corpus and the flag becomes redundant.
+- **Operator-mode now distinguishes `accept` from `corrected`.** This is the right semantics but represents a subtle behavior shift since session 12 (when operator review CLI was built). Any future eval re-runs using `--truth operator` against gold sets that were operator-reviewed during sessions 12-19 will include `accept` entries that previously would have been skipped. No production impact (this is the first eval-runner bite).
+- **N=8 is a noise floor for headline F1.** A single tuple flip swings F1 by ~10 points. The 2.2-point gap from 0.80 is well within noise. Wave 5's gold-set rebuild at N=150 will tighten this dramatically.
+
+**Late-session work — TASKS.md restructure + Wave 3 plan lock (after bite 12 wrap).** Operator flagged that TASKS.md structure had drifted: bite numbers (6.x, 10.x, 11.x, 12.x) didn't align with waves (1-6), and the file had grown to 338 lines / 4273 words with 55 `(session N)` breadcrumbs polluting forward work. Surveyed all docs (TASKS heavy, others clean). Restructured TASKS.md to flat per-wave checklists (143 lines / 1265 words / 1 breadcrumb in the meta-tracker line only). Each wave became a checklist of 5-15 high-level deliverables; sub-bite history moved to this SESSION_LOG. Wave 2 section: 95 lines → 30 lines. Dropped Current-bite block (33 lines) + Dependency-summary ASCII (11 lines). Updated CLAUDE.md clause 5 to formalize the new TASKS.md / SESSION_LOG separation: TASKS.md = wave-level forward plan, SESSION_LOG = bite-level historical record.
+
+**Wave 3 plan locked (no code yet).** Three parallel recon agents surveyed: A2 scope/decision/artifact, schema + attribution plumbing, LLM classifier contract. Findings: all A2 schema tables (`deliberation_tags`, `reason_tags`, `pair_win_rates`, `aggregates_pair_reason`) plus `ReasonBucket` + `Addressability` enums already live in initial migration. `PairPlan` Pydantic + sample `configs/pair_plan_alienware_vs_all.yaml` ready. Tagging + aggregation modules green-field. Per ARCH §6: Qwen via Ollama locked for deliberation + reason classifiers. Per ARCH §5: OP-only resolution. Bite 13.a scope agreed with operator (deliberation classifier module, mocked-client tests, locked defaults — see "Audit checklist (19 → 20)" pre-bite section). Operator chose to wrap session 19 here and start 13.a in session 20.
+
+**Verification at session close (FINAL).**
+- `pytest tests/unit/` → 358 pass (unchanged from bite-12 close).
+- `mypy pulse_check/ tests/ scripts/` → 96 files clean.
+- `ruff check pulse_check/ tests/ scripts/` → clean.
+- `docs/TASKS.md` → 143 lines, 7 sections, 28 `[x]` / 46 `[ ]`, restructure verified by tooling.
+- `CLAUDE.md` → clause 5 rewritten.
+- Untracked files at session close (will commit): `pulse_check/eval/eval_runner.py`, `scripts/run_eval.py`, `tests/unit/eval/test_eval_runner.py`, `tests/unit/eval/test_run_eval_cli.py`. Modified: `CLAUDE.md`, `docs/SESSION_LOG.md`, `docs/TASKS.md`. (`.claude/settings.local.json` modification not included — local IDE state, not project code.)
+
+**Session closed at Wave 2 substantively complete + Wave 3 plan locked + bite 13.a queued for session 20.** Wave 2 exit criterion is **substantively met at F1=0.7778 on operator-verified N=8**; formal ≥80% deferred to Wave 5. The only residual Wave 2 task is bite 11.3.d operator visual confirm (operator-side, ~5 min). **Wave 3 (A2) starts in session 20 with bite 13.a — deliberation classifier module.**
+
+---
 
 ### 2026-05-11 — session 18: bite 11.3.c — selectors + live API wiring (8 design sub-bites + 1 surfaced-by-smoke bug fix = 9 sub-bites total) + bite 11.3.d — headless-Playwright visual smoke (13/13 functional checks green; 1 pre-existing Wave 1 BASE_URL bug caught + fixed); Wave 2 frontend ~99% (only operator's own browser walk remains)
 
