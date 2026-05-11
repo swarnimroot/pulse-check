@@ -8,7 +8,7 @@ Running one-page chronicle. Updated **at session close**, when the operator says
 
 Paste at the start of your next session:
 
-> Resume pulse-check session 21. Audit per `docs/SESSION_LOG.md` "Audit checklist (session 20 → 21)" first. Bite 13.a (deliberation classifier module) shipped in session 20; next is 13.b (reason tagger) — four pre-bite shape decisions in the audit checklist must be resolved in-conversation before code. Be concise. Ultrathink. Use agents for read-heavy work.
+> Resume pulse-check session 21. Audit per `docs/SESSION_LOG.md` "Audit checklist (session 20 → 21)" first, then proceed per its recommendation. Be concise. Ultrathink. Use agents for read-heavy work.
 
 ### Audit checklist (session 20 → 21)
 
