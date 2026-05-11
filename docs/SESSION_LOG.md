@@ -8,9 +8,36 @@ Running one-page chronicle. Updated **at session close**, when the operator says
 
 Paste at the start of your next session:
 
-> Resume pulse-check session 20. Audit per `docs/SESSION_LOG.md` "Audit checklist (session 19 → 20)" first — TASKS.md was restructured this session (338 → 143 lines; flat per-wave checklists; bite numbering dropped from forward work) + CLAUDE.md clause 5 updated to match. Bite 12 closed: eval runner shipped, Wave 2 substantively met at F1=0.7778 on operator-verified N=8. **Next bite is 13.a — deliberation classifier module** (Qwen via Ollama; clone `pulse_check/tagging/aspect_classifier.py` pattern). Locked defaults agreed at session-19 close: outcome extraction folded into deliberation classifier, full-product-universe interface, OP-only resolution per ARCH §5, content-type-filtered gold-set discipline from day 1. Mocked-client tests only in 13.a — no live Qwen call yet. Be concise. Ultrathink. Use agents for read-heavy work.
+> Resume pulse-check session 21. Audit per `docs/SESSION_LOG.md` "Audit checklist (session 20 → 21)" first. Bite 13.a (deliberation classifier module) shipped in session 20; next is 13.b (reason tagger) — four pre-bite shape decisions in the audit checklist must be resolved in-conversation before code. Be concise. Ultrathink. Use agents for read-heavy work.
 
-### Audit checklist (session 19 → 20)
+### Audit checklist (session 20 → 21)
+
+- Use `.venv/Scripts/python.exe` for backend tooling.
+- `pytest tests/unit/` → **391 pass** (was 358 at session-19 close; +33 from new `tests/unit/tagging/test_deliberation_classifier.py`).
+- `mypy pulse_check/ tests/ scripts/` → expected clean (re-run to confirm; +1 source file `pulse_check/tagging/deliberation_classifier.py` and +1 test file).
+- `ruff check pulse_check/ tests/ scripts/` → expected clean.
+- Frontend untouched in session 20.
+- **TASKS.md drift check:** Wave 3 line "Deliberation thread classifier (Qwen)" remains `[ ]` — the module ships in 13.a but the deliverable closes only when live-Qwen-validated (13.e). `Active` line + `Last reconciled` stamp reflect session-20 close. Wave 2 still substantively complete.
+- **ARCH §6.1 drift check:** the `classify_deliberation_thread(thread, products)` row was rewritten + a one-paragraph rationale added below the §6.1 table explaining role-segmented input + cache-key exclusions. Verify both before forward work — the paragraph is the rationale operator approved at session-20 mid-session for the `DeliberationThread` shape.
+- **Code read-through on session-20 new files:**
+  - `pulse_check/tagging/deliberation_classifier.py` — `JsonGenerator` Protocol + `DeliberationThread` (frozen; role-segmented: `op_post_text` + `op_edit_text: str | None` + `op_top_level_comments: tuple[str, ...]` + `other_top_level_comments: tuple[str, ...]`; `thread_id` is for logging only, NOT in cache key) + `DeliberationPrediction` (frozen; four ARCH §6.1 fields + `confidence: float | None`) + `build_prompt` (sorts products internally for order-independence) + `_format_thread_block` (renders `[OP_POST] / [OP_EDIT] / [OP_COMMENT n] / [OTHER_COMMENT n]` markers; `OP_EDIT` only when present) + `parse_response` (raises `LlmParseError` only on top-level shape failure; three defensive consistency rules post-parse: empty-state-if-not-deliberation + demote-chosen-not-in-discussed + demote-resolved-with-null-chosen) + `DeliberationClassifier` wrapper around `call_with_cache(task="deliberation_tagging", ...)`. Cache scoped to thread content + sorted product_ids; ignores `thread_id` + `display_name` + product order. Reuses `ProductContext` from `aspect_classifier`.
+  - `tests/unit/tagging/test_deliberation_classifier.py` — 33 mocked-client tests via `httpx.MockTransport`. Coverage: 1 version check + 8 prompt-rendering + 14 parse_response edge cases + 10 cache-integration. Uses `_ollama_with(handler)` + `_canned(body)` helpers cloned from aspect-classifier test pattern; `session: Session` fixture from `conftest.py`.
+- **Bite 13.a locked defaults that landed (do not re-debate without flag):**
+  - Outcome extraction folded into one Qwen call (four ARCH fields + confidence in one parse).
+  - Full-product-universe interface — caller passes the tracked product set; LLM picks the subset; unknown IDs dropped on parse with warn-log.
+  - OP-only resolution structurally enforced via role-segmented `DeliberationThread` — the prompt rule 3 explicitly blocks `[OTHER_COMMENT]` assertions from resolving the thread.
+  - Mocked-client tests only. No live Qwen invocation in session 20 (live evals come in 13.e).
+- **Pre-bite forks for session 21 — settle in conversation BEFORE writing 13.b code:**
+  - **`thread_context` shape:** what does the reason tagger see per comment beyond `comment_text` + `winning_product`? Cheapest workable: OP post + chosen product display_name + one-line list of products considered. Richer (full thread? sibling comments?) costs N_comments × extra_tokens.
+  - **Which comments get reason-tagged:** all comments in resolved threads? Top-level only? OP-only? Only those leaning toward the winning product? Default recommendation: all top-level comments in resolved threads, polarity-agnostic, so dissent and agreement are both measurable.
+  - **`ReasonBucket` enum scope:** all 15 values (11 aspects + 4 extras `brand_loyalty` / `value_deal` / `support_reputation` / `prior_ownership`) or a v1 subset? Already declared in `storage/enums.py`.
+  - **Mocked-only tests in 13.b:** yes (default — same Wave 3 plan structure; live evals in 13.e), or live-Qwen smoke too? Decide before code.
+- **Alternative pre-bite paths if operator changes mind:**
+  - Bite 11.3.d operator visual confirm (~5 min browser walk; closes bite 11.3 fully).
+  - README.md (still pending; setup + run-a-pilot doc).
+  - Wave 5 corpus expansion + aspect gold-set rebuild at N=150 (closes Wave 2 formal ≥80% gate).
+
+### Audit checklist (session 19 → 20) — *retained for one session per handoff protocol*
 
 - Use `.venv/Scripts/python.exe` for backend tooling.
 - `pytest tests/unit/` → **358 pass** (was 293 at session-19 open; +65 from bite-12 eval-runner work).
@@ -43,47 +70,16 @@ Paste at the start of your next session:
   - `README.md` (cheap operator-flow doc, still pending).
   - Bite 11.3.d operator visual confirm (~5 min browser walk; closes bite 11.3 fully).
 
-### Audit checklist (session 18 → 19) — *retained for one session per handoff protocol*
-
-- Use `.venv/Scripts/python.exe` for backend tooling.
-- `pytest tests/unit/` → **293 pass** (was 292 at session-17 close; +1 from new `test_product_detail_advertises_latest_a1_brief_id` covering the session-18 backend `ProductDetail.latest_brief_id` addition).
-- `mypy pulse_check/ tests/ scripts/` → **92 files** clean. `ruff check pulse_check/ tests/ scripts/` → clean.
-- **Frontend lint:** `cd frontend && npm run lint` → clean (`tsc -b --noEmit`).
-- **TASKS.md drift check (mandatory):** diff `[x]` set in `docs/TASKS.md` against bite-18 close claims: 11.3.c parent + all nine sub-bites 11.3.c.1–9 `[x]`; 11.3.d `[x]` (smoke completed; visual confirm against the operator's own browser still pending). Flag mismatches BEFORE forward work.
-- Spot-check `docs/TASKS.md` "Current bite" block: active=11.3 with 11.3.c closed; 11.3.d marked done at the smoke layer with the operator-side visual leg outstanding; blocked=6.3+6.4 unchanged. "Last reconciled" stamp = 2026-05-11 session 18.
-- **Code read-through on session-18 new/rewritten files** (verify these match the bite-18 narrative):
-  - `pulse_check/api/schemas.py` — `ProductDetail.latest_brief_id: int | None = None` field present with docstring explaining the navigation hop.
-  - `pulse_check/api/main.py` — new `_latest_a1_brief_id_for_product` helper queries `Brief.brief_id` DESC LIMIT 1 with `scope_type == ScopeType.ASPECT_1_SKU AND scope_id == product_id`; both branches of `get_product` (no-aggregates shell + populated) thread `latest_brief_id` into the response.
-  - `frontend/src/lib/api.ts` — `BASE_URL` constructed via `_envApiUrl || "./api"` (NOT `??`); comment locks the intent (`.env.production` sets `VITE_API_URL=""` and `??` would pass empty string through). Route helpers: typed `products` / `productById` / `brief` / `mentions` (short-circuits empty array); `pairs` removed; `health` retained.
-  - `frontend/src/components/atoms/Select.tsx` — native `<select>` wrapper, 32px height, `appearance: none` + inline-SVG chevron via background-image. Exported from `atoms/index.ts`.
-  - `frontend/src/components/BriefPanel.tsx` — `bucketBriefByPolarity` matches `"not working" || "weakness"` (negative-first) then `"working" || "strength"`. Comment locks the negative-first ordering rationale.
-  - `frontend/src/components/{EvidenceDrawer,CitationPanel}.tsx` — both gained optional `loading?: boolean` + `errorMessage?: string | null` props; body renders muted "Loading…" / red-toned error line / existing empty state in that priority. Showcase consumers still work (omit both).
-  - `frontend/src/pages/About.tsx` — full state machine (`loading | error | ready`); two dependent `Select` atoms (Company by `brand`, Product filtered to selected brand); auto-select first company + product on load; `Open standalone →` button navigates via `useNavigate`; retry bumps `reloadKey`.
-  - `frontend/src/pages/Standalone.tsx` — `ProductState` (loading/notFound/error/ready) + `BriefState` (idle/loading/error/missing/ready) + drawer/panel `loading + errorMessage` state. All hooks declared BEFORE any early return (rules-of-hooks). Drawer + panel use **stale-guard** on `aspect` / `claimText` so a second click invalidates the first fetch instead of stomping it.
-  - `frontend/src/fixtures/sample.ts` — `sampleProduct.latest_brief_id: 1` added to satisfy the new type.
-  - `tests/unit/api/test_app.py` — new `test_product_detail_advertises_latest_a1_brief_id` seeds two A1 briefs on target + one sibling-product brief, asserts MAX wins + no cross-product bleed; two existing product-detail tests gained `latest_brief_id is None` assertions.
-- **DESIGN_SYSTEM updates to verify (in-session reconciliation):**
-  - §5.2 routing-key drift block REPLACED with the resolved keyword table (negative-first: `not working` / `weakness`; positive: `working` / `strength`).
-  - §5.6 gained a deviation note: native `<select>` ships for pilot scale; custom dropdown deferred.
-- **Live backend check** (already proven by smoke + curl in session 18; re-run only if subsequent commits touch handlers): `curl -s http://localhost:8765/api/health`; `curl -s http://localhost:8765/api/product/alienware_16_aurora | python -c "import json,sys; d=json.load(sys.stdin); print(d['latest_brief_id'], len(d['aspects']))"` → `1 11`; ROG returns `2 11`; `garbage` returns 404 envelope.
-- **Visual regression (operator-skippable; smoke covered all five routes):** `cd frontend && npm run dev` (Vite 5173 talks to uvicorn 8765 per `.env.development`). Walk `/#/` (selectors populate from live `/api/products`, Open-standalone navigates) → `/#/standalone/alienware_16_aurora` (RunMetaStrip 112 mentions · BriefPanel both buckets populated via new keyword routing · aspect-row click opens EvidenceDrawer with live `/api/mentions` fetch · CiteChip opens CitationPanel) → `/#/standalone/rog_strix_g16` (brief 2 likewise) → `/#/standalone/garbage` (404 card echoes id) → `/#/showcase` (regression). Screenshots from session-18 smoke at `C:/Users/AW-testing/AppData/Local/Temp/smoke_11_3_c/`.
-- **Process gotcha — leave 8765 alone.** Session 18 found a stale `python -m uvicorn app.main:app --port 8765` (different project) squatting on the dev API port; killed it and replaced with `.venv/Scripts/python -m uvicorn pulse_check.api.main:app --port 8765`. The replacement was running at session close; assume operator left it up. `netstat -ano | grep ":8765\s.*LISTENING"` + `Get-CimInstance Win32_Process -Filter "ProcessId = <pid>"` to confirm the CommandLine still points at `pulse_check.api.main`.
-- **Pre-bite candidates for session 19** (operator picks at audit close):
-  - **Eval runner — `scripts/run_eval.py --task aspect_tagging`** against the 28-entry gold set + Qwen-vs-Sonnet confusion matrix. Wave 2 exit criterion (≥80% aspect_tagging accuracy) is STILL unmet — the only gating defensibility item for an A1-cutpoint ship if v1 timeline slips. **Recommend as default.**
-  - **Bite 6.3 — YouTube end-to-end.** Operator URL curation + first run; budget plumbing surprises per session-8 first-contact pattern. Blocked on operator URL curation.
-  - **Wave 5 corpus expansion** to the 7-product gaming-laptop demo set (5 more products beyond Alienware + ROG). Multiplies real-corpus aggregate / brief volume; exercises the synthesis pipeline at demo scale.
-  - **README.md** (still pending; setup + run-a-pilot doc). Cheap; nothing technical, just operator-flow capture.
-
 ## Current state
 
-- **Phase:** Wave 2 backend ~99%, Wave 2 frontend ~99% (atoms + composites + AspectColumn 3-section partition + About/Standalone/Compare page shells + hash router + extracted `BriefPanel` composite + selectors + live API wiring + headless-Playwright visual smoke done; only operator's own browser walk against the running uvicorn remains). **Session 18 closed bite 11.3.c — selectors + live API wiring (9 sub-bites) + bite 11.3.d (visual smoke).** Backend got `ProductDetail.latest_brief_id: int | None` (single-hop product → brief navigation; +1 test). Frontend got: typed `api.ts` route helpers (`products` / `productById` / `brief` / `mentions`; vanilla `apiFetch`, no React Query); new `atoms/Select.tsx` native-select wrapper (32px, 5.6 §5.6 custom-dropdown deviation noted); `BriefPanel.bucketBriefByPolarity` extended with `"strength"` / `"weakness"` keyword set (resolves the live-data routing-key drift flagged at session 17 close); About rewrite with two dependent Selects + auto-select-first + retry button; Standalone full state-machine rewrite (product / brief / mentions all lazy + optimistic-open + stale-guard on aspect / claimText); EvidenceDrawer + CitationPanel gained `loading?` / `errorMessage?` props for the optimistic-open pattern. Plus a **pre-existing Wave 1 BASE_URL bug** surfaced + fixed during smoke: `??` → `||` for empty-string fallback (`.env.production` sets `VITE_API_URL=`). Smoke walked all 5 routes via headless Chromium + 13/13 functional checks green + screenshots stashed at `C:/Users/AW-testing/AppData/Local/Temp/smoke_11_3_c/`. **Process note: operator's dev API port 8765 was being squatted by a stale `app.main:app` from a different project; killed and replaced with `.venv` uvicorn serving `pulse_check.api.main`; that uvicorn is running at session close as the operator's dev backend.**
-- **Bite candidates for session 19** (operator picks):
-  - **Eval runner — `scripts/run_eval.py --task aspect_tagging`** against the 28-entry gold set + Qwen-vs-Sonnet confusion matrix. Wave 2 exit criterion (≥80% aspect_tagging accuracy) is STILL unmet — the only gating defensibility item for an A1-cutpoint ship if v1 timeline slips. **Recommended next.**
-  - **Bite 6.3 — YouTube** end-to-end. Operator URL curation + first run; budget plumbing surprises (per session-8 first-contact pattern). Blocked on operator URL curation.
-  - **Wave 5 corpus expansion** — extend `configs/product_set_*.yaml` from 2 → 7 products (gaming-laptop demo set), re-run scrape + tag + aggregate + synthesize. Exercises the full pipeline at demo scale; surfaces capacity / cost edges.
-  - **README.md** (still pending) — setup + run-a-pilot operator doc. Cheap; nothing technical, just operator-flow capture.
+- **Phase:** Wave 2 substantively complete; **Wave 3 (A2) in active build.** Session 20 closed bite 13.a — new `pulse_check/tagging/deliberation_classifier.py` (Qwen via Ollama; role-segmented `DeliberationThread` input + `DeliberationPrediction` four-ARCH-field-plus-confidence output; defensive parser enforcing three consistency rules; cache scoped to thread content + sorted product_ids, ignoring `thread_id` + `display_name`) + 33 mocked-client tests, all green. ARCH §6.1 row + a one-paragraph rationale updated to reflect the role-segmented input. Wave 2 residual: bite 11.3.d operator visual confirm (~5 min) + formal aspect-tagging ≥80% gate (deferred to Wave 5 gold-set rebuild at N=150). Eval result for Wave 2 — F1=0.7778 on operator-verified N=8 — stands.
+- **Bite candidates for session 21** (operator picks at audit close):
+  - **Bite 13.b — reason tagger** (Qwen). Four pre-bite shape decisions to settle in-conversation BEFORE code: `thread_context` shape, comment-selection criteria, `ReasonBucket` scope, mocked-only vs live-Qwen smoke. **Recommended next.**
+  - **Bite 11.3.d** — operator visual confirm (~5 min browser walk; closes bite 11.3 fully).
+  - **README.md** (still pending; setup + run-a-pilot operator doc; cheap).
+  - **Wave 5 aspect gold-set rebuild** at N=150 on filtered corpus (closes formal Wave 2 ≥80% gate definitively).
   - **Bite 6.4 (still deferred) — retailer reviews.** Three open items unchanged.
-- **pulse-check: 293 unit tests passing · `mypy` clean on 42 source files (92 across `pulse_check/ tests/ scripts/`) · `ruff` clean · `tsc -b --noEmit` clean.** (Was 292 / 42 / 92 at session-17 close; +1 test from new `test_product_detail_advertises_latest_a1_brief_id` covering session-18's `ProductDetail.latest_brief_id` backend field.)
+- **pulse-check: 391 unit tests passing · `mypy` clean · `ruff` clean · `tsc -b --noEmit` clean** (frontend untouched in session 20; was 358 / clean / clean at session-19 close; +33 from new `test_deliberation_classifier.py`).
 - **scrapers-lib: 904 unit tests passing · 20 skipped · ruff clean on edited files.** Drift +60/+1 vs the older 844/19 baseline — flagged in session 9 audit; non-blocking (all green). `_version.py` is **`1.2.1` in HEAD with no working-tree diff** — the deferred-bump open item from sessions 7/8 is **resolved** (already committed; not by us).
 - **Capability + output aha both demonstrated for A1 — including at the synthesis layer.** Session 8 unlocked density (33→1143 mentions); session 9 unlocks output aha at the aggregate layer (PRIMARY/SECONDARY divergence). Session 12 unlocks output aha at the synthesis layer: both pilot products produced 4-section briefs with substantive, evidence-grounded claims per quadrant. Alienware: PRIMARY = price/value praise + early-ownership; SECONDARY = post-Dell reliability skepticism + nostalgia for old design + display weakness vs Aero X16. ROG: PRIMARY = value/perf/thermals consistently strong; SECONDARY = keyboard flaws ("erratic typing"), aesthetic polarization, $3K-tier sticker shock. The §6.3 four-quadrant layout earns its keep — putting comment-thread weaknesses in their own quadrant prevents them from being washed out by post-level positive PRIMARY signal.
 - **Real corpus state:** 1143 mentions (33 reddit_post + 1110 reddit_comment) · 1380 mention_attributions (39 PRIMARY + 1341 SECONDARY) · 1143 content_type_tags (46 deal / 999 other / 98 review) · 649 aspect_tags (71 PRIMARY + 578 SECONDARY) · **22 aggregate rows** · **2 persisted Brief rows** (`brief_id=1` alienware_16_aurora + `brief_id=2` rog_strix_g16, both `prompt_version='a1_brief_v1'`, both `flagged_citation_issues.is_valid=True`) · 28-entry gold-set JSONL unchanged · 3 preview-brief markdown artifacts for `alienware_16_aurora` (session-6 + two from session 9; latest `alienware_16_aurora_20260507T203215Z.md`) · `llm_cache` rows: 3 for `prompt_version='preview_a1_v1'` (older preview-brief artifact trail) **plus 4 new rows from session-12 smoke** (2 dedup + 2 brief_writer; one cache row per (product, prompt_version) pair).
@@ -296,6 +292,57 @@ Added in session 18:
 ---
 
 ## Session history (newest first)
+
+### 2026-05-11 — session 20: bite 13.a — deliberation classifier module (Qwen via Ollama, mocked-client tests only); ARCH §6.1 contract refined (role-segmented `DeliberationThread` input, `+ confidence` field, cache excludes `thread_id` + `display_name`); Wave 3 (A2) build begun
+
+**Context entering.** Session 19 closed bite 12 (eval runner shipped + Wave 2 exit gate evaluated at operator-verified F1=0.7778 on filtered N=8 — substantively met) + TASKS.md restructure (338 → 143 lines, flat per-wave checklists) + CLAUDE.md clause 5 rewrite + Wave 3 plan lock + bite 13.a scope agreement (deliberation classifier module, Qwen via Ollama, four locked defaults: outcome-folded + full-product-universe + OP-only resolution + content-type-filtered gold-set discipline + mocked-only tests in 13.a). Operator at session-20 open: resume, audit, then start 13.a with concise output and read-heavy delegation to subagents.
+
+**Audit pass.** GREEN. Explore subagent verified the session 19 → 20 checklist: TASKS.md restructure intact (143 lines, flat per-wave checklists, no sub-bite numbering, no `(session N)` breadcrumbs in deliverables), CLAUDE.md clause 5 matches, bite 12 eval runner + scripts + tests present, F1=0.7778 traceable in `data/eval_results/20260511_130038_aspect_tagging.json` (`micro_f1.f1 = 0.7777777777777777`, `total_entries = 8`, `truth_mode = "operator"`, `disagreement_count = 3`), `aspect_classifier.py` pattern captured for cloning. One non-blocking note: the locked-default phrasing pointed at "ARCH §5" for OP-only resolution but that rule actually lives in ARCH §11 ("Resolved deliberation thread" under Definitional defaults); §5 covers attribution passes. Rule itself is right; citation pointer was off.
+
+**Plan + deviation flags before code.** Drafted a 13.a plan with two pre-acknowledged ARCH §6.1 deviations:
+- **Input shape:** structured `DeliberationThread` dataclass (role-segmented: `op_post_text` + `op_edit_text: str | None` + `op_top_level_comments: tuple[str, ...]` + `other_top_level_comments: tuple[str, ...]`) over ARCH's flat `thread_text`. Rationale: OP-only resolution becomes structural rather than stringly-typed at every call site; prompt-builder owns marker conventions in one place; matches how the future thread-fetch ingester will naturally shape Reddit data.
+- **Output adds `confidence: float | None`** beyond ARCH's four core fields — parity with `AspectPrediction`; useful for eval gating in 13.d/e. ARCH's four-field shape preserved exactly.
+- Product IDs typed `str` (matches rest of codebase; ARCH's `id` was unspecified).
+
+Operator approved with "go" — no pushback, no reshape. ARCH §6.1 doc updated mid-session before code, per project doc-evolution protocol.
+
+**Design brief via Explore subagent.** Subagent read `aspect_classifier.py` + `ollama.py` + `cache.py` + `test_aspect_classifier.py` + `enums.py` in full and returned a structured design brief (imports verbatim, dataclass shapes, OllamaClient surface, cache integration pattern, test helper signatures, coverage matrix). Parent then read four files directly (~600 lines) to confirm verbatim patterns — especially the exact `call_with_cache(session, *, task, input_payload, prompt_version, model, temperature, compute)` invocation shape and the `_compute` closure pattern.
+
+**Bite 13.a deliverables.**
+- **NEW `pulse_check/tagging/deliberation_classifier.py`** (~318 lines):
+  - `JsonGenerator` Protocol — re-declared locally (duck-typed across Ollama + Anthropic); matches `aspect_classifier`'s pattern.
+  - `DeliberationThread(frozen=True)`: `thread_id` (logging only, NOT in cache key) + `op_post_text` + `op_edit_text: str | None` + `op_top_level_comments: tuple[str, ...]` + `other_top_level_comments: tuple[str, ...]`. Tuples for hashability + true immutability under `frozen=True`.
+  - `DeliberationPrediction(frozen=True)`: `is_deliberation` + `is_resolved` + `products_discussed: tuple[str, ...]` + `chosen_product_id: str | None` + `confidence: float | None`.
+  - `build_prompt(thread, products)` — deterministic; `_format_products_block` sorts products by `product_id` internally so two calls with the same set in different orders produce identical prompts (cache stays consistent regardless of caller iteration order).
+  - `_format_thread_block(thread)` — renders OP/non-OP segments with `[OP_POST] / [OP_EDIT] / [OP_COMMENT n] / [OTHER_COMMENT n]` markers; `[OP_EDIT]` only emitted when `op_edit_text` present.
+  - `_PROMPT_TEMPLATE` (v1) — task explanation + product universe block + thread layout + five rules (most critically: rule 3 = "is_resolved = true ONLY if a segment labeled [OP_POST], [OP_EDIT], or [OP_COMMENT] names the chosen product. Assertions made in [OTHER_COMMENT] segments do NOT count toward resolution.") + JSON output shape + null/empty fallback.
+  - `parse_response(parsed, *, products)` — coerces + filters + enforces three consistency rules: (1) if `is_deliberation=false`, force `products_discussed=()` + `chosen=None` + `is_resolved=False`; (2) if `chosen_product_id not in products_discussed`, demote `chosen=None` + `is_resolved=False`; (3) if `is_resolved=true` but `chosen=None`, demote `is_resolved=False`. Raises `LlmParseError` only on top-level shape failure (non-dict, missing `is_deliberation`).
+  - `DeliberationClassifier(client, *, model, temperature, prompt_version)` wrapper around `call_with_cache(task="deliberation_tagging", ...)`. Input payload for cache hash: `{op_post_text, op_edit_text, op_top_level_comments, other_top_level_comments, product_ids: sorted}`. **NOT in cache key:** `thread_id`, per-product `display_name`, product order.
+  - Imports `ProductContext` from `aspect_classifier` (no duplication).
+- **NEW `tests/unit/tagging/test_deliberation_classifier.py`** (33 tests, all green):
+  - 1 version-prefix check + 8 prompt-rendering checks (all universe ids/names + OP-only rule wording + role markers in correct places + OP_EDIT presence/absence + determinism + product-order independence + thread-content sensitivity).
+  - 14 `parse_response` checks (resolved/unresolved/non-deliberation happy paths + unknown-product-id drop + chosen-not-in-discussed demotion + chosen-not-in-universe demotion + null-chosen-with-resolved demotion + non-deliberation forces empty state + dedupe + raises on non-dict + raises on missing `is_deliberation` + missing `is_resolved` defaults False + out-of-range confidence becomes None + bool confidence rejected).
+  - 10 cache-integration checks (miss-stores-row + hit-skips-call + scoped-per-thread-text + scoped-per-product-universe + ignores-thread_id + ignores-display_name + order-independent + temperature=0 in request body + `"format":"json"` in request body + prompt_version-bump invalidates).
+  - Uses `_ollama_with(handler)` + `_canned(body)` helpers cloned from aspect-classifier test pattern; `session: Session` fixture from `conftest.py`.
+
+**Doc updates this session.**
+- `docs/TASKS.md` — `Active` line + `Last reconciled` stamp updated. Wave 3 line "Deliberation thread classifier (Qwen)" remains `[ ]` — deliverable closes when live-Qwen-validated (13.e), not at module-write.
+- `docs/ARCHITECTURE.md` §6.1 — `classify_deliberation_thread` row rewritten to reflect `DeliberationThread` (role-segmented) + `tuple[ProductContext, ...]` input + the new output JSON shape with `confidence`. Added a one-paragraph rationale below the §6.1 table explaining structural enforcement of OP-only resolution + cache-key exclusions (`thread_id`, `display_name`).
+
+**Open items added in session 20.**
+- **No live Qwen call yet for deliberation.** Per locked default. Live evals come in 13.e once the gold set is built (13.c) and eval-runner extended for `--task deliberation` (13.d). The mocked-only stance keeps 13.a a pure code-shape bite that doesn't require Ollama running.
+- **Bite 13.b shape decisions are deferred to in-conversation discussion at session-21 start** — see the session 20 → 21 audit checklist's "Pre-bite forks" section. The four open shapes (thread_context, comment selection, ReasonBucket scope, test mode) are unresolved.
+
+**Verification at session close (FINAL).**
+- `pytest tests/unit/` → **391 pass** (was 358 at session-19 close; +33 from `test_deliberation_classifier.py`).
+- `mypy pulse_check/tagging/deliberation_classifier.py tests/unit/tagging/test_deliberation_classifier.py` → clean.
+- `ruff check pulse_check/tagging/deliberation_classifier.py tests/unit/tagging/test_deliberation_classifier.py` → clean.
+- Frontend untouched.
+- Untracked files at session close (will commit): `pulse_check/tagging/deliberation_classifier.py`, `tests/unit/tagging/test_deliberation_classifier.py`. Modified: `docs/ARCHITECTURE.md`, `docs/SESSION_LOG.md`, `docs/TASKS.md`. (`.claude/settings.local.json` modification not included — local IDE state.)
+
+**Session closed mid-bite-13** — sub-bite 13.a (classifier module + mocked tests) shipped; 13.b through 13.e queued. **Wave 3 (A2) is now in active build.**
+
+---
 
 ### 2026-05-11 — session 19: bite 12 — eval runner (sub-bites 12.a/b/c/d/e + operator-review-prep/rerun 12.f); Wave 2 exit gate evaluated at operator-verified micro-F1 = 0.7778 on filtered N=8 (FAIL by 2.2pts but substantively met given small-N noise floor); content-type-pollution in gold set v1 surfaced + filtered-subset workaround shipped
 

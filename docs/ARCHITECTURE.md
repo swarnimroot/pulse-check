@@ -412,8 +412,10 @@ Batch-time, high-volume classification. Every call: `temperature=0`, structured 
 | Function | Input | Output |
 |---|---|---|
 | `tag_mention_aspects(mention_text, product_context)` | mention text + the product it's attributed to | list of `{aspect, polarity, intensity, confidence}` — multi-label; empty list is valid |
-| `classify_deliberation_thread(thread_text, product_set)` | full thread text + list of products in the run | `{is_deliberation: bool, is_resolved: bool, products_discussed: [ids], chosen_product_id: id | null}` |
+| `classify_deliberation_thread(thread, products)` | role-segmented `DeliberationThread` (OP post + optional OP edit + OP top-level comments + other top-level comments) + tracked-product universe `tuple[ProductContext, ...]` | `{is_deliberation: bool, is_resolved: bool, products_discussed: [product_id str], chosen_product_id: product_id str \| null, confidence: float \| null}` |
 | `tag_reasons(comment_text, thread_context, winning_product)` | comment text + minimal thread context + the thread's winner | list of `{reason_bucket, polarity, intensity}` |
+
+**Deliberation input is role-segmented**, not flat thread text, so the OP-only resolution rule (§11) is enforced structurally: the prompt renders OP segments under `[OP_POST] / [OP_EDIT] / [OP_COMMENT n]` markers and other-commenter segments under `[OTHER_COMMENT n]`. The rule line in the prompt explicitly blocks `[OTHER_COMMENT]` assertions from resolving the thread. `thread_id` and per-product `display_name` are excluded from the cache key — same content + same product_id set rehydrate without re-classifying.
 
 Cache key: `sha256(input_payload + prompt_version + "qwen2.5:7b-q4_K_M" + "0.0")`.
 

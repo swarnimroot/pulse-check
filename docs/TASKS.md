@@ -3,8 +3,8 @@
 Wave-by-wave forward plan. Each wave is a flat checklist of high-level deliverables. Sub-bite breakdowns + per-bite breadcrumbs live in [`SESSION_LOG.md`](SESSION_LOG.md) (the historical record).
 
 **Status:** Wave 2 ✅ substantively complete (aspect-tagging F1=0.7778 on operator-verified N=8; formal ≥80% deferred to Wave 5 rebuild). Waves 3–6 ahead.
-**Active:** between bites — session 19 closed bite 12 (eval runner shipped + Wave 2 exit gate at F1=0.7778) + TASKS.md restructure + Wave 3 plan locked + bite 13.a scope agreed (deliberation classifier module, Qwen via Ollama, defaults locked — see SESSION_LOG). Session 20 to audit then start 13.a.
-**Last reconciled:** 2026-05-11 (session 19 close)
+**Active:** session 20 audited prior + shipped bite 13.a (`pulse_check/tagging/deliberation_classifier.py` + 33 mocked-client unit tests; mypy + ruff clean; 391/391 full suite green). Live Qwen validation deferred to 13.e per locked defaults. ARCH §6.1 row updated to reflect role-segmented `DeliberationThread` input. Pending operator review of 13.a; next is 13.b (reason tagger).
+**Last reconciled:** 2026-05-11 (session 20 — bite 13.a shipped)
 
 **Waiting on operator action (cross-wave):**
 - Operator visual confirm against live uvicorn (Wave 2 frontend smoke completed; ~5-min browser walk; screenshots at `C:/Users/AW-testing/AppData/Local/Temp/smoke_11_3_c/`)
