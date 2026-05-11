@@ -60,6 +60,7 @@ from pulse_check.api.schemas import (
     RunMeta,
 )
 from pulse_check.settings import get_settings
+from pulse_check.storage.enums import ScopeType
 from pulse_check.storage.models import (
     AggregateAspectSku,
     AspectTag,
@@ -122,6 +123,24 @@ def _latest_run_id_for_product(session: Session, product_id: str) -> str | None:
         select(AggregateAspectSku.run_id)
         .where(AggregateAspectSku.product_id == product_id)
         .order_by(AggregateAspectSku.computed_at.desc())
+        .limit(1)
+    )
+    return session.execute(stmt).scalar_one_or_none()
+
+
+def _latest_a1_brief_id_for_product(session: Session, product_id: str) -> int | None:
+    """Highest `brief_id` for an A1 (per-product) brief scoped to this product.
+
+    Lets `/api/product/{id}` advertise the brief link inline so the Standalone
+    page navigates product → brief in one hop.
+    """
+    stmt = (
+        select(Brief.brief_id)
+        .where(
+            Brief.scope_type == ScopeType.ASPECT_1_SKU,
+            Brief.scope_id == product_id,
+        )
+        .order_by(Brief.brief_id.desc())
         .limit(1)
     )
     return session.execute(stmt).scalar_one_or_none()
@@ -199,6 +218,7 @@ def _build_api_router() -> APIRouter:
             raise HTTPException(status_code=404, detail=f"product not found: {product_id}")
 
         run_id = _latest_run_id_for_product(session, product_id)
+        latest_brief_id = _latest_a1_brief_id_for_product(session, product_id)
         if run_id is None:
             # Product exists but has no aggregate rows yet — return shell with empty aspects.
             return ProductDetail(
@@ -212,6 +232,7 @@ def _build_api_router() -> APIRouter:
                     window_label=_WINDOW_LABEL,
                     last_refreshed=datetime.now(UTC),
                 ),
+                latest_brief_id=latest_brief_id,
             )
 
         stmt = (
@@ -249,6 +270,7 @@ def _build_api_router() -> APIRouter:
                 window_label=_WINDOW_LABEL,
                 last_refreshed=latest_computed_at,
             ),
+            latest_brief_id=latest_brief_id,
         )
 
     @router.get("/mentions", response_model=MentionsResponse)

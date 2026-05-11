@@ -18,6 +18,10 @@ export interface CitationPanelProps {
   mentions: MentionView[];
   offsetForDrawer?: boolean;
   onClose: () => void;
+  // See EvidenceDrawer — same optimistic-open pattern when Standalone fetches
+  // /api/mentions in response to a CiteChip click.
+  loading?: boolean;
+  errorMessage?: string | null;
 }
 
 export function CitationPanel({
@@ -26,6 +30,8 @@ export function CitationPanel({
   mentions,
   offsetForDrawer = false,
   onClose,
+  loading = false,
+  errorMessage = null,
 }: CitationPanelProps): JSX.Element | null {
   useEffect(() => {
     if (!open) return;
@@ -69,7 +75,15 @@ export function CitationPanel({
       </header>
 
       <div className="flex-1 overflow-y-auto bg-surface-alt p-4">
-        {mentions.length === 0 ? (
+        {loading ? (
+          <p className="py-8 text-center text-xs text-fg-muted">
+            Loading citations…
+          </p>
+        ) : errorMessage !== null ? (
+          <p className="py-8 text-center text-xs text-danger">
+            Couldn't load citations: {errorMessage}
+          </p>
+        ) : mentions.length === 0 ? (
           <p className="py-8 text-center text-xs text-fg-muted">
             no cited mentions resolved.
           </p>

@@ -27,6 +27,12 @@ export interface EvidenceDrawerProps {
   productName: string;
   mentions: MentionView[];
   onClose: () => void;
+  // 11.3.c — when Standalone opens the drawer it kicks off a /api/mentions
+  // fetch; we open the drawer optimistically and render a loading / error
+  // body until the fetch resolves. Showcase still passes mentions synchronously
+  // and omits these.
+  loading?: boolean;
+  errorMessage?: string | null;
 }
 
 function matchesSource(m: MentionView, f: SourceFilter): boolean {
@@ -45,6 +51,8 @@ export function EvidenceDrawer({
   productName,
   mentions,
   onClose,
+  loading = false,
+  errorMessage = null,
 }: EvidenceDrawerProps): JSX.Element | null {
   const [source, setSource] = useState<SourceFilter>("all");
   const [verifiedOnly, setVerifiedOnly] = useState(false);
@@ -159,7 +167,15 @@ export function EvidenceDrawer({
       </header>
 
       <div className="flex-1 overflow-y-auto bg-surface-alt p-4">
-        {filtered.length === 0 ? (
+        {loading ? (
+          <p className="py-8 text-center text-xs text-fg-muted">
+            Loading evidence…
+          </p>
+        ) : errorMessage !== null ? (
+          <p className="py-8 text-center text-xs text-danger">
+            Couldn't load evidence: {errorMessage}
+          </p>
+        ) : filtered.length === 0 ? (
           <p className="py-8 text-center text-xs text-fg-muted">
             no mentions match these filters.
           </p>

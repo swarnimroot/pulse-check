@@ -167,7 +167,20 @@
       "Bash(.venv\\\\Scripts\\\\python.exe -m mypy pulse_check/)",
       "Bash(.venv\\\\Scripts\\\\python.exe -m ruff check pulse_check/ tests/ scripts/)",
       "Bash(Select-Object Name, PSIsContainer)",
-      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5173/)"
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5173/)",
+      "Bash(Select-Object -ExpandProperty FullName)",
+      "Bash(/c/Users/AW-testing/Downloads/Workspace/pulse-check/.venv/Scripts/python.exe -m uvicorn pulse_check.api.main:app --port 8765 --log-level warning)",
+      "Bash(curl -sf http://localhost:8765/api/health)",
+      "PowerShell(Get-Process *)",
+      "Bash(/c/Users/AW-testing/Downloads/Workspace/pulse-check/.venv/Scripts/python.exe -m uvicorn pulse_check.api.main:app --port 8901 --log-level warning)",
+      "Bash(curl -sf http://localhost:8901/api/health)",
+      "Bash(curl -s http://localhost:8901/api/products)",
+      "Bash(curl -s http://localhost:8901/api/product/alienware_16_aurora)",
+      "Bash(curl -s http://localhost:8901/api/product/rog_strix_g16)",
+      "Bash(curl *)",
+      "Bash(PYTHONIOENCODING=utf-8 .venv/Scripts/python.exe *)",
+      "Bash(grep -oE '\"\\\\./api\"|\"\\\\.\\\\\\\\/api\"|`\\\\./api`|fetch\\\\\\(`[^`]+`' /c/Users/AW-testing/Downloads/Workspace/pulse-check/frontend/dist/assets/index-*.js)",
+      "PowerShell(Get-CimInstance *)"
     ]
   }
 }

@@ -237,46 +237,57 @@ The single most-rendered atom on the page. Section order, top-to-bottom:
 
 ### 5.1 AspectRow + AspectColumn (the scroller)
 
-**Locked layout per session-13:** two scrollers per Standalone page — left = positive net sentiment, right = negative net sentiment.
+**Locked layout per session-13 + session-16 reaffirm:** two scrollers per Standalone page — left = positive net sentiment, right = negative net sentiment.
 
-**Each scroller has 3 stacked sections in scroll order:**
+**Each scroller has 3 stacked sub-sections, in this order:**
 
-| Section | Contents | Sort |
+| Sub-section | Contents | Sort |
 |---|---|---|
-| **A** | Top-3 PRIMARY rows (by `total_mentions`) for this polarity | mentions desc |
-| **B** | Top-3 SECONDARY rows (by `total_mentions_secondary`), **excluding any aspect already in A of this scroller** | mentions desc |
-| **C** | Long tail — every other aspect with any mentions in this polarity, **excluding A and B of this scroller** | mentions desc |
+| **Primary** | Top-3 PRIMARY rows (by `total_mentions`) for this polarity | mentions desc |
+| **Secondary** | Top-3 SECONDARY rows (by `total_mentions_secondary`), **excluding any aspect already in Primary of this scroller** | mentions desc |
+| **Long-tail** | Every other aspect with any mentions in this polarity, **excluding Primary and Secondary of this scroller** | mentions desc |
 
-**No within-scroller repeats.** Cross-scroller divergence is permitted: an aspect with `PRIMARY pos = 0.59` and `SECONDARY neg = −0.18` (real example: rog_strix_g16 price-value) appears in **left scroller Section A** AND **right scroller Section B**. A small `primary` / `secondary` tone chip on the row tells the eye which bucket the metrics represent.
+**No within-scroller repeats.** Cross-scroller divergence is permitted: an aspect with `PRIMARY pos = 0.59` and `SECONDARY neg = −0.18` (real example: rog_strix_g16 price-value) appears in **left scroller's Primary** AND **right scroller's Secondary**. A small `primary` / `secondary` tone chip on the row tells the eye which bucket the metrics represent.
 
-**Row at rest:** `aspect · net · mentions (drillable) · expand`. Single line, ~41px tall.
+**Column header (always visible):** at the top of the scroll viewport, sticky to the top so it stays visible as the column body scrolls — names the columns `aspect · sentiment · verified · mentions`. Sits inside the scroll viewport (not outside) so its right edge tracks the rows' right edge regardless of scrollbar reservation.
 
-**Row expanded:** reveals `IntensityBar + high count`, `verifiedPct`, `SourceDots`, `Sparkline` in a 2×2 inset grid. Background `--aw-surface-alt`.
+**Row at rest:** `aspect (with bucket chip) · sentiment · verified · mentions`. Single line, ~48px tall. Click → opens EvidenceDrawer with bucket-relevant `mention_ids` (PRIMARY ≠ SECONDARY pool). Intensity column dropped session 16 — too implicit a measure for the operator audience; surface intensity (and SourceDots, Sparkline) inside the EvidenceDrawer or row-expanded state instead.
+
+**Row expanded:** reveals `SourceDots` + `Sparkline` + verbatim preview. Background `--aw-surface-alt`. *(Deferred to a follow-up bite — not in 11.3.a.)*
 
 **Header:** polarity chip with count (e.g., `WHAT IS WORKING (6)` / `COMPLAINTS (5)`). The prior "Positives" / "Negatives" eyebrow text was removed from the prototype mid-iteration; chip-with-count carries the meaning.
 
-**Section dividers within scroller:** TBD — see §9 open questions.
+**Sub-section dividers (locked session 16):** thin sticky sub-header inside the scroller — `▾ Primary signal` · `▾ Secondary signal` · `▾ Long-tail`. ~24px tall, 11px uppercase tracked, muted text, `--aw-surface-alt` background, single bottom border. Sticky to the top of the scroll viewport so the visible sub-section is always identified as the user scrolls. Chevron is a visual cue only — sub-sections are not collapsible in v1. Empty sub-sections render a one-line muted placeholder (e.g., `No long-tail aspects in this polarity`) so the three-part structure stays legible.
 
-**Empty state:** dashed-border card with neutral copy. Right scroller is α-placeholder territory on both pilot products today (zero PRIMARY-backed cons); Section B (top-3 SECONDARY neg) lifts up immediately.
+**Scroll behavior (locked session 16, tightened mid-session 16 visual review):** the AspectColumn body has a single outer `max-height` and `overflow-y: auto` — **one scroll cap per column**, not per sub-section. Cap shows roughly **4–5 rows at a time** (~300–340px); anything beyond requires user scroll. Sub-headers stay sticky to the scroll viewport so the user always knows which sub-section is in view. Sized this tight on purpose — the goal is for the brief below to be visible without scrolling the page, with the AspectColumn signaling "more inside, scroll to explore." Long Primary or Long-tail lists don't stretch the column — the user scrolls within. The cap exists so the **BriefPanel below sits at a stable y** regardless of how many aspects any product has.
+
+**Empty state (whole column):** dashed-border card with neutral copy. Right scroller is α-placeholder territory on both pilot products today (zero PRIMARY-backed cons); Secondary (top-3 SECONDARY neg) lifts up immediately.
 
 ### 5.2 BriefPanel
 
-**Locked four-section structure** (per §6.3 four-quadrant lock + session-13 brief shape decision). Each section maps to one quadrant of the §6.3 selector grammar:
+**Backend produces 4 quadrants (§6.3); frontend collapses to 2 polarity buckets at render time.** Locked session 15 (operator-driven during the 11.2 Showcase visual confirm — "keep just 2 sections, what's working and what's not working, merge primary and secondary together for up to 5 bullet points"). Backend `briefs.narrative.sections` contract unchanged; the merge is pure render-layer. Implemented session 17 as `frontend/src/components/BriefPanel.tsx`.
 
-| Section | Quadrant | Cap |
+| Render section | Merges quadrants | Cap |
 |---|---|---|
-| `Q1` PRIMARY positive (e.g., `High-confidence strengths`) | Q1 | up to 3 claims |
-| `Q2` PRIMARY negative (e.g., `High-confidence weaknesses`) | Q2 | up to 3 claims; α-placeholder when empty |
-| `Q3` SECONDARY positive (e.g., `Low-signal strengths (public chatter)`) | Q3 | up to 3 claims |
-| `Q4` SECONDARY negative (e.g., `Low-signal weaknesses (public chatter)`) | Q4 | up to 3 claims |
+| `What's working` (positive polarity) | Q1 PRIMARY pos + Q3 SECONDARY pos | up to 5 claims; PRIMARY (Q1) listed first via section order |
+| `What's not working` (negative polarity) | Q2 PRIMARY neg + Q4 SECONDARY neg | up to 5 claims; PRIMARY (Q2) listed first; Q2 α-placeholder claim passes through with empty `cited_mention_ids` (renders without `CiteChip`) |
 
-> **Heading literals come from the persisted `narrative.sections[i].heading`**, not from a frontend constant — Sonnet-generated headings on the live briefs read `"High-confidence strengths"`, `"High-confidence weaknesses"`, `"Low-signal strengths (public chatter)"`, `"Low-signal weaknesses (public chatter)"`. Frontend must render whatever the backend returns, in order. Section→quadrant mapping is positional (sections[0]=Q1, sections[1]=Q2, sections[2]=Q3, sections[3]=Q4), as fixed by the brief writer.
+**Section routing key — resolved session 18, bite 11.3.c (fork c).** `bucketBriefByPolarity` reads `narrative.sections[i].heading.toLowerCase()` and routes by substring. Negative keys checked first (the safer mis-classification if a heading combines tokens — surfaces with red dot rather than dropping):
+
+| Polarity | Substrings matched |
+|---|---|
+| negative | `"not working"`, `"weakness"` |
+| positive | `"working"`, `"strength"` |
+
+This catches both fixture headings (`"What's working (PRIMARY)"` / `"What's not working (PRIMARY)"`) and live Sonnet headings on `brief_id=1, 2` (`"High-confidence strengths"` / `"...weaknesses"` / `"Low-signal strengths..."` / `"...weaknesses..."`). Singular substrings (`strength` / `weakness`) catch plural too. Forks (a) positional and (b) prompt-version bump rejected at session 18 in favor of (c) — additive, no cache invalidation, $0 cost.
 
 Each claim: short bullet text (Sonnet-written) ending in a `CiteChip` showing mention count. `claim_text` is the only thing the LLM authors; `cited_mention_ids` come from the deterministic selector (§6.3).
 
-**Header:** `Brief` heading + small `AUTO-GENERATED` eyebrow.
+**Header:** `Brief` eyebrow with `model · prompt_version` suffix · `brief_title` from `narrative.brief_title`.
 
-**Background:** white card with `--aw-shadow-card`, 24px padding, 16px gap between sections.
+**Section visual:** h4 with 2px polarity dot prefix (`--aw-success` green for positive · `--aw-danger` red for negative), then bulleted claim list with `CiteChip` inline appended to each bullet.
+
+**Background:** white card with `--aw-shadow-card`, 24px padding, 20px gap between sections.
 
 ### 5.3 EvidenceDrawer
 
@@ -313,6 +324,8 @@ Custom dropdown (not native `<select>`). Click-toggle list anchored to the trigg
 
 32px height for selectors; 24px for inline filter selects in the drawer.
 
+> **Deviation, session 18 — bite 11.3.c.** `atoms/Select.tsx` ships as a styled **native `<select>`** for pilot scale (2 products, 2 brands) rather than the custom click-toggle spec'd above. Tokens align (32px height, accent focus ring, surface border, inline-SVG chevron via background-image + `appearance: none`). Native gives keyboard nav + screen reader support for free. The custom dropdown can land later without changing the `Select` callsite contract (`{label, value, options, onChange}` — same props would back a custom impl). Revisit if option-row meta text (e.g., `2,847 mentions`) becomes a real need.
+
 ### 5.7 Cohort toggles
 
 **Hidden v1 per session-13.** Re-add when there's a real workflow demand.
@@ -338,7 +351,7 @@ A1 product voice page. Locked layout per session-13:
 1. RunMetaStrip
 2. Header strip: `Home` back button · `A1 · Standalone voice` eyebrow · selector (right-aligned).
 3. Sub-header: product name h1 · `<n> mentions · <window>` (drillable count opens drawer with all mention_ids).
-4. **Two-column scroller:** §5.1 — left positive | right negative, each with Sections A / B / C.
+4. **Two-column scroller:** §5.1 — left positive | right negative. Each column has Primary / Secondary / Long-tail sub-sections (sticky sub-headers) inside one scroll viewport per column; max-height anchors the BriefPanel below at a stable y across all products.
 5. **BriefPanel:** §5.2 — four labeled sections with citation chips.
 
 Empty state when no `productId` in route: dashed empty-state card prompting selector use.
@@ -378,11 +391,11 @@ What this design **must not** do — these will read as off-brand and need rewor
 
 Tracked here so they don't get lost:
 
-- **Section A/B/C dividers in the scroller.** Visual treatment TBD — could be a thin label row (`PRIMARY ⌃` / `SECONDARY ⌃` / `OTHER ⌃`), a sticky sub-header, or just a subtle background shift. Decide when 11.2 starts.
-- **CiteChip exact wording.** `[3 mentions]` vs `3 mentions` vs `3·` vs `★ 3`. Pick during 11.2 build, with the operator's eye.
+- ~~**Section A/B/C dividers in the scroller.**~~ **Resolved session 16** — sticky sub-headers `▾ Primary signal` / `▾ Secondary signal` / `▾ Long-tail`; one outer scroll cap per column. See §5.1.
+- **CiteChip exact wording.** `[3 mentions]` vs `3 mentions` vs `3·` vs `★ 3`. Pick during 11.3 build, with the operator's eye.
 - **Sparkline backend wiring.** 26-week series needs to come from somewhere — either extend `aggregates_aspect_sku` with a `recency_26w` JSON list, or compute in API handler from `mentions.published_at` for the aspect's mention_ids. Compute-at-handler is cheaper now; extend the aggregator if it gets slow.
-- **Source coverage display.** 5 dots is the prototype pattern; could also be source marks. Stay with dots for at-rest density; review when 11.2 lands.
-- **Long-tail Section C visual weight.** Should Section C rows be muted (smaller text, reduced opacity) to communicate lower priority, or rendered identical to A/B with the section header alone carrying the hierarchy? Decide during build.
+- **Source coverage display.** 5 dots is the prototype pattern; could also be source marks. Stay with dots for at-rest density; review when 11.3 lands.
+- **Long-tail visual weight.** Should Long-tail rows be muted (smaller text, reduced opacity) to communicate lower priority, or rendered identical to Primary/Secondary with the sub-header alone carrying the hierarchy? Decide during 11.3 build.
 
 ---
 

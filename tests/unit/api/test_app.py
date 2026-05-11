@@ -363,6 +363,9 @@ def test_product_detail_returns_aspect_rows_and_run_meta(
     assert body["run_meta"]["total_mentions"] == 7
     assert body["run_meta"]["window_label"] == "6-month window"
 
+    # No A1 brief seeded for this product → field present, null.
+    assert body["latest_brief_id"] is None
+
 
 def test_product_detail_empty_aspects_when_no_aggregates(
     app_with_session: FastAPI, seed_session: Session
@@ -374,6 +377,54 @@ def test_product_detail_empty_aspects_when_no_aggregates(
     body = client.get("/api/product/legion_pro_7i").json()
     assert body["aspects"] == []
     assert body["run_meta"]["total_mentions"] == 0
+    assert body["latest_brief_id"] is None
+
+
+def test_product_detail_advertises_latest_a1_brief_id(
+    app_with_session: FastAPI, seed_session: Session
+) -> None:
+    """`latest_brief_id` is the MAX brief_id for `scope_type=aspect_1_sku` and
+    `scope_id=product_id`. Briefs scoped to other products or non-A1 scopes
+    must not bleed through.
+    """
+    _seed_product(seed_session)
+    _seed_product(seed_session, product_id="rog_strix_g16", display_name="ROG Strix G16")
+    _seed_aggregate(seed_session)  # so the product has a populated body
+    minimal_narrative: dict[str, object] = {"brief_title": "stub", "sections": []}
+    # Older A1 brief for the target product.
+    older = Brief(
+        run_id="smoke_test",
+        scope_type=ScopeType.ASPECT_1_SKU,
+        scope_id="alienware_16_aurora",
+        narrative=minimal_narrative,
+        prompt_version="a1_brief_v1",
+        model="claude-sonnet-4-6",
+    )
+    # Newer A1 brief for the target product — this one must win.
+    newer = Brief(
+        run_id="smoke_test",
+        scope_type=ScopeType.ASPECT_1_SKU,
+        scope_id="alienware_16_aurora",
+        narrative=minimal_narrative,
+        prompt_version="a1_brief_v1",
+        model="claude-sonnet-4-6",
+    )
+    # Different product's brief — must not leak into this product's detail.
+    other = Brief(
+        run_id="smoke_test",
+        scope_type=ScopeType.ASPECT_1_SKU,
+        scope_id="rog_strix_g16",
+        narrative=minimal_narrative,
+        prompt_version="a1_brief_v1",
+        model="claude-sonnet-4-6",
+    )
+    seed_session.add_all([older, newer, other])
+    seed_session.commit()
+
+    client = TestClient(app_with_session)
+    body = client.get("/api/product/alienware_16_aurora").json()
+    assert body["latest_brief_id"] == newer.brief_id
+    assert newer.brief_id > older.brief_id  # autoincrement sanity
 
 
 # ---------------------------------------------------------------------------

@@ -72,7 +72,13 @@ class RunMeta(BaseModel):
 
 
 class ProductDetail(BaseModel):
-    """Payload behind `/api/product/{product_id}`."""
+    """Payload behind `/api/product/{product_id}`.
+
+    `latest_brief_id` is the highest `brief_id` whose `scope_type == aspect_1_sku`
+    and `scope_id == product_id`; `None` when no A1 brief has been generated for
+    this product yet. Lets the Standalone page navigate product → brief in one
+    hop without a separate lookup endpoint.
+    """
 
     product_id: str
     display_name: str
@@ -80,6 +86,7 @@ class ProductDetail(BaseModel):
     aliases: list[str]
     aspects: list[AspectRow]
     run_meta: RunMeta
+    latest_brief_id: int | None = None
 
 
 class MentionView(BaseModel):

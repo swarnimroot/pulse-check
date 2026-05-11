@@ -6,3 +6,5 @@ export { SourceDots, type SourceDotsProps } from "./SourceDots";
 export { IntensityBar, type IntensityBarProps, type IntensityCounts } from "./IntensityBar";
 export { Sparkline, type SparklineProps } from "./Sparkline";
 export { VerbatimCard, type VerbatimCardProps } from "./VerbatimCard";
+export { AspectRow, type AspectRowProps, type AspectRowBucket } from "./AspectRow";
+export { Select, type SelectProps, type SelectOption } from "./Select";

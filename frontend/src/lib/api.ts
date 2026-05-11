@@ -1,5 +1,5 @@
 /**
- * API client skeleton.
+ * API client.
  *
  * The backend's shared error envelope is:
  *   { "error": { "code": number, "message": string, "detail"?: unknown } }
@@ -7,16 +7,26 @@
  * `apiFetch` surfaces non-2xx responses as `ApiError` with that envelope, so
  * page code can branch on `err.code` / `err.message` without re-parsing.
  *
- * Route-specific calls (health, products, pairs) are thin wrappers. Response
- * shapes mirror the Wave 1 stubs; they will be tightened in Wave 2 / Wave 3.
+ * Response types come from `lib/types.ts`, which mirrors `pulse_check/api/schemas.py`.
  */
+
+import type {
+  BriefView,
+  MentionView,
+  ProductDetail,
+  ProductSummary,
+} from "@/lib/types";
 
 // Default to a relative URL so the API resolves against the document base URL
 // — works when the SPA is mounted under any path prefix (e.g. /pulse-check).
 // Local dev overrides via VITE_API_URL in .env.development to hit the
-// separately-running uvicorn on its own port.
-const BASE_URL: string =
-  (import.meta.env.VITE_API_URL as string | undefined) ?? "./api";
+// separately-running uvicorn on its own port. `||` (not `??`) is intentional:
+// `.env.production` sets `VITE_API_URL=` (empty string), which `??` would
+// pass through unchanged — leaving BASE_URL as "" and routing every fetch
+// to the SPA fallback. `||` falls back on empty string as well as
+// null/undefined, matching the .env.production comment's intent.
+const _envApiUrl = import.meta.env.VITE_API_URL as string | undefined;
+const BASE_URL: string = _envApiUrl || "./api";
 
 export interface ApiErrorEnvelope {
   error: {
@@ -56,7 +66,7 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   return parsed as T;
 }
 
-/* ---------- typed route helpers (Wave 1 shapes) ---------- */
+/* ---------- typed route helpers (Wave 2 shapes) ---------- */
 
 export interface HealthResponse {
   status: "ok";
@@ -65,19 +75,28 @@ export interface HealthResponse {
 }
 
 export interface ProductsResponse {
-  products: unknown[];
-  note?: string;
+  products: ProductSummary[];
 }
 
-export interface PairsResponse {
-  pairs: unknown[];
-  note?: string;
+export interface MentionsResponse {
+  mentions: MentionView[];
 }
 
 export const api = {
   health: (): Promise<HealthResponse> => apiFetch<HealthResponse>("/health"),
-  products: (): Promise<ProductsResponse> => apiFetch<ProductsResponse>("/products"),
-  pairs: (): Promise<PairsResponse> => apiFetch<PairsResponse>("/pairs"),
+  products: (): Promise<ProductsResponse> =>
+    apiFetch<ProductsResponse>("/products"),
+  productById: (productId: string): Promise<ProductDetail> =>
+    apiFetch<ProductDetail>(`/product/${encodeURIComponent(productId)}`),
+  brief: (briefId: number): Promise<BriefView> =>
+    apiFetch<BriefView>(`/brief/${briefId}`),
+  // Empty `ids` would 400 server-side; callers short-circuit instead of
+  // round-tripping a request guaranteed to fail.
+  mentions: (ids: string[]): Promise<MentionsResponse> => {
+    if (ids.length === 0) return Promise.resolve({ mentions: [] });
+    const csv = ids.map(encodeURIComponent).join(",");
+    return apiFetch<MentionsResponse>(`/mentions?ids=${csv}`);
+  },
 } as const;
 
 export { BASE_URL };

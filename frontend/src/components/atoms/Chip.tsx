@@ -22,7 +22,9 @@ export type ChipTone =
   | "mixed"
   | "meta"
   | "verified"
-  | "tombstone";
+  | "tombstone"
+  | "primary"
+  | "secondary";
 
 const TONE_CLASSES: Record<ChipTone, string> = {
   pos: "bg-success-soft text-success",
@@ -39,6 +41,8 @@ const TONE_CLASSES: Record<ChipTone, string> = {
   meta: "bg-surface-alt text-fg-muted",
   verified: "bg-success-soft text-success",
   tombstone: "bg-surface-alt text-fg-muted italic",
+  primary: "bg-accent-soft text-accent-hover",
+  secondary: "bg-surface-alt text-fg-muted",
 };
 
 export interface ChipProps {

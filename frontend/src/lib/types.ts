@@ -58,6 +58,10 @@ export interface ProductSummary {
 export interface ProductDetail extends ProductSummary {
   aspects: AspectRow[];
   run_meta: RunMeta;
+  // Highest brief_id for an A1 brief (scope_type=aspect_1_sku) on this
+  // product, or null when no brief has been generated yet. Standalone uses
+  // this to fetch /api/brief/:id directly without a sibling lookup endpoint.
+  latest_brief_id: number | null;
 }
 
 export interface Claim {

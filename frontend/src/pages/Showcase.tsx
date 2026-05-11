@@ -10,6 +10,8 @@ import {
   Sparkline,
   VerbatimCard,
 } from "@/components/atoms";
+import { AspectColumn } from "@/components/AspectColumn";
+import { BriefPanel } from "@/components/BriefPanel";
 import { EvidenceDrawer } from "@/components/EvidenceDrawer";
 import { CitationPanel } from "@/components/CitationPanel";
 import { RunMetaStrip } from "@/components/RunMetaStrip";
@@ -21,12 +23,15 @@ import {
   sampleSparklineData,
 } from "@/fixtures/sample";
 import type { ChipTone } from "@/components/atoms";
-import type { AspectRow, BriefNarrative, Claim } from "@/lib/types";
 
 /**
  * Showcase — renders every atom + composite against fixture data so an
- * operator can visually confirm bite 11.2 in a browser. NOT a production
- * page; bite 11.3 builds the real Standalone / Compare pages and routes.
+ * operator can visually confirm the design system in a browser. NOT a
+ * production page; the real Standalone / Compare pages live in
+ * `pages/Standalone.tsx` and `pages/Compare.tsx` (bite 11.3.b).
+ *
+ * BriefPanel was extracted from this file in bite 11.3.b so Standalone
+ * can mount it directly; this page now imports it like any consumer.
  */
 
 const CHIP_TONES: ChipTone[] = [
@@ -47,143 +52,6 @@ const CHIP_TONES: ChipTone[] = [
 ];
 
 const SOURCES = ["reddit", "bestbuy", "amazon", "youtube", "article"];
-
-const MAX_CLAIMS_PER_BLOCK = 5;
-
-function bucketBriefByPolarity(narrative: BriefNarrative): {
-  positive: Claim[];
-  negative: Claim[];
-} {
-  const positive: Claim[] = [];
-  const negative: Claim[] = [];
-  for (const section of narrative.sections) {
-    const heading = section.heading.toLowerCase();
-    if (heading.includes("not working")) {
-      negative.push(...section.claims);
-    } else if (heading.includes("working")) {
-      positive.push(...section.claims);
-    }
-  }
-  return {
-    positive: positive.slice(0, MAX_CLAIMS_PER_BLOCK),
-    negative: negative.slice(0, MAX_CLAIMS_PER_BLOCK),
-  };
-}
-
-interface BriefBlockProps {
-  heading: string;
-  claims: Claim[];
-  onCite: (claimText: string, citedMentionIds: string[]) => void;
-}
-
-function BriefBlock({ heading, claims, onCite }: BriefBlockProps): JSX.Element {
-  const isPositive = !heading.toLowerCase().includes("not");
-  return (
-    <div className="flex flex-col gap-2">
-      <h4 className="flex items-center gap-2 text-base font-semibold text-fg">
-        <span
-          aria-hidden
-          className={`inline-block h-2 w-2 rounded-full ${
-            isPositive ? "bg-success" : "bg-danger"
-          }`}
-        />
-        {heading}
-      </h4>
-      {claims.length === 0 ? (
-        <p className="text-sm italic text-fg-muted">No claims surfaced for this bucket.</p>
-      ) : (
-        <ul className="flex flex-col gap-2">
-          {claims.map((claim, idx) => (
-            <li
-              key={`${heading}-${idx}`}
-              className="text-sm leading-[1.5] text-fg-secondary"
-            >
-              {claim.claim_text}
-              {claim.cited_mention_ids.length > 0 && (
-                <CiteChip
-                  count={claim.cited_mention_ids.length}
-                  citedMentionIds={claim.cited_mention_ids}
-                  onClick={(ids) => onCite(claim.claim_text, ids)}
-                />
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-}
-
-interface AspectColumnProps {
-  title: string;
-  rows: AspectRow[];
-  onRowClick: (row: AspectRow) => void;
-}
-
-// Shared grid template so the column-header row and each data row align.
-//   aspect (flex) · sentiment · intensity · verified · mentions
-const ROW_GRID = "grid-cols-[minmax(0,1fr)_72px_104px_72px_72px]";
-
-function AspectColumn({ title, rows, onRowClick }: AspectColumnProps): JSX.Element {
-  return (
-    <div className="flex flex-col rounded-md border border-border bg-surface shadow-card">
-      <div className="border-b border-border bg-surface-alt px-4 py-2">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-fg-muted">{title}</h3>
-      </div>
-      <div
-        className={`grid ${ROW_GRID} items-center gap-3 border-b border-border bg-surface px-4 py-1.5 text-[10px] font-medium uppercase tracking-wide text-fg-muted`}
-      >
-        <span>aspect</span>
-        <span className="text-center" title="net sentiment, −1 to +1">sentiment</span>
-        <span className="text-center" title="share of mentions by intensity (high · med · low)">
-          intensity
-        </span>
-        <span className="text-right" title="% of mentions from verified-purchase reviewers">
-          verified
-        </span>
-        <span className="text-right" title="total mentions for this aspect">mentions</span>
-      </div>
-      {rows.length === 0 ? (
-        <p className="px-4 py-6 text-sm italic text-fg-muted">No aspects in this bucket.</p>
-      ) : (
-        <ul className="flex flex-col">
-          {rows.map((row) => {
-            const tone: ChipTone =
-              row.net_sentiment > 0.15 ? "pos" : row.net_sentiment < -0.15 ? "neg" : "neu";
-            const sign = row.net_sentiment >= 0 ? "+" : "";
-            return (
-              <li key={row.aspect} className="border-b border-border last:border-b-0">
-                <button
-                  type="button"
-                  onClick={() => onRowClick(row)}
-                  title={`open evidence for ${row.aspect}`}
-                  className={`grid ${ROW_GRID} w-full cursor-zoom-in items-center gap-3 bg-transparent px-4 py-3 text-left transition-colors duration-1 ease-aw hover:bg-surface-alt`}
-                >
-                  <span className="truncate text-sm font-medium text-fg">{row.aspect}</span>
-                  <span className="flex justify-center">
-                    <Chip tone={tone}>
-                      {sign}
-                      {row.net_sentiment.toFixed(2)}
-                    </Chip>
-                  </span>
-                  <span className="flex justify-center">
-                    <IntensityBar intensityCounts={row.intensity_counts} width={96} />
-                  </span>
-                  <span className="tabular text-right text-xs text-fg-secondary">
-                    {row.verified_pct.toFixed(0)}%
-                  </span>
-                  <span className="tabular text-right text-sm text-fg-secondary">
-                    {row.total_mentions}
-                  </span>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      )}
-    </div>
-  );
-}
 
 interface PanelState {
   open: boolean;
@@ -250,7 +118,7 @@ export function Showcase(): JSX.Element {
             to="/"
             className="mt-2 self-start text-xs font-medium text-accent hover:text-accent-hover"
           >
-            ← back to landing
+            ← back to index
           </Link>
         </header>
 
@@ -362,67 +230,54 @@ export function Showcase(): JSX.Element {
           </div>
         </section>
 
-        {/* Aspect rows — two-column positive / negative split. Each row clickable;
-            full row open the drawer for that aspect. Drops intensity / sources /
-            recency / verified from the first view per session-15 operator preference;
-            those re-surface in the drawer or in an expanded-row view in 11.3. */}
+        {/* Aspect rows — two polarity scrollers per DESIGN_SYSTEM §5.1.
+            Each scroller partitions into Primary / Secondary / Long-tail and
+            uses one outer scroll cap to anchor the Brief below at a stable y.
+            Click → drawer shows the bucket-relevant mention_ids (PRIMARY vs
+            SECONDARY pools differ). */}
         <section className="flex flex-col gap-3">
           <h2 className="text-md text-fg">{sampleProduct.display_name} — aspect summary</h2>
           <div className="grid grid-cols-2 gap-4">
             <AspectColumn
               title="What's working"
-              rows={sampleProduct.aspects
-                .filter((r) => r.net_sentiment >= 0)
-                .sort((a, b) => b.net_sentiment - a.net_sentiment)}
-              onRowClick={(row) => openDrawer(row.aspect, row.mention_ids)}
+              polarity="positive"
+              rows={sampleProduct.aspects}
+              onRowClick={(row, bucket) =>
+                openDrawer(
+                  row.aspect,
+                  bucket === "primary" ? row.mention_ids : row.mention_ids_secondary,
+                )
+              }
             />
             <AspectColumn
               title="What's not working"
-              rows={sampleProduct.aspects
-                .filter((r) => r.net_sentiment < 0)
-                .sort((a, b) => a.net_sentiment - b.net_sentiment)}
-              onRowClick={(row) => openDrawer(row.aspect, row.mention_ids)}
+              polarity="negative"
+              rows={sampleProduct.aspects}
+              onRowClick={(row, bucket) =>
+                openDrawer(
+                  row.aspect,
+                  bucket === "primary" ? row.mention_ids : row.mention_ids_secondary,
+                )
+              }
             />
           </div>
           <p className="text-xs text-fg-muted">
-            Each row opens the evidence drawer. Sort within each column is by signal
-            magnitude (strongest sentiment first).
+            Each scroller partitions into Primary (top-3 by primary mentions),
+            Secondary (top-3 by secondary mentions, deduped against Primary),
+            and Long-tail. The bucket chip on each row names which bucket the
+            metrics belong to.
           </p>
         </section>
 
-        {/* Brief — collapsed 4 → 2 sections at render time per session-15 preference.
-            Backend §6.3 contract still produces 4 quadrants (Q1 PRIMARY pos / Q2 PRIMARY neg
-            / Q3 SECONDARY pos / Q4 SECONDARY neg); this view merges PRIMARY+SECONDARY and
-            caps at 5 bullets per section, PRIMARY claims listed first. */}
+        {/* Brief — extracted to BriefPanel in bite 11.3.b. */}
         <section className="flex flex-col gap-3">
           <h2 className="text-md text-fg">a1 brief — citation panel demo</h2>
-          <article className="flex flex-col gap-5 rounded-md border border-border bg-surface p-6 shadow-card">
-            <header>
-              <span className="text-xs font-semibold uppercase tracking-wide text-fg-muted">
-                Brief · {sampleBrief.model} · {sampleBrief.prompt_version}
-              </span>
-              <h3 className="mt-1 text-base font-semibold text-fg">
-                {sampleBrief.narrative.brief_title}
-              </h3>
-            </header>
-            {(() => {
-              const buckets = bucketBriefByPolarity(sampleBrief.narrative);
-              return (
-                <>
-                  <BriefBlock
-                    heading="What's working"
-                    claims={buckets.positive}
-                    onCite={openCitation}
-                  />
-                  <BriefBlock
-                    heading="What's not working"
-                    claims={buckets.negative}
-                    onCite={openCitation}
-                  />
-                </>
-              );
-            })()}
-          </article>
+          <BriefPanel
+            narrative={sampleBrief.narrative}
+            model={sampleBrief.model}
+            promptVersion={sampleBrief.prompt_version}
+            onCite={openCitation}
+          />
         </section>
 
         {/* Manual drawer trigger */}
