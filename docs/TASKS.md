@@ -2,9 +2,9 @@
 
 Wave-by-wave forward plan. Each wave is a flat checklist of high-level deliverables. Sub-bite breakdowns + per-bite breadcrumbs live in [`SESSION_LOG.md`](SESSION_LOG.md) (the historical record).
 
-**Status:** Wave 2 ✅ substantively complete (aspect-tagging F1=0.7778 on operator-verified N=8; formal ≥80% deferred to Wave 5 rebuild). Waves 3–6 ahead.
-**Active:** session 22 audited prior + shipped bite 13.c.1 — two Sonnet labeler modules (`pulse_check/eval/deliberation_labeler.py` + `pulse_check/eval/reason_labeler.py`) reusing production `build_prompt` + `parse_response` from `deliberation_classifier` / `reason_tagger` verbatim; cache namespace separated via `task="*_labeling"` + dedicated `*_labeling_v1` `PROMPT_VERSION`s; `_DEFAULT_MODEL="claude-sonnet-4-6"`; 40 MagicMock-based unit tests (20 per labeler); mypy + ruff clean; **469/469** full suite green. Live Sonnet labeling deferred to 13.c.3 per locked sub-bite split. **ARCH §6.1 unchanged this session** — labelers literally use the existing classifier/tagger prompts. Pending operator review of 13.c.1; next is 13.c.2 (sampler — stratified Reddit thread/comment selection with force-included edge cases) — settle five pre-bite shape decisions before code.
-**Last reconciled:** 2026-05-12 (session 22 — bite 13.c.1 shipped)
+**Status:** Wave 2 ✅ substantively complete (aspect-tagging F1=0.7778 on operator-verified N=8; formal ≥80% deferred to Wave 5 rebuild). **Wave 3 in active build** — deliberation + reason classifier modules + Sonnet labelers + gold-set sampler + orchestrator + CLI + operator review CLI all shipped (bites 13.a-13.c.4); eval iteration + A2 aggregators + pair UI still pending. Waves 4–6 ahead.
+**Active:** session 23 audited prior + shipped bites 13.c.2 (`pulse_check/eval/sampler.py` — heuristic (b)∪(c) candidate selection + 3-band stratify + B/C/D force-includes; mocked tests) + 13.c.3 (`pulse_check/eval/deliberation_gold_set.py` orchestrator + JSONL IO + `scripts/build_deliberation_gold_set.py` CLI; first live Sonnet pass ~$0.05) + 13.c.4 (`scripts/review_deliberation_gold_set.py` operator-review CLI + 12 StringIO-driven tests). Live run produced **`deliberation_v1.jsonl` N=7** (operator-reviewed: 5 accept · 2 corrected — Entry 1 chose externally to Lenovo Legion 15 Pro, Entry 6 borderline ROG-vs-MSI deliberation) + **`reason_tagging_v1.jsonl` EMPTY** by structural fact (v1 corpus has zero resolved-to-tracked-product deliberations — Wave 5 corpus expansion is the unblock; accepted explicitly). **541/541** unit tests green · mypy clean (111 src files) · ruff clean. New deferred items (logged in SESSION_LOG): `deliberation_classifier_v2` with `chosen_external_name` field to capture "tracked products lost to external winner" signal for A2 pair_win_rates; Compare-page UI scope clarification (Source A deliberation outcomes only vs Source B aspect-diff vs both). **ARCH §6.1 unchanged this session.**
+**Last reconciled:** 2026-05-12 (session 23 — bites 13.c.2-13.c.4 shipped + live Sonnet pass + operator review complete)
 
 **Waiting on operator action (cross-wave):**
 - Operator visual confirm against live uvicorn (Wave 2 frontend smoke completed; ~5-min browser walk; screenshots at `C:/Users/AW-testing/AppData/Local/Temp/smoke_11_3_c/`)
@@ -69,7 +69,8 @@ Wave-by-wave forward plan. Each wave is a flat checklist of high-level deliverab
 - [ ] Deliberation thread classifier (Qwen): `is_deliberation`, `is_resolved`, `products_discussed`, `chosen_product_id`
 - [ ] Reason tagger (Qwen): `reason_bucket` + polarity + intensity per comment in resolved threads
 - [ ] Snapshot tests on classifier prompts
-- [ ] Gold sets: `deliberation_v1`, `reason_tagging_v1` (Sonnet-labeled on content-type-filtered corpus)
+- [ ] Gold sets: `deliberation_v1` (built N=7 + operator-reviewed) · `reason_tagging_v1` (empty in v1 corpus → Wave 5 rebuild)
+- [ ] Deliberation classifier v2: `chosen_external_name` field for "tracked products lost to external winner" signal
 - [ ] Eval extensions for `--task deliberation` and `--task reason_tagging`; iterate to thresholds
 - [ ] A2 pair_win_rates aggregator (per-pair, resolved threads by `chosen_product_id`)
 - [ ] A2 aggregates_pair_reason aggregator (per-pair-winner-reason with provenance)
@@ -113,6 +114,7 @@ Wave-by-wave forward plan. Each wave is a flat checklist of high-level deliverab
 - [ ] Aggregation + synthesis for all pairs + all products
 - [ ] Manual review of every brief + aggregate + verbatim attribution
 - [ ] Aspect-tagging gold-set rebuild on filtered corpus at target N=150 (carries Wave 2 formal ≥80% closure)
+- [ ] Deliberation + reason gold-set rebuild on expanded corpus (Wave 3 carry-over: v1 corpus had zero resolved-to-tracked-product threads)
 - [ ] Bug-fix round from review findings
 - [ ] Reproducibility test (re-run, verify cache hits + byte-identical outputs)
 - [ ] Stakeholder review prep (screenshots, narrative, talking points)
