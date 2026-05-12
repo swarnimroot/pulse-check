@@ -70,10 +70,9 @@ article_rss_feeds:
     status: "YELLOW"
     notes: "Notebook-reviews subfeed (preferred over site-wide); ~20 items; mixed device-category content."
 
-  - site: "LaptopMag"
-    rss_url: "http://www.laptopmag.com/feeds.xml"
-    status: "GREEN"
-    notes: "Future PLC standard feed pattern; ~35 items; comprehensive laptop coverage."
+  # LaptopMag article feed removed session 26 — feed stale (most recent items
+  # 2025-11-28; site appears to no longer publish via this feed URL). The
+  # @LAPTOPMagazine YouTube channel above remains active.
 
   - site: "Tom's Hardware"
     rss_url: "http://www.tomshardware.com/feeds.xml"
@@ -92,8 +91,9 @@ article_rss_feeds:
 
   - site: "RTINGS"
     rss_url: "https://www.rtings.com/rss-feeds"
+    enabled: false
     status: "RED"
-    notes: "URL is the RSS-feeds INDEX page, NOT a feed. The discovery module auto-falls-back to HTML scrape for laptop-keyword feed link."
+    notes: "Disabled session 26: URL is the RSS-feeds INDEX page; HTML auto-discovery fallback ran in dry-run but found no laptop-keyword feed link. Revisit before full Wave 5 if RTINGS coverage is needed (operator can supply a specific category feed URL)."
 
   - site: "Engadget"
     rss_url: "https://www.engadget.com/rss.xml"

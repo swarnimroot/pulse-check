@@ -148,14 +148,20 @@ def test_load_wave5_rss_sources_yaml_parses() -> None:
     path = _REPO_ROOT / "configs" / "wave5_rss_sources.yaml"
     rss = load_rss_sources(path)
     assert len(rss.youtube_channels) == 7
-    assert len(rss.article_rss_feeds) == 9
+    # Session 26: LaptopMag article feed removed (stale, no posts since
+    # 2025-11-28); RTINGS disabled (HTML auto-discovery fallback yielded no
+    # laptop-keyword feed link in the session-26 dry-run).
+    assert len(rss.article_rss_feeds) == 8
+    assert sum(1 for f in rss.article_rss_feeds if f.enabled) == 7
     # title_keywords seeded with the operator's filter list
     assert "review" in rss.title_keywords
-    # RTINGS entry retains its index-page URL; the rss_discovery module handles
-    # the auto-discovery fallback at runtime.
+    # RTINGS entry retains its index-page URL; disabled at config level.
     rtings = next(f for f in rss.article_rss_feeds if f.site == "RTINGS")
     assert rtings.rss_url.endswith("/rss-feeds")
     assert rtings.status == "RED"
+    assert rtings.enabled is False
+    # LaptopMag article feed no longer present (YouTube channel still active).
+    assert not any(f.site == "LaptopMag" for f in rss.article_rss_feeds)
 
 
 def test_load_run_wave5_v1_threads_rss_sources_through_load_run() -> None:
@@ -166,6 +172,10 @@ def test_load_run_wave5_v1_threads_rss_sources_through_load_run() -> None:
     assert run.rss_sources.name == "wave5_rss_sources.yaml"
     assert run.source_windows.rss is not None
     assert run.source_windows.rss.enabled is True
-    assert run.source_windows.rss.backfill_months == 6
+    # Session 26 staged run: window narrowed to 3 months; reddit disabled
+    # ("Reddit untouched"). Both flips reversed before the full Wave 5 scrape.
+    assert run.source_windows.rss.backfill_months == 3
+    assert run.source_windows.reddit is not None
+    assert run.source_windows.reddit.enabled is False
     assert rss is not None
     assert len(rss.youtube_channels) == 7

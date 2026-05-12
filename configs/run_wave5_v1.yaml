@@ -5,11 +5,17 @@
 # Full-universe scrape follows once the staged scrape validates pattern
 # accuracy and cost.
 #
-# Source posture for the first scrape:
-#   - reddit:    ENABLED, 12 subreddits, 6-month backfill.
+# Source posture for the STAGED scrape (session 26 — RSS-only validation pass):
+#   - reddit:    DISABLED for the staged run ("Reddit untouched" — keep
+#                session-8's 1143 Reddit mentions stable so any cost or count
+#                anomaly attributes cleanly to the new Article + YouTube
+#                fetchers). Subreddit list preserved below for full Wave 5.
+#                Flip enabled:true before the full 59-product Wave 5 scrape.
 #   - rss:       ENABLED — runs RSS-discovery from `rss_sources` at orchestrator
 #                startup. Discovered URLs are enqueued against scrapers-lib's
 #                existing youtube + article fetchers with all-product anchors.
+#                backfill_months: 3 for the staged run (matches dry-run window);
+#                expand to 6 before full Wave 5.
 #   - article/youtube (per-product seed loops): OMITTED — the 59-product config
 #                has `urls: {}` everywhere, so no per-product seeds exist. RSS
 #                discovery is the sole article/youtube path for Wave 5.
@@ -22,7 +28,7 @@ pair_plan: pair_plan_wave5_staged.yaml
 rss_sources: wave5_rss_sources.yaml
 source_windows:
   reddit:
-    enabled: true
+    enabled: false  # Session 26 staged run: see header note. Flip back to true for full Wave 5.
     backfill_months: 6
     subreddits:
       # Existing 6 (v1 corpus base):
@@ -41,5 +47,5 @@ source_windows:
       - LaptopDeals
   rss:
     enabled: true
-    backfill_months: 6
+    backfill_months: 3  # Session 26 staged run; expand to 6 for full Wave 5.
 taxonomy_version: v0
