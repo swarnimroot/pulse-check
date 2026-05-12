@@ -3,8 +3,8 @@
 Wave-by-wave forward plan. Each wave is a flat checklist of high-level deliverables. Sub-bite breakdowns + per-bite breadcrumbs live in [`SESSION_LOG.md`](SESSION_LOG.md) (the historical record).
 
 **Status:** Wave 2 ✅ substantively complete (aspect-tagging F1=0.7778 on operator-verified N=8; formal ≥80% deferred to Wave 5 rebuild). Waves 3–6 ahead.
-**Active:** session 20 audited prior + shipped bite 13.a (`pulse_check/tagging/deliberation_classifier.py` + 33 mocked-client unit tests; mypy + ruff clean; 391/391 full suite green). Live Qwen validation deferred to 13.e per locked defaults. ARCH §6.1 row updated to reflect role-segmented `DeliberationThread` input. Pending operator review of 13.a; next is 13.b (reason tagger).
-**Last reconciled:** 2026-05-11 (session 20 — bite 13.a shipped)
+**Active:** session 22 audited prior + shipped bite 13.c.1 — two Sonnet labeler modules (`pulse_check/eval/deliberation_labeler.py` + `pulse_check/eval/reason_labeler.py`) reusing production `build_prompt` + `parse_response` from `deliberation_classifier` / `reason_tagger` verbatim; cache namespace separated via `task="*_labeling"` + dedicated `*_labeling_v1` `PROMPT_VERSION`s; `_DEFAULT_MODEL="claude-sonnet-4-6"`; 40 MagicMock-based unit tests (20 per labeler); mypy + ruff clean; **469/469** full suite green. Live Sonnet labeling deferred to 13.c.3 per locked sub-bite split. **ARCH §6.1 unchanged this session** — labelers literally use the existing classifier/tagger prompts. Pending operator review of 13.c.1; next is 13.c.2 (sampler — stratified Reddit thread/comment selection with force-included edge cases) — settle five pre-bite shape decisions before code.
+**Last reconciled:** 2026-05-12 (session 22 — bite 13.c.1 shipped)
 
 **Waiting on operator action (cross-wave):**
 - Operator visual confirm against live uvicorn (Wave 2 frontend smoke completed; ~5-min browser walk; screenshots at `C:/Users/AW-testing/AppData/Local/Temp/smoke_11_3_c/`)

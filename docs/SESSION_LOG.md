@@ -8,78 +8,62 @@ Running one-page chronicle. Updated **at session close**, when the operator says
 
 Paste at the start of your next session:
 
-> Resume pulse-check session 21. Audit per `docs/SESSION_LOG.md` "Audit checklist (session 20 → 21)" first, then proceed per its recommendation. Be concise. Ultrathink. Use agents for read-heavy work.
+> Resume pulse-check session 23. Audit per `docs/SESSION_LOG.md` "Audit checklist (session 22 → 23)" first, then proceed per its recommendation. Be concise. Ultrathink. Use agents for read-heavy work.
 
-### Audit checklist (session 20 → 21)
+### Audit checklist (session 22 → 23)
 
 - Use `.venv/Scripts/python.exe` for backend tooling.
-- `pytest tests/unit/` → **391 pass** (was 358 at session-19 close; +33 from new `tests/unit/tagging/test_deliberation_classifier.py`).
-- `mypy pulse_check/ tests/ scripts/` → expected clean (re-run to confirm; +1 source file `pulse_check/tagging/deliberation_classifier.py` and +1 test file).
+- `pytest tests/unit/` → **469 pass** (was 429 at session-21 close; +40 from new `tests/unit/eval/test_deliberation_labeler.py` + `tests/unit/eval/test_reason_labeler.py`).
+- `mypy pulse_check/ tests/ scripts/` → expected clean, **104 source files** (was 100; +2 src modules `pulse_check/eval/deliberation_labeler.py` + `pulse_check/eval/reason_labeler.py` + +2 test files).
 - `ruff check pulse_check/ tests/ scripts/` → expected clean.
-- Frontend untouched in session 20.
-- **TASKS.md drift check:** Wave 3 line "Deliberation thread classifier (Qwen)" remains `[ ]` — the module ships in 13.a but the deliverable closes only when live-Qwen-validated (13.e). `Active` line + `Last reconciled` stamp reflect session-20 close. Wave 2 still substantively complete.
-- **ARCH §6.1 drift check:** the `classify_deliberation_thread(thread, products)` row was rewritten + a one-paragraph rationale added below the §6.1 table explaining role-segmented input + cache-key exclusions. Verify both before forward work — the paragraph is the rationale operator approved at session-20 mid-session for the `DeliberationThread` shape.
-- **Code read-through on session-20 new files:**
-  - `pulse_check/tagging/deliberation_classifier.py` — `JsonGenerator` Protocol + `DeliberationThread` (frozen; role-segmented: `op_post_text` + `op_edit_text: str | None` + `op_top_level_comments: tuple[str, ...]` + `other_top_level_comments: tuple[str, ...]`; `thread_id` is for logging only, NOT in cache key) + `DeliberationPrediction` (frozen; four ARCH §6.1 fields + `confidence: float | None`) + `build_prompt` (sorts products internally for order-independence) + `_format_thread_block` (renders `[OP_POST] / [OP_EDIT] / [OP_COMMENT n] / [OTHER_COMMENT n]` markers; `OP_EDIT` only when present) + `parse_response` (raises `LlmParseError` only on top-level shape failure; three defensive consistency rules post-parse: empty-state-if-not-deliberation + demote-chosen-not-in-discussed + demote-resolved-with-null-chosen) + `DeliberationClassifier` wrapper around `call_with_cache(task="deliberation_tagging", ...)`. Cache scoped to thread content + sorted product_ids; ignores `thread_id` + `display_name` + product order. Reuses `ProductContext` from `aspect_classifier`.
-  - `tests/unit/tagging/test_deliberation_classifier.py` — 33 mocked-client tests via `httpx.MockTransport`. Coverage: 1 version check + 8 prompt-rendering + 14 parse_response edge cases + 10 cache-integration. Uses `_ollama_with(handler)` + `_canned(body)` helpers cloned from aspect-classifier test pattern; `session: Session` fixture from `conftest.py`.
-- **Bite 13.a locked defaults that landed (do not re-debate without flag):**
-  - Outcome extraction folded into one Qwen call (four ARCH fields + confidence in one parse).
-  - Full-product-universe interface — caller passes the tracked product set; LLM picks the subset; unknown IDs dropped on parse with warn-log.
-  - OP-only resolution structurally enforced via role-segmented `DeliberationThread` — the prompt rule 3 explicitly blocks `[OTHER_COMMENT]` assertions from resolving the thread.
-  - Mocked-client tests only. No live Qwen invocation in session 20 (live evals come in 13.e).
-- **Pre-bite forks for session 21 — settle in conversation BEFORE writing 13.b code:**
-  - **`thread_context` shape:** what does the reason tagger see per comment beyond `comment_text` + `winning_product`? Cheapest workable: OP post + chosen product display_name + one-line list of products considered. Richer (full thread? sibling comments?) costs N_comments × extra_tokens.
-  - **Which comments get reason-tagged:** all comments in resolved threads? Top-level only? OP-only? Only those leaning toward the winning product? Default recommendation: all top-level comments in resolved threads, polarity-agnostic, so dissent and agreement are both measurable.
-  - **`ReasonBucket` enum scope:** all 15 values (11 aspects + 4 extras `brand_loyalty` / `value_deal` / `support_reputation` / `prior_ownership`) or a v1 subset? Already declared in `storage/enums.py`.
-  - **Mocked-only tests in 13.b:** yes (default — same Wave 3 plan structure; live evals in 13.e), or live-Qwen smoke too? Decide before code.
+- Frontend untouched in session 22.
+- **TASKS.md drift check:** Wave 3 line "Gold sets: `deliberation_v1`, `reason_tagging_v1`" remains `[ ]` — the labeler modules ship in 13.c.1 but the deliverable closes only when JSONL artifacts are produced + operator review pass complete (13.c.3 + 13.c.4). `Active` line + `Last reconciled` stamp reflect session-22 close. Wave 2 still substantively complete.
+- **ARCH §6.1 drift check:** **NO changes this session** — labelers reuse production `classify_deliberation_thread` + `tag_reasons` prompts verbatim; the `*_labeling_v1` `PROMPT_VERSION`s exist purely for cache namespacing, not as new contracts.
+- **Code read-through on session-22 new files:**
+  - `pulse_check/eval/deliberation_labeler.py` — `PROMPT_VERSION = "deliberation_labeling_v1"` + `_DEFAULT_MODEL = "claude-sonnet-4-6"`. Imports `DeliberationThread`, `DeliberationPrediction`, `JsonGenerator`, `build_prompt`, `parse_response` from `pulse_check.tagging.deliberation_classifier` — **production prompt + parser reused verbatim**. `DeliberationLabeler` wrapper around `call_with_cache(task="deliberation_labeling", ...)`. Input payload mirrors classifier's exactly: `op_post_text` + `op_edit_text` + `op_top_level_comments` + `other_top_level_comments` + sorted `product_ids`. **NOT in cache key:** `thread_id`, per-product `display_name`. `label()` delegates through classifier's `parse_response` so defensive consistency rules (demote-chosen-not-in-discussed, drop-unknown-product-ids, demote-resolved-with-null-chosen) fire on Sonnet output too.
+  - `pulse_check/eval/reason_labeler.py` — `PROMPT_VERSION = "reason_labeling_v1"` + `_DEFAULT_MODEL = "claude-sonnet-4-6"`. Imports `ThreadContext`, `ReasonPrediction`, `JsonGenerator`, `build_prompt`, `parse_response` from `pulse_check.tagging.reason_tagger` — same reuse pattern. `ReasonLabeler` wrapper around `call_with_cache(task="reason_labeling", ...)`. Input payload mirrors tagger's exactly: `comment_text` + `winning_product_id` + `op_post_text` + sorted `products_discussed_ids`. **NOT in cache key:** display-name strings, product order. `label()` delegates through tagger's `parse_response` so within-response dedup + unknown-enum drop fire on Sonnet output too.
+  - `tests/unit/eval/test_deliberation_labeler.py` — 20 MagicMock-based tests (matches synthesis `test_dedup.py` pattern; labeler is in `eval/` adjacent to synthesis, not `tagging/`). Distribution: 3 constants + 4 happy-path/arg-flow + 7 cache-integration + 1 namespace-separation (classifier + labeler same input → 2 LLM calls) + 4 parse-delegation + 1 full-thread (edit + OP + OTHER comments). `_make_client(*responses)` helper uses `return_value` for one response, `side_effect` for many. `session: Session` fixture from `conftest.py`.
+  - `tests/unit/eval/test_reason_labeler.py` — 20 MagicMock-based tests. Distribution: 3 constants + 4 happy-path/arg-flow + 7 cache-integration + 1 namespace-separation (tagger + labeler same input → 2 LLM calls) + 4 parse-delegation + 1 multi-bucket (3 distinct reason buckets returned). Same helper pattern.
+- **Bite 13.c.1 locked defaults that landed (do not re-debate without flag):**
+  - **Labelers reuse production prompts verbatim** (not "oracle-framed" prompts). v1 trades Sonnet's expressive ceiling for simplicity + parity-with-classifier semantics. If 13.c.3 live smoke shows weak labels, oracle framing comes as `*_labeling_v2` with a `PROMPT_VERSION` bump (cache invalidates cleanly, classifier prompts unaffected).
+  - **Labelers reuse `parse_response` from classifier/tagger modules** — defensive consistency rules + within-response dedup fire on Sonnet output too. Single source of truth for output validation across classifier + labeler.
+  - **Cache namespace separation verified by tests** — same input via classifier + labeler produces TWO LLM calls (separate cache rows under `task="deliberation_tagging"` vs `task="deliberation_labeling"`, etc.).
+  - **MagicMock-based tests** for `eval/` modules (matches synthesis convention) — vs Ollama `MockTransport` for `tagging/` modules. Test-style choice based on package neighborhood, not Anthropic-vs-Ollama.
+  - **Confidence handling carry-forward:** deliberation labeler emits `confidence: float | None` (Sonnet self-rates per existing prompt); reason labeler has no confidence field (locked at 13.b). Sampling stratification (per session-22 fork settlement) will use deliberation confidence; reason gold inherits from the upstream deliberation thread.
+  - **No live Sonnet call in session 22.** Mocked tests only. First live Sonnet labeling deferred to 13.c.3.
+- **Pre-bite forks for session 23 — settle in conversation BEFORE writing 13.c.2 code:**
+  - **Heuristic for identifying CANDIDATE deliberation threads** in the Reddit corpus BEFORE Sonnet labeling (need ~50–80 candidates to stratify down to 30–50 gold-set threads). Options: (a) any `reddit_post` with ≥2 product mentions in its comment tree — over-includes single-product Q&As; (b) `reddit_post` with multiple distinct PRIMARY product attributions — high precision, low recall; (c) keyword filter on post title/body (`vs|or|between|help me decide|choose|deciding`) — middle ground; (d) hand-curate from operator's prior sampling intuition. Likely (b) ∪ (c) for v1 with a hard cap.
+  - **Sonnet-confidence stratification buckets:** Sonnet emits `confidence ∈ [0, 1]`. Stratify into three bands (low/mid/high — e.g. [0,0.5)/[0.5,0.8)/[0.8,1.0]) or two (uncertain/certain at 0.7)? Force-include some from each.
+  - **Force-include "edge case" rules:** low-confidence Sonnet labels? Confidence-disagreement (`is_deliberation=true` with `confidence<0.6`)? Explicit `chosen_product_id=null` despite high `is_deliberation` confidence? Threads with three+ products discussed? Pick 2–3 of these to seed.
+  - **Reason-gold comment selection within resolved threads:** polarity-agnostic per session-22 settlement, but operator may want to force-include dissent-heavy comments (e.g. comments where Sonnet labels reason polarity NEGATIVE relative to winner) to avoid the session-19 "all easy" failure mode.
+  - **Random seed for reproducibility** — existing `gold_set.py` pattern uses `random.Random(seed)`; reuse for the new samplers.
 - **Alternative pre-bite paths if operator changes mind:**
   - Bite 11.3.d operator visual confirm (~5 min browser walk; closes bite 11.3 fully).
-  - README.md (still pending; setup + run-a-pilot doc).
-  - Wave 5 corpus expansion + aspect gold-set rebuild at N=150 (closes Wave 2 formal ≥80% gate).
+  - README.md (still pending; setup + run-a-pilot operator doc).
+  - Wave 5 corpus expansion + aspect gold-set rebuild at N=150 (closes Wave 2 formal ≥80% gate definitively).
+  - Bite 6.4 (still deferred) — retailer reviews.
 
-### Audit checklist (session 19 → 20) — *retained for one session per handoff protocol*
+### Audit checklist (session 21 → 22) — *retained for one session per handoff protocol*
 
 - Use `.venv/Scripts/python.exe` for backend tooling.
-- `pytest tests/unit/` → **358 pass** (was 293 at session-19 open; +65 from bite-12 eval-runner work).
-- `mypy pulse_check/ tests/ scripts/` → **96 files** clean (+4 from new `pulse_check/eval/eval_runner.py` + `scripts/run_eval.py` + two test files).
+- `pytest tests/unit/` → **429 pass** (was 391 at session-20 close; +38 from new `tests/unit/tagging/test_reason_tagger.py`).
+- `mypy pulse_check/ tests/ scripts/` → clean, **100 source files** (was 98; +1 module `pulse_check/tagging/reason_tagger.py` + +1 test file).
 - `ruff check pulse_check/ tests/ scripts/` → clean.
-- **Frontend untouched in session 19** (`tsc -b --noEmit` last-verified clean at session-18 close).
-- **TASKS.md drift check (mandatory) — new structure:** TASKS.md was restructured at session-19 close (143 lines, flat per-wave checklists, no bite numbering forward, no `(session N)` breadcrumbs in deliverables). Verify Wave 2 shows ✅ substantively complete + `[x]` on the eval-runner deliverable; Wave 3 shows all `[ ]` (15 deliverables ready to ship). "Last reconciled" stamp = 2026-05-11 session 19 close. **Note:** the old "Current bite" tracker block is gone — current work is tracked in the top "Active" line. Bite-level history lives in this SESSION_LOG, not TASKS.md.
-- **CLAUDE.md clause 5 was updated** at session-19 close to reflect the new TASKS.md/SESSION_LOG separation. Re-read it before any forward work — the trigger list for TASKS.md updates is now wave-deliverable-scoped, not sub-bite-scoped.
-- **Code read-through on session-19 new files:**
-  - `pulse_check/eval/eval_runner.py` — `filter_by_content_types` (strict-gate matches `tag_corpus_aspects`: mention passes iff has `ContentTypeTag` AND not in exclude set), `resolve_truth` with operator-mode semantics including `flag == "accept"` (truth = sonnet_labels — operator verified Sonnet was right), `ScoredEntry` + `score_one` + `score_all` (catches `LlmParseError` per-entry without aborting batch), `MicroF1Result` + `compute_micro_f1`, `AspectStats` + `per_aspect_breakdown` (binary present/absent F1 + polarity confusion matrix), `EvalReport.from_scored`, `Disagreement` + `disagreements`, `report_to_dict`. THRESHOLD = 0.80.
-  - `scripts/run_eval.py` — thin CLI matching `build_gold_set.py` shape. Args: `--gold-set` / `--truth {sonnet|operator|merged}` / `--provider {haiku|qwen}` / `--output` / `--exclude-content-types`. Writes JSON to `data/eval_results/{ts}_aspect_tagging.json` + stdout PASS/FAIL banner. Truth-caveat helper `_truth_caveat` fires for `sonnet` always + `merged` when not all entries corrected; suppresses for `operator` mode.
-  - `tests/unit/eval/test_eval_runner.py` — 47 tests covering truth resolution, scoring, metrics, disagreements, JSON serialization, content-type filter (incl. strict-gate behavior + multi-type exclude).
-  - `tests/unit/eval/test_run_eval_cli.py` — 18 tests covering argparse defaults + flag combos, `_truth_caveat` matrix (operator never, sonnet always, merged-by-corrected-count), `_format_summary` PASS/FAIL banner + Filter line.
-- **Data artifacts (session 19, gitignored under `data/`):**
-  - `data/gold_sets/aspect_tagging_v1_filtered.jsonl` — 8 non-deal entries from the raw gold set; all marked `operator_flag="accept"` on 2026-05-11 (Sonnet's labels operator-verified on all 8, including the 3 Sonnet-Haiku disagreements where Sonnet's conservative reads won).
-  - `data/eval_results/20260511_110921_aspect_tagging.json` — raw run; F1=0.4250 FAIL; 16/19 disagreements traced to content_type=deal pollution.
-  - `data/eval_results/20260511_113810_aspect_tagging.json` — filtered run (`--exclude-content-types deal`, merged truth); F1=0.7778 FAIL but caveat fires (still Sonnet-as-proxy at that point).
-  - `data/eval_results/20260511_130038_aspect_tagging.json` — final run (`--gold-set …_v1_filtered.jsonl --truth operator`); F1=0.7778; no caveat banner — operator-verified accuracy.
-- **Wave 2 exit-criterion verdict:** **substantively met at F1=0.7778 on operator-verified N=8; formal ≥80% deferred to Wave 5's gold-set rebuild at larger N.** The 4 Haiku misses (3 FP + 1 FN) all traced to mild over-interpretation of context on the 3 Sonnet-Haiku disagreement entries, not structural classifier failure. With N=8 a single tuple flip = ~10pt F1 swing, so the 0.022 gap is well inside noise.
-- **Process gotcha — uvicorn on 8765.** Session 18 replaced a stale `app.main:app` squatter with `.venv` uvicorn serving `pulse_check.api.main:app --port 8765 --log-level warning`. Session 19 did not touch the dev server (no frontend changes). Re-verify on resume only if the operator's done a reboot since: `netstat -ano | grep ":8765\s.*LISTENING"` + `Get-CimInstance Win32_Process -Filter "ProcessId = <pid>"` to confirm CommandLine still points at `pulse_check.api.main`.
-- **Next bite is bite 13.a — deliberation classifier module (LOCKED at session-19 close, defaults agreed).** New module `pulse_check/tagging/deliberation_classifier.py` cloning the `pulse_check/tagging/aspect_classifier.py` pattern. Output schema per ARCHITECTURE §6.1: `{is_deliberation, is_resolved, products_discussed, chosen_product_id}`. Locked defaults (decided session 19, do not re-debate without flagging in-conversation):
-  - **Outcome extraction folded** into the deliberation classifier (one Qwen call returns all four fields). Matches ARCH §6.1 JSON shape.
-  - **Full-product-universe interface** (classifier sees all tracked products per thread, not per-pair).
-  - **OP-only resolution** per ARCH §5 (`is_resolved=True` iff OP names the chosen product via post edit OR top-level comment by OP; third-party assertions don't count).
-  - **Content-type-filtered gold-set discipline** (when 13.c builds gold sets, sample from the production-filtered corpus from day 1 — won't repeat session-19's mismatch).
-  - **Mocked-client tests only in 13.a** — no live Qwen call yet; gold sets + live evals come in 13.c/d.
-- **Wave 3 plan structure (4 bites, multi-session):** Bite 13 = classifiers + gold sets + evals (sub-bites 13.a deliberation classifier, 13.b reason tagger, 13.c gold sets on filtered corpus, 13.d eval extensions for `--task deliberation`/`reason_tagging`, 13.e live evals + iterate). Bite 14 = A2 aggregation. Bite 15 = A2 synthesis. Bite 16 = A2 API + frontend (needs DESIGN_SYSTEM update for WinRateHeader + ReasonRow + paired-table atoms first).
-- **Alternative pre-bite paths if operator changes mind:**
-  - Wave 5 corpus expansion + gold-set rebuild (settles Wave 2 exit definitively + scales to 7 products).
-  - `README.md` (cheap operator-flow doc, still pending).
-  - Bite 11.3.d operator visual confirm (~5 min browser walk; closes bite 11.3 fully).
+- Frontend untouched in session 21.
+- **TASKS.md drift check:** Wave 3 line "Reason tagger (Qwen)" remains `[ ]` — module ships in 13.b but the deliverable closes only when live-Qwen-validated (13.e), same pattern as 13.a. `Active` + `Last reconciled` reflect session-21.
+- **ARCH §6.1 drift check:** the `tag_reasons(comment_text, context)` row was rewritten + a **second** rationale paragraph added below the §6.1 table covering the bundled `ThreadContext` pattern + polarity-relative-to-winner + cache-key exclusions + "no `confidence` here" rule.
+- **Code read-through on session-21 new files:** `pulse_check/tagging/reason_tagger.py` — `JsonGenerator` Protocol + frozen `ThreadContext` (winning_product id+display_name + op_post + `products_discussed`) + frozen `ReasonPrediction` (3 fields only, no `confidence`) + 15-row `_REASON_DEFS` (11 aspect-aligned + 4 extras with "distinct from <neighbor>" phrasing) + `build_prompt` (sort-internal; polarity-relative-to-winner with "knock against the winner" framing) + defensive `parse_response` (within-response dedup by `reason_bucket`) + `ReasonTagger` wrapper around `call_with_cache(task="reason_tagging", ...)`. `tests/unit/tagging/test_reason_tagger.py` — 38 mocked-client tests via `httpx.MockTransport`.
 
 ## Current state
 
-- **Phase:** Wave 2 substantively complete; **Wave 3 (A2) in active build.** Session 20 closed bite 13.a — new `pulse_check/tagging/deliberation_classifier.py` (Qwen via Ollama; role-segmented `DeliberationThread` input + `DeliberationPrediction` four-ARCH-field-plus-confidence output; defensive parser enforcing three consistency rules; cache scoped to thread content + sorted product_ids, ignoring `thread_id` + `display_name`) + 33 mocked-client tests, all green. ARCH §6.1 row + a one-paragraph rationale updated to reflect the role-segmented input. Wave 2 residual: bite 11.3.d operator visual confirm (~5 min) + formal aspect-tagging ≥80% gate (deferred to Wave 5 gold-set rebuild at N=150). Eval result for Wave 2 — F1=0.7778 on operator-verified N=8 — stands.
-- **Bite candidates for session 21** (operator picks at audit close):
-  - **Bite 13.b — reason tagger** (Qwen). Four pre-bite shape decisions to settle in-conversation BEFORE code: `thread_context` shape, comment-selection criteria, `ReasonBucket` scope, mocked-only vs live-Qwen smoke. **Recommended next.**
+- **Phase:** Wave 2 substantively complete; **Wave 3 (A2) in active build.** Session 22 closed bite 13.c.1 — two new Sonnet labeler modules (`pulse_check/eval/deliberation_labeler.py` + `pulse_check/eval/reason_labeler.py`). Both **reuse production `build_prompt` + `parse_response` from `deliberation_classifier` / `reason_tagger` verbatim**; the labeler exists only to namespace the Sonnet call under separate `task` + `prompt_version` (`*_labeling_v1`) in the cache, so labels and predictions never collide. Input payloads mirror their classifier/tagger counterparts exactly — same cache-key discipline (display-name strings + product order excluded). `_DEFAULT_MODEL = "claude-sonnet-4-6"` per ARCH §6 routing. 40 MagicMock-based tests (20 per labeler), all green. **ARCH §6.1 unchanged this session** — labelers literally use the existing classifier/tagger prompts. Bites 13.a + 13.b from sessions 20–21 unchanged. Wave 2 residual: bite 11.3.d operator visual confirm (~5 min) + formal aspect-tagging ≥80% gate (deferred to Wave 5 gold-set rebuild at N=150). Eval result for Wave 2 — F1=0.7778 on operator-verified N=8 — stands.
+- **Bite candidates for session 23** (operator picks at audit close):
+  - **Bite 13.c.2 — sampler** (stratified Reddit thread/comment selection with force-included edge cases). Five pre-bite shape decisions to settle in-conversation BEFORE code: candidate-thread heuristic (≥2 PRIMARY attributions ∪ keyword filter?), Sonnet-confidence stratification bands (2 or 3?), edge-case force-include rules (low-confidence / chosen_id=null-despite-high-deliberation-confidence / 3+ products?), reason-comment force-include (dissent-heavy?), random seed reuse from `gold_set.py`. **Recommended next.**
   - **Bite 11.3.d** — operator visual confirm (~5 min browser walk; closes bite 11.3 fully).
   - **README.md** (still pending; setup + run-a-pilot operator doc; cheap).
   - **Wave 5 aspect gold-set rebuild** at N=150 on filtered corpus (closes formal Wave 2 ≥80% gate definitively).
   - **Bite 6.4 (still deferred) — retailer reviews.** Three open items unchanged.
-- **pulse-check: 391 unit tests passing · `mypy` clean · `ruff` clean · `tsc -b --noEmit` clean** (frontend untouched in session 20; was 358 / clean / clean at session-19 close; +33 from new `test_deliberation_classifier.py`).
+- **pulse-check: 469 unit tests passing · `mypy` clean (104 source files) · `ruff` clean · `tsc -b --noEmit` clean** (frontend untouched in session 22; was 429 / 100 / clean / clean at session-21 close; +40 from new `test_deliberation_labeler.py` + `test_reason_labeler.py`; +2 src + +2 test files).
 - **scrapers-lib: 904 unit tests passing · 20 skipped · ruff clean on edited files.** Drift +60/+1 vs the older 844/19 baseline — flagged in session 9 audit; non-blocking (all green). `_version.py` is **`1.2.1` in HEAD with no working-tree diff** — the deferred-bump open item from sessions 7/8 is **resolved** (already committed; not by us).
 - **Capability + output aha both demonstrated for A1 — including at the synthesis layer.** Session 8 unlocked density (33→1143 mentions); session 9 unlocks output aha at the aggregate layer (PRIMARY/SECONDARY divergence). Session 12 unlocks output aha at the synthesis layer: both pilot products produced 4-section briefs with substantive, evidence-grounded claims per quadrant. Alienware: PRIMARY = price/value praise + early-ownership; SECONDARY = post-Dell reliability skepticism + nostalgia for old design + display weakness vs Aero X16. ROG: PRIMARY = value/perf/thermals consistently strong; SECONDARY = keyboard flaws ("erratic typing"), aesthetic polarization, $3K-tier sticker shock. The §6.3 four-quadrant layout earns its keep — putting comment-thread weaknesses in their own quadrant prevents them from being washed out by post-level positive PRIMARY signal.
 - **Real corpus state:** 1143 mentions (33 reddit_post + 1110 reddit_comment) · 1380 mention_attributions (39 PRIMARY + 1341 SECONDARY) · 1143 content_type_tags (46 deal / 999 other / 98 review) · 649 aspect_tags (71 PRIMARY + 578 SECONDARY) · **22 aggregate rows** · **2 persisted Brief rows** (`brief_id=1` alienware_16_aurora + `brief_id=2` rog_strix_g16, both `prompt_version='a1_brief_v1'`, both `flagged_citation_issues.is_valid=True`) · 28-entry gold-set JSONL unchanged · 3 preview-brief markdown artifacts for `alienware_16_aurora` (session-6 + two from session 9; latest `alienware_16_aurora_20260507T203215Z.md`) · `llm_cache` rows: 3 for `prompt_version='preview_a1_v1'` (older preview-brief artifact trail) **plus 4 new rows from session-12 smoke** (2 dedup + 2 brief_writer; one cache row per (product, prompt_version) pair).
@@ -144,6 +128,13 @@ Paste at the start of your next session:
     - **`docs/DESIGN_SYSTEM.md` (full rewrite)** — anchored to prototype `tokens.css`. Sections: §1 Posture (light, internal-tooling, no glow / gradients / gaming flourish; min-width 1280px); §2 Tokens (verbatim — surfaces, text, borders, accent, status, chart, spacing 4px grid, radii max 8px, single shadow elevation, motion eases); §3 Typography (Arial Nova / system stack + xs/sm/base/md/lg/xl); §4 Atoms — Chip (single shape, semantic tones), DrillNumber (cursor zoom-in), **CiteChip replaces prototype `[n]` markers** (per claim, not numbered; tooltip + click-to-pin), SourceMark, SourceDots, IntensityBar, Sparkline, VerbatimCard (no ownership/tombstone per session-13 lock); §5 Composites — AspectRow + AspectColumn three-section scrollers (A/B/C, no within-scroller repeats, cross-scroller divergence permitted), BriefPanel four-section locked structure (Q1/Q2/Q3/Q4 rendered positionally from `narrative.sections`; **headings come from the persisted brief, not from a frontend constant** — actual live-data headings: "High-confidence strengths", "High-confidence weaknesses", "Low-signal strengths (public chatter)", "Low-signal weaknesses (public chatter)"), EvidenceDrawer 440px persistent right with 4 filters, CitationPanel 380px right offsetting to right=440 when drawer open, RunMetaStrip non-jargon (`<n> mentions · 6-month window · last refreshed YYYY-MM-DD` — drops run_id + taxonomy version), Dropdown, cohort toggles hidden v1; §6 Screen inventory — About lean / Standalone / Compare placeholder (`Wave 3 — coming soon`); §7 Anti-patterns; §9 Open questions list (Section A/B/C divider visual TBD; CiteChip exact wording TBD; sparkline 26-week series source TBD; long-tail Section C visual weight TBD).
     - **`CLAUDE.md` UI-posture line** — pivoted from "dark-mode-first, Alienware aesthetic" → "light theme, internal-tooling aesthetic, white surface, purple `#5F00F8` accent only, no glow, no gaming flourish". Posture pivot rationale flagged inline.
     - **Live DB smoke (operator-approved at session close).** Single TestClient run against `data/pulse_check.db` (no uvicorn boot — `create_app()` reads the configured `database_url` automatically). All four handlers green: `/api/products` returned both pilot products with brand/aliases populated; `/api/product/alienware_16_aurora` returned 11 aspects with PRIMARY+SECONDARY both populated and `run_meta.total_mentions=112` (deduplicated across all aggregate `mention_ids` ∪ `mention_ids_secondary`; corpus is 1143 but only 112 unique mentions are tagged + aggregated against the 11 aspects; flagged below); `/api/brief/1` and `/api/brief/2` both `is_valid=True`, four sections each, headings as listed in DESIGN_SYSTEM §5.2 above. Cross-scroller divergence empirically confirmed: `alienware_16_aurora` aesthetics PRIMARY net=+1.0 / n=1 vs SECONDARY net=−0.22 / n=27 — exactly the §6.3-divergence story the scrollers exist to surface.
+  - **Bite 13.c.1 — Sonnet labeler modules (session 22):**
+    - **`pulse_check/eval/deliberation_labeler.py` (new, ~100 lines)** — `PROMPT_VERSION = "deliberation_labeling_v1"` + `_DEFAULT_MODEL = "claude-sonnet-4-6"`. Imports `DeliberationThread`, `DeliberationPrediction`, `JsonGenerator`, `build_prompt`, `parse_response` from `pulse_check.tagging.deliberation_classifier` — production prompt + parser reused **verbatim**. `DeliberationLabeler(client, *, model, temperature, prompt_version)` wraps `call_with_cache(task="deliberation_labeling", ...)`. Input payload mirrors classifier's exactly: `op_post_text` + `op_edit_text` + `op_top_level_comments` + `other_top_level_comments` + sorted `product_ids`. Cache excludes `thread_id` + per-product `display_name`. `label()` delegates parsing through classifier's `parse_response` so the three defensive consistency rules fire on Sonnet output too.
+    - **`pulse_check/eval/reason_labeler.py` (new, ~95 lines)** — same pattern. `PROMPT_VERSION = "reason_labeling_v1"`. Imports `ThreadContext`, `ReasonPrediction`, `JsonGenerator`, `build_prompt`, `parse_response` from `pulse_check.tagging.reason_tagger`. `ReasonLabeler` wraps `call_with_cache(task="reason_labeling", ...)`. Input payload mirrors tagger's exactly: `comment_text` + `winning_product_id` + `op_post_text` + sorted `products_discussed_ids`. Cache excludes display-name strings + product order. `label()` delegates through tagger's `parse_response` so within-response dedup + unknown-enum drop fire on Sonnet output too.
+    - **`tests/unit/eval/test_deliberation_labeler.py` (new, 20 tests)** — MagicMock-based (matches synthesis `test_dedup.py`). Distribution: 3 constants + 4 happy-path/arg-flow + 7 cache-integration + 1 namespace-separation + 4 parse-delegation + 1 full-thread (edit + OP + OTHER comments + markers present in rendered prompt).
+    - **`tests/unit/eval/test_reason_labeler.py` (new, 20 tests)** — same pattern. Distribution: 3 + 4 + 7 + 1 + 4 + 1 multi-bucket.
+    - **No live Sonnet call yet** — labelers are unit-tested with mocks only; first real Sonnet labeling deferred to 13.c.3.
+    - **ARCH §6.1 unchanged this session** — labelers reuse production prompts verbatim; the `*_labeling_v1` `PROMPT_VERSION`s exist purely for cache namespacing, not as new contracts.
 - **Not yet started (Wave 2 remainder, prioritized):**
   - **Bite 11.2 — frontend atoms + drawer.** Replace dark scaffold tokens with light-theme tokens (per DESIGN_SYSTEM §2). Build atoms (Chip, DrillNumber, CiteChip, SourceMark, SourceDots, IntensityBar, Sparkline, VerbatimCard); composites (EvidenceDrawer, CitationPanel, RunMetaStrip). Render against fixture data — no live wiring yet. Removes the `Exo 2` + `Rajdhani` Google Fonts loaded by `frontend/index.html` per the system stack pivot.
   - **Bite 11.3 — frontend pages + wiring.** About + Standalone + Compare placeholder. Hash router. Selector dropdowns. Wire to live backend. End-to-end against `brief_id=1, 2`. (Depends on 11.2.)
@@ -292,6 +283,137 @@ Added in session 18:
 ---
 
 ## Session history (newest first)
+
+### 2026-05-12 — session 22: bite 13.c.1 — Sonnet labeler modules (`deliberation_labeler` + `reason_labeler`); reuse production prompts + parsers verbatim, separate cache namespace via `task="*_labeling"` + `*_labeling_v1` `PROMPT_VERSION`
+
+**Context entering.** Session 21 closed bite 13.b (reason tagger module, mocked-only tests, ARCH §6.1 `tag_reasons` row rewritten + second rationale paragraph for the bundled `ThreadContext` input). Operator at session-22 open: resume + audit + pick path; session-21's recommendation was bite 13.c (gold sets) with four pre-bite shape decisions to settle in conversation BEFORE code.
+
+**Audit pass.** GREEN. Delegated read-heavy verification to an Explore agent (per "subagents for read-heavy work" feedback) for ARCH §6.1 drift + code read-through of new session-21 files; ran gates directly:
+- `pytest tests/unit/` → **429 pass** (matches session-21 close).
+- `mypy pulse_check/ tests/ scripts/` → clean (100 source files).
+- `ruff check pulse_check/ tests/ scripts/` → clean.
+- TASKS.md drift check: Wave 3 "Reason tagger (Qwen)" `[ ]` confirmed; `Active` + `Last reconciled` reflect session-21.
+- ARCH §6.1 drift check: `tag_reasons` row rewritten + second rationale paragraph (parallel to 13.a's) present.
+- Code read-through on `pulse_check/tagging/reason_tagger.py` + `tests/unit/tagging/test_reason_tagger.py` — all 14 sub-claims from session-21 handoff confirmed (frozen `ThreadContext`/`ReasonPrediction`, 15 `_REASON_DEFS` with 4 extras carrying "distinct from <neighbor>" phrasing, sort-internal `build_prompt`, polarity-relative-to-winner with "knock against the winner" phrasing, defensive parser, cache key excludes display_names, MockTransport-based Ollama tests).
+
+**Path pick.** Operator chose bite 13.c (recommended). Four pre-bite forks settled via AskUserQuestion (3 surfaced; truth-representation fork resolved inline with strong default "existing review CLI accept/reject/correct" + no operator objection):
+1. Gold-set source → Sonnet labels + operator review pass via existing CLI (mirrors bite-12 aspect pattern + addresses session-19 production-filter lesson from the start).
+2. N + scope → 30–50 deliberation threads + 15–25 resolved threads (~50–150 reason comments).
+3. Sampling → Stratify (source/winner/Sonnet-confidence) + force-include edge cases (avoids session-19 "all easy" failure mode).
+4. Truth representation → Existing operator-review CLI accept/reject/correct (no objection).
+
+Sub-bite split locked in conversation BEFORE code: **13.c.1** Sonnet labeler modules (this session); **13.c.2** sampler + edge-case force-include; **13.c.3** build CLI + JSONL schema + live Sonnet smoke; **13.c.4** review CLI + operator pass. Three flagged choices operator-approved before any file touched: (a) separate `prompt_version`s (`*_labeling_v1` ≠ `*_tagging_v1`) so labeling prompts can evolve independently of production classifier; (b) labeler reuses classifier's `*Prediction` dataclass shape; defensive parser drops non-conforming entries on Sonnet output too; (c) no refactor of existing `gold_set.py` — new modules live alongside it, orchestration logic deferred to 13.c.3.
+
+**Bite 13.c.1 deliverables.**
+
+- **NEW `pulse_check/eval/deliberation_labeler.py`** (~100 lines):
+  - Imports `DeliberationThread`, `DeliberationPrediction`, `JsonGenerator`, `build_prompt`, `parse_response` from `pulse_check.tagging.deliberation_classifier`. The labeler **reuses the production prompt + parser verbatim** (deviation from initial plan: I'd framed reuse as "dataclass shape only"; in practice it was cleaner to reuse `build_prompt` + `parse_response` entirely — same prompt, different model, different oracle role. If 13.c.3 live smoke shows weak labels, an oracle-framed prompt comes as `*_labeling_v2` with a `PROMPT_VERSION` bump).
+  - `PROMPT_VERSION = "deliberation_labeling_v1"` + `_DEFAULT_MODEL = "claude-sonnet-4-6"`.
+  - `DeliberationLabeler(client, *, model, temperature, prompt_version)` wrapper around `call_with_cache(task="deliberation_labeling", ...)`. Input payload mirrors classifier's exactly. **NOT in cache key:** `thread_id`, per-product `display_name`.
+  - `label(session, *, thread, products) -> DeliberationPrediction` — delegates parsing through classifier's `parse_response` so defensive consistency rules (demote-chosen-not-in-discussed, demote-resolved-with-null-chosen, drop-unknown-product-ids) fire on Sonnet output too.
+- **NEW `pulse_check/eval/reason_labeler.py`** (~95 lines):
+  - Imports `ThreadContext`, `ReasonPrediction`, `JsonGenerator`, `build_prompt`, `parse_response` from `pulse_check.tagging.reason_tagger` — same reuse pattern.
+  - `PROMPT_VERSION = "reason_labeling_v1"` + `_DEFAULT_MODEL = "claude-sonnet-4-6"`.
+  - `ReasonLabeler(client, *, model, temperature, prompt_version)` wrapper around `call_with_cache(task="reason_labeling", ...)`. Input payload mirrors tagger's exactly. **NOT in cache key:** `winning_product_display_name`, per-product `display_name`s, product order.
+  - `label(session, *, comment_text, context) -> list[ReasonPrediction]` — delegates through tagger's `parse_response` so within-response dedup + unknown-enum drop fire on Sonnet output too.
+- **NEW `tests/unit/eval/test_deliberation_labeler.py`** (~270 lines, 20 tests, all green):
+  - 3 constants (PROMPT_VERSION + default model + default temperature).
+  - 4 happy-path + arg-flow (returns `DeliberationPrediction`; passes Sonnet model / T=0 / classifier prompt-markers to client).
+  - 7 cache-integration (identical-input cache hit; miss on different `op_post` / `product_universe` / `op_edit`; cache key independent of `thread_id` / `display_names` / product order).
+  - 1 namespace-separation (classifier + labeler on identical input → 2 LLM calls).
+  - 4 parse-delegation (`LlmParseError` on invalid response; demote-chosen-not-in-discussed; drop-unknown-product-ids; confidence field when present).
+  - 1 full-thread (edit + OP comments + OTHER comments flow + markers present in rendered prompt).
+  - MagicMock-based client matching synthesis `test_dedup.py` pattern (labeler is in `eval/` adjacent to synthesis, not `tagging/`); `session: Session` fixture from `conftest.py`.
+- **NEW `tests/unit/eval/test_reason_labeler.py`** (~280 lines, 20 tests, all green):
+  - 3 constants.
+  - 4 happy-path + arg-flow.
+  - 7 cache-integration (identical-input hit; miss on different `comment` / `winning_product_id` / `op_post`; cache key independent of `winning_display_name` / per-product `display_name`s / `products_discussed` order).
+  - 1 namespace-separation (tagger + labeler on identical input → 2 LLM calls).
+  - 4 parse-delegation (`LlmParseError` on invalid response; within-response dedup keeps first; drops unknown bucket; returns empty list when reasons=[]).
+  - 1 multi-bucket (3-bucket response flows correctly through).
+
+**Mid-session deviation flagged.** Initial plan said "labeler reuses the `*Prediction` dataclass shape but caller side adapts to whatever Sonnet emits"; implementation went thinner and reuses the entire `build_prompt` + `parse_response` from classifier modules. Sonnet runs the **exact same prompt as Qwen would**, just under separate `task` + `prompt_version` cache namespace. v1 labeling is "same prompt, different model, different oracle role". Operator-acknowledged via mid-session report; v2 (oracle-framed prompt) deferred until 13.c.3 live smoke reveals whether v1 is good enough.
+
+**Ruff autofix at the end.** Two I001 import-order errors in the test files; both autofixed by `ruff check --fix` (removed a single blank line between import block and first section header). Cosmetic, non-substantive.
+
+**Doc updates this session.**
+- `docs/TASKS.md` — `Active` line + `Last reconciled` stamp updated at session close (after gates green). Wave 3 line "Gold sets: `deliberation_v1`, `reason_tagging_v1`" remains `[ ]` — deliverable closes when JSONL artifacts are produced + operator review pass complete (13.c.3 + 13.c.4), not at labeler-module-write.
+- **`docs/ARCHITECTURE.md` §6.1 unchanged this session.** Labelers reuse production prompts verbatim; there are no new task contracts to document. The `*_labeling_v1` `PROMPT_VERSION`s exist purely for cache namespacing.
+
+**Open items added in session 22.**
+- **No live Sonnet call yet for labeling.** Per locked default — same pattern as 13.a + 13.b. Live Sonnet smoke comes in 13.c.3 once sampler + build CLI ship.
+- **Same-prompt labels** — Sonnet on Qwen's production prompt may underdeliver vs an oracle-framed prompt; iteration to `*_labeling_v2` is gated on 13.c.3 review observation.
+
+**Verification at session close (FINAL).**
+- `pytest tests/unit/` → **469 pass** (was 429 at session-21 close; +40 from `test_deliberation_labeler.py` + `test_reason_labeler.py`).
+- `mypy pulse_check/ tests/ scripts/` → clean, **104 source files** (was 100; +2 src modules + +2 test files).
+- `ruff check pulse_check/ tests/ scripts/` → clean.
+- Frontend untouched.
+- Untracked files at session close (will commit): `pulse_check/eval/deliberation_labeler.py`, `pulse_check/eval/reason_labeler.py`, `tests/unit/eval/test_deliberation_labeler.py`, `tests/unit/eval/test_reason_labeler.py`. Modified: `docs/SESSION_LOG.md`, `docs/TASKS.md`. (`.claude/settings.local.json` modification not included — local IDE state.)
+
+**Session closed mid-bite-13** — sub-bites 13.a + 13.b + 13.c.1 (classifier modules + labeler modules, all mocked tests) shipped; 13.c.2 through 13.e queued. **Wave 3 (A2) build continues.**
+
+---
+
+### 2026-05-11 — session 21: bite 13.b — reason tagger module (Qwen via Ollama, mocked-client tests only); ARCH §6.1 `tag_reasons` contract rewritten to bundled `ThreadContext` input pattern; **no `confidence` field** per contract-literal reading
+
+**Context entering.** Session 20 closed bite 13.a (deliberation classifier module shipped, mocked-only tests, ARCH §6.1 row + rationale paragraph for the role-segmented `DeliberationThread` input). Operator at session-21 open: resume + audit + pick path; session-20's recommendation was bite 13.b (reason tagger) with four pre-bite shape decisions to settle in conversation BEFORE code.
+
+**Audit pass.** GREEN. All gates direct (no subagent delegation; cheap to run):
+- `pytest tests/unit/` → **391 pass** (matches session-20 close).
+- `mypy pulse_check/ tests/ scripts/` → clean (98 source files).
+- `ruff check pulse_check/ tests/ scripts/` → clean.
+- TASKS.md drift check: Wave 3 "Deliberation thread classifier (Qwen)" `[ ]` confirmed; `Active` + `Last reconciled` reflect session-20.
+- ARCH §6.1 drift check: deliberation row rewritten + rationale paragraph present at lines 415 + 418.
+- Code read-through on `pulse_check/tagging/deliberation_classifier.py` + `tests/unit/tagging/test_deliberation_classifier.py` — all locked defaults from session-20 confirmed.
+
+**Path pick.** Operator chose bite 13.b (recommended). The four pre-bite forks settled via AskUserQuestion (4 questions, all answered with the recommended option):
+1. `thread_context` shape → OP post + winning product (id+display_name) + products_discussed list (id+display_name pairs). Cheap workable; lets the model resolve abbreviations like "the Strix" → "ROG Strix G16".
+2. Comment-selection at caller layer → all top-level comments in resolved threads, polarity-agnostic (endorsement AND dissent both surface deliberation criteria).
+3. `ReasonBucket` scope → all 15 values (11 aspects + 4 extras). Enum already locked in `storage/enums.py`; subsetting would create classifier/enum drift.
+4. Test scope → mocked-client only (matches 13.a pattern; live evals in 13.e).
+
+**Fifth fork surfaced + settled mid-plan.** While drafting the module shape, flagged a deviation from ARCH §6.1: the `tag_reasons` contract is `{reason_bucket, polarity, intensity}` — no `confidence` field — but both other classifiers (aspect, deliberation) emit one. Two ways to read it: treat contract as source of truth, or treat absence as ARCH oversight and harmonize. Operator chose "follow contract literally — no `confidence`" (recommended). Rationale: keep the bite scoped, don't widen the contract without need; downstream aggregation doesn't read confidence.
+
+**Bite 13.b deliverables.**
+- **NEW `pulse_check/tagging/reason_tagger.py`** (~395 lines):
+  - `JsonGenerator` Protocol — local re-declaration matching aspect_classifier + deliberation_classifier pattern.
+  - `ThreadContext(frozen=True)`: `winning_product_id: str` + `winning_product_display_name: str` + `op_post_text: str` + `products_discussed: tuple[ProductContext, ...]`. Bundles winning-product + thread-context + product universe into one struct passed per-comment (caller reuses across all comments in the same thread).
+  - `ReasonPrediction(frozen=True)`: `reason_bucket: ReasonBucket` + `polarity: Polarity` + `intensity: Intensity`. **Three fields only — no `confidence`** per ARCH §6.1 contract.
+  - `_REASON_DEFS` 15-row dict: 11 aspect-aligned defs mirror `aspect_classifier._ASPECT_DEFS` verbatim for the overlap set so the model carries identical mental model; 4 extras (`brand_loyalty`, `value_deal`, `support_reputation`, `prior_ownership`) hand-written with explicit "distinct from <neighbor>" phrasing to disambiguate overlap pairs (`brand_loyalty` ↔ `support_warranty`, `value_deal` ↔ `price_value`, `support_reputation` ↔ `support_warranty`, `prior_ownership` ↔ `brand_loyalty`).
+  - `_format_products_discussed_block(products)` — sorts by `product_id` internally so prompt is order-independent at the caller surface (matches deliberation_classifier).
+  - `_PROMPT_TEMPLATE` (v1) — embeds: winning product (id + display_name), products_discussed list, OP post, 15-row reasons block, polarity rules ("relative to WINNING product" with explicit "knock against the winner" framing for the praise-of-loser case), intensity rules, JSON output shape, empty-list fallback, comment text. **No anchor examples** — definitions-only, matches deliberation_classifier's rules-over-anchors lean. v2 may add anchors if 13.e shows weakness on the predictable overlap pairs.
+  - `parse_response(parsed)` — raises `LlmParseError` only on top-level shape (not a dict, missing `reasons`, `reasons` not a list); per-entry warn-and-drop on unknown bucket / polarity / intensity values + non-string field values + non-dict entries; within-response dedup by `reason_bucket` keeping first occurrence (defensive — the `reason_tags` table has no UNIQUE constraint but downstream aggregation groups by `(winning_product, reason_bucket)` and duplicates would silently double-count; rationale captured in docstring).
+  - `ReasonTagger(client, *, model, temperature, prompt_version)` wrapper around `call_with_cache(task="reason_tagging", ...)`. Input payload for cache hash: `{comment_text, winning_product_id, op_post_text, products_discussed_ids: sorted}`. **NOT in cache key:** `winning_product_display_name`, per-product `display_name`s, product order.
+  - Imports `ProductContext` from `aspect_classifier` (no duplication).
+- **NEW `tests/unit/tagging/test_reason_tagger.py`** (~470 lines, 38 tests, all green):
+  - 1 version-prefix check.
+  - 10 prompt-rendering checks (all 15 reasons listed; overlap disambiguation phrasing landed; OP post embedded; winning product embedded; all products_discussed rendered; comment text embedded; polarity-relative-to-winner rule + "knock against the winner" phrasing; deterministic; order-independent in products_discussed; differs-per-comment).
+  - 14 `parse_response` checks (single/multi/empty happy paths + all-four-extras + order preservation; unknown bucket/polarity/intensity dropped; missing-field entry dropped; non-dict entry skipped; dedup keeps first; whitespace strip + case canon; non-string field values dropped; 3 top-level shape raises on non-dict / missing-reasons / reasons-not-list).
+  - 13 cache-integration checks (miss-stores-row + hit-skips-call + scoped-per-comment-text + scoped-per-winner + scoped-per-op-post + ignores-winning-display-name + ignores-per-product-display-name + order-independent + temperature=0 + format=json in request body + prompt_version-bump invalidates + returns-parsed-predictions).
+  - Uses `_ollama_with(handler)` + `_canned(body)` + `_empty_canned()` helpers; `session: Session` fixture from `conftest.py`.
+
+**Schema reality check during planning.** Confirmed `reason_tags` table in `pulse_check/storage/models.py` has NO `__table_args__` UniqueConstraint — schema permits duplicate rows on the same `(mention_id, winning_product_id, reason_bucket, prompt_version)`. Decided to still dedup within-response defensively (rationale captured in `parse_response` docstring): schema permits it, but aggregation grouping would silently double-count.
+
+**Doc updates this session.**
+- `docs/TASKS.md` — `Active` line + `Last reconciled` stamp updated mid-session (after gates green). Wave 3 line "Reason tagger (Qwen)" remains `[ ]` — deliverable closes when live-Qwen-validated (13.e), not at module-write. Same pattern as 13.a.
+- `docs/ARCHITECTURE.md` §6.1 — `tag_reasons` row rewritten from 3-positional-arg `(comment_text, thread_context, winning_product)` to bundled-context `(comment_text, context)` with `ThreadContext` content described in the input column. Added a **second** one-paragraph rationale below the §6.1 table (parallel to 13.a's), explaining the bundled-context pattern + polarity-relative-to-winner semantics + cache-key exclusions for display_name strings + "no `confidence` here" rule with the `PROMPT_VERSION`-bump escalation path.
+
+**Open items added in session 21.**
+- **No live Qwen call yet for reason tagging.** Per locked default — same pattern as 13.a. Live evals come in 13.e once gold set is built (13.c) and eval-runner extended for `--task reason_tagging` (13.d).
+- **`reason_tags` schema lacks a UniqueConstraint.** Surfaced during planning — captured as the rationale for within-response dedup in `parse_response` docstring. Not a blocker; schema permits duplicates; aggregation will see them if dedup is bypassed. Revisit if operator wants schema-enforced uniqueness (Alembic migration adding `__table_args__` + extending uniqueness key).
+- **Anchor-example absence in v1 prompt** — definitions-only, matches deliberation_classifier's rules-over-anchors lean. Predictable overlap pairs (`brand_loyalty` ↔ `prior_ownership`, `price_value` ↔ `value_deal`, `support_warranty` ↔ `support_reputation`) are the most likely places eval-time confusion will land. If 13.e shows weakness on these specifically, anchor examples get added in v2 with a `PROMPT_VERSION` bump.
+
+**Verification at session close (FINAL).**
+- `pytest tests/unit/` → **429 pass** (was 391 at session-20 close; +38 from `test_reason_tagger.py`).
+- `mypy pulse_check/ tests/ scripts/` → clean, **100 source files** (was 98; +1 module + +1 test).
+- `ruff check pulse_check/ tests/ scripts/` → clean.
+- Frontend untouched.
+- Untracked files at session close (will commit): `pulse_check/tagging/reason_tagger.py`, `tests/unit/tagging/test_reason_tagger.py`. Modified: `docs/ARCHITECTURE.md`, `docs/SESSION_LOG.md`, `docs/TASKS.md`. (`.claude/settings.local.json` modification not included — local IDE state.)
+
+**Session closed mid-bite-13** — sub-bites 13.a + 13.b (classifier modules + mocked tests) shipped; 13.c through 13.e queued. **Wave 3 (A2) build continues.**
+
+---
 
 ### 2026-05-11 — session 20: bite 13.a — deliberation classifier module (Qwen via Ollama, mocked-client tests only); ARCH §6.1 contract refined (role-segmented `DeliberationThread` input, `+ confidence` field, cache excludes `thread_id` + `display_name`); Wave 3 (A2) build begun
 
