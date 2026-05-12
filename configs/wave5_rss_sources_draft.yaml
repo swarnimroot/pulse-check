@@ -1,0 +1,108 @@
+# Wave 5 RSS-discovery seed data (operator-supplied, session 24 close).
+#
+# This file is DRAFT — not validated by a Pydantic schema yet. Session 25's
+# rss_discovery bite will define the `RSSWindow` SourceWindow + load this
+# data into the validated config. Until then, this file is the operator's
+# locked input for the bite.
+#
+# YouTube: 7 review channels operator-approved at session 24 close. Channel
+# IDs resolved from YouTube canonical page metadata. RSS URLs follow the
+# standard pattern `https://www.youtube.com/feeds/videos.xml?channel_id=<ID>`
+# and return the ~15 most-recent uploads per channel with title + link +
+# published date. Title-filter happens BEFORE transcription per session-24
+# D7 — surviving video URLs route to scrapers-lib's existing
+# `fetch_youtube_transcript()` with all-product anchors.
+#
+# Article: 9 review sites operator-approved at session 24 close. Each RSS
+# feed returns recent article titles + URLs. Title-filter happens BEFORE
+# fetching the full article body; surviving URLs route to scrapers-lib's
+# existing `fetch_article()` (trafilatura + httpx) with all-product anchors.
+#
+# Status legend (status set by session-24 agent verification):
+#   GREEN  — feed verified, returns laptop-relevant content
+#   YELLOW — feed valid but mixed-content or partial (excerpt-only / non-
+#            laptop-dominant). Usable; session 25 may add per-site title
+#            keyword tuning.
+#   RED    — could not verify; session 25 must validate before enabling.
+
+youtube_channels:
+  - handle: "@LinusTechTips"
+    display_name: "Linus Tech Tips"
+    channel_id: "UCXuqSBlHAE6Xw-yeJA0Tunw"
+    rss_url: "https://www.youtube.com/feeds/videos.xml?channel_id=UCXuqSBlHAE6Xw-yeJA0Tunw"
+
+  - handle: "@HardwareUnboxed"
+    display_name: "Hardware Unboxed"
+    channel_id: "UCI8iQa1hv7oV_Z8D35vVuSg"
+    rss_url: "https://www.youtube.com/feeds/videos.xml?channel_id=UCI8iQa1hv7oV_Z8D35vVuSg"
+
+  - handle: "@Dave2D"
+    display_name: "Dave2D"
+    channel_id: "UCVYamHliCI9rw1tHR1xbkfw"
+    rss_url: "https://www.youtube.com/feeds/videos.xml?channel_id=UCVYamHliCI9rw1tHR1xbkfw"
+
+  - handle: "@JustJoshTech"
+    display_name: "Just Josh"
+    channel_id: "UCtHm9ai5zSb-yfRnnUBopAg"
+    rss_url: "https://www.youtube.com/feeds/videos.xml?channel_id=UCtHm9ai5zSb-yfRnnUBopAg"
+
+  - handle: "@JarrodsTech"
+    display_name: "Jarrod's Tech"
+    channel_id: "UC2Rzju32yQPkQ7oIhmeuLwg"
+    rss_url: "https://www.youtube.com/feeds/videos.xml?channel_id=UC2Rzju32yQPkQ7oIhmeuLwg"
+
+  - handle: "@NotebookcheckReviews"
+    display_name: "Notebookcheck Reviews"
+    channel_id: "UCvfUcuSDNOoFsAPsiGdaGPg"
+    rss_url: "https://www.youtube.com/feeds/videos.xml?channel_id=UCvfUcuSDNOoFsAPsiGdaGPg"
+
+  - handle: "@LAPTOPMagazine"
+    display_name: "Laptop Mag"
+    channel_id: "UCtwEcI-GxMLF5M1pSGSdULw"
+    rss_url: "https://www.youtube.com/feeds/videos.xml?channel_id=UCtwEcI-GxMLF5M1pSGSdULw"
+
+article_rss_feeds:
+  - site: "Notebookcheck"
+    rss_url: "https://www.notebookcheck.net/RSS-Feed-Notebook-Reviews.8156.0.html"
+    status: YELLOW
+    notes: "Notebook-reviews subfeed (preferred over site-wide); ~20 items; mixed device-category content. Verify at session 25."
+
+  - site: "LaptopMag"
+    rss_url: "http://www.laptopmag.com/feeds.xml"
+    status: GREEN
+    notes: "Future PLC standard feed pattern; ~35 items; comprehensive laptop coverage."
+
+  - site: "Tom's Hardware"
+    rss_url: "http://www.tomshardware.com/feeds.xml"
+    status: GREEN
+    notes: "Future PLC standard feed pattern; ~40 items."
+
+  - site: "PCMag"
+    rss_url: "https://www.pcmag.com/feeds/rss/latest"
+    status: YELLOW
+    notes: "General tech feed; laptop content mixed. Consider category-specific feed (e.g., /categories/laptops) if exists. Verify at session 25."
+
+  - site: "TechRadar"
+    rss_url: "http://www.techradar.com/feeds.xml"
+    status: YELLOW
+    notes: "Future PLC pattern; ~30 items; limited dedicated laptop coverage. Title-filter will reject most."
+
+  - site: "RTINGS"
+    rss_url: "https://www.rtings.com/rss-feeds"
+    status: RED
+    notes: "URL given is the RSS-feeds index page, NOT a feed. Session 25 must find the laptop-specific feed (likely `https://www.rtings.com/laptop/rss` or similar) or scrape the index page."
+
+  - site: "Engadget"
+    rss_url: "https://www.engadget.com/rss.xml"
+    status: GREEN
+    notes: "Verified standard feed; current laptop content present."
+
+  - site: "The Verge"
+    rss_url: "https://www.theverge.com/rss/index.xml"
+    status: YELLOW
+    notes: "Feed returns excerpt-only; full articles may be partly paywalled ($7/mo). Article fetcher (trafilatura) should still extract publicly-visible body."
+
+  - site: "Ars Technica"
+    rss_url: "https://feeds.arstechnica.com/arstechnica/index"
+    status: YELLOW
+    notes: "Primary feed; free RSS returns excerpts; full-text needs paid sub. Article fetcher gets whatever's publicly visible."

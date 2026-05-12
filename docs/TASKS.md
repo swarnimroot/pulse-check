@@ -2,15 +2,15 @@
 
 Wave-by-wave forward plan. Each wave is a flat checklist of high-level deliverables. Sub-bite breakdowns + per-bite breadcrumbs live in [`SESSION_LOG.md`](SESSION_LOG.md) (the historical record).
 
-**Status:** Wave 2 ✅ substantively complete (aspect-tagging F1=0.7778 on operator-verified N=8; formal ≥80% deferred to Wave 5 rebuild). **Wave 3 in active build** — deliberation + reason classifier modules + Sonnet labelers + gold-set sampler + orchestrator + CLI + operator review CLI all shipped (bites 13.a-13.c.4); eval iteration + A2 aggregators + pair UI still pending. Waves 4–6 ahead.
-**Active:** session 23 audited prior + shipped bites 13.c.2 (`pulse_check/eval/sampler.py` — heuristic (b)∪(c) candidate selection + 3-band stratify + B/C/D force-includes; mocked tests) + 13.c.3 (`pulse_check/eval/deliberation_gold_set.py` orchestrator + JSONL IO + `scripts/build_deliberation_gold_set.py` CLI; first live Sonnet pass ~$0.05) + 13.c.4 (`scripts/review_deliberation_gold_set.py` operator-review CLI + 12 StringIO-driven tests). Live run produced **`deliberation_v1.jsonl` N=7** (operator-reviewed: 5 accept · 2 corrected — Entry 1 chose externally to Lenovo Legion 15 Pro, Entry 6 borderline ROG-vs-MSI deliberation) + **`reason_tagging_v1.jsonl` EMPTY** by structural fact (v1 corpus has zero resolved-to-tracked-product deliberations — Wave 5 corpus expansion is the unblock; accepted explicitly). **541/541** unit tests green · mypy clean (111 src files) · ruff clean. New deferred items (logged in SESSION_LOG): `deliberation_classifier_v2` with `chosen_external_name` field to capture "tracked products lost to external winner" signal for A2 pair_win_rates; Compare-page UI scope clarification (Source A deliberation outcomes only vs Source B aspect-diff vs both). **ARCH §6.1 unchanged this session.**
-**Last reconciled:** 2026-05-12 (session 23 — bites 13.c.2-13.c.4 shipped + live Sonnet pass + operator review complete)
+**Status:** Wave 2 ✅ substantively complete (aspect-tagging F1=0.7778 on operator-verified N=8; formal ≥80% deferred to Wave 5 rebuild). **Wave 3 in active build** — deliberation + reason classifier modules + Sonnet labelers + gold-set sampler + orchestrator + CLI + operator review CLI all shipped (bites 13.a-13.c.4); eval iteration + A2 aggregators + pair UI still pending. **Wave 5 prep started** — product universe expanded 7 → 59 products + staged first-scrape config landed. Waves 4–6 ahead.
+**Active:** session 24 audited prior (GREEN) + extended product universe to 59 (operator's gaming-laptop competitive set; split-by-size for multi-size lines per D9; ASUS TUF F/A and Lenovo Legion Intel/AMD chip variants MERGED per D13/D14; Lenovo Legion Slim dropped per D10) + reworked `hp_omen_16` pattern to exclude Max/Slim/Transcend collisions + renamed `legion_5_pro` → `lenovo_legion_5_pro_16` (chip-merged + explicit size) and `rog_tuf_16` → `asus_tuf_16` (bugfix: TUF is ASUS, not ROG) + wrote `configs/run_wave5_v1.yaml` (Reddit-only first; 12 subreddits; 6-mo backfill) + `configs/pair_plan_wave5_staged.yaml` (4 Alienware × 9 competitors = 36 pairs across a 13-product staged subset) + locked Article + YouTube via RSS-discovery (no per-product hand-curation; rss_discovery bite scheduled session 25 per D17/E2) + Path B (`deliberation_classifier_v2`) bundled before gold rebuild per D4b. No scrape this session. **541/541** unit tests green · mypy clean (111 src files) · ruff clean. **ARCH §6.1 unchanged this session.**
+**Last reconciled:** 2026-05-12 (session 24 — Wave 5 corpus expansion prep: 59-product universe + staged Wave 5 configs landed; rss_discovery bite + Path B bundled into Wave 5 sequence)
 
 **Waiting on operator action (cross-wave):**
 - Operator visual confirm against live uvicorn (Wave 2 frontend smoke completed; ~5-min browser walk; screenshots at `C:/Users/AW-testing/AppData/Local/Temp/smoke_11_3_c/`)
 - Install Ollama + pull `qwen2.5:7b-q4_K_M` (Wave 3 prereq)
 - `playwright install chromium` (Tier 2/3 source support)
-- Curate YouTube + article seed lists (Wave 5 prereq; ~50–75 YT URLs + ~150–200 article URLs)
+- YouTube channel handle list + review-site RSS feed URLs (~10 channels + ~9 sites — needed at session 25 when rss_discovery bite lands)
 
 **Doc index:** spec in [`PRD.md`](PRD.md) + [`ARCHITECTURE.md`](ARCHITECTURE.md). UI in [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md). Eval methodology in [`TESTING.md`](TESTING.md). Bite narratives + audit checklists in [`SESSION_LOG.md`](SESSION_LOG.md).
 
@@ -104,17 +104,21 @@ Wave-by-wave forward plan. Each wave is a flat checklist of high-level deliverab
 
 ## Wave 5 — Demo run + hardening
 
-**Goal:** First full pilot run on 7-product gaming-laptop demo set; reproducibility proven; ready for stakeholder review.
-**Exit:** Real product-set config with all 7 products + URLs + regex · full scrape+tag+aggregate+synthesize overnight · all 7 scorecards + 10 pair briefs render cleanly · re-run produces byte-identical outputs · operator manually reviewed every brief.
+**Goal:** First full pilot run on the 59-product gaming-laptop competitive set; reproducibility proven; ready for stakeholder review.
+**Exit:** Product-set config with all 59 products + regex · staged then full scrape+tag+aggregate+synthesize · all scorecards + Alienware pair briefs render cleanly · re-run produces byte-identical outputs · operator manually reviewed every brief.
 
-- [ ] Populate demo product-set config (7 products: URLs, alias lists, attribution regex)
-- [ ] Load operator-curated YouTube + article seed lists
-- [ ] Full scrape overnight via Scheduler (verify resumability)
+- [x] Populate product-set config (59 products: aliases, attribution regex, collision-disambiguated patterns)
+- [x] Wave 5 staged run config + staged pair plan (13-product subset, 36 Alienware-anchored pairs)
+- [ ] RSS-discovery bite (`pulse_check/scraping/rss_discovery.py`) — YouTube channel RSS + review-site RSS → title filter → existing Article + YouTube fetchers; add `RSSWindow` to `SourceWindows`
+- [ ] Operator-supplied: YouTube channel handle list + review-site RSS feed URLs
+- [ ] Staged Wave 5 scrape (Reddit + Article + YouTube, 13-product subset) — verify cost, pattern accuracy, fetcher silent-drop check
+- [ ] Full Wave 5 scrape on all 59 products
 - [ ] Full aspect/deliberation/reason tagging overnight
-- [ ] Aggregation + synthesis for all pairs + all products
-- [ ] Manual review of every brief + aggregate + verbatim attribution
+- [ ] Deliberation classifier v2: `chosen_external_name` field for "tracked products lost to external winner" signal (Wave 3 carry-over, bundled before gold rebuild)
 - [ ] Aspect-tagging gold-set rebuild on filtered corpus at target N=150 (carries Wave 2 formal ≥80% closure)
 - [ ] Deliberation + reason gold-set rebuild on expanded corpus (Wave 3 carry-over: v1 corpus had zero resolved-to-tracked-product threads)
+- [ ] Aggregation + synthesis for all pairs + all products
+- [ ] Manual review of every brief + aggregate + verbatim attribution
 - [ ] Bug-fix round from review findings
 - [ ] Reproducibility test (re-run, verify cache hits + byte-identical outputs)
 - [ ] Stakeholder review prep (screenshots, narrative, talking points)
@@ -141,5 +145,4 @@ Operator-side setup running alongside code work; not blocking Wave 1 start.
 - [x] scrapers-lib editable install from sibling directory
 - [ ] Install Ollama + pull `qwen2.5:7b-q4_K_M` *(Wave 3 prereq)*
 - [ ] `playwright install chromium` *(for Tier 2/3 sources)*
-- [ ] Curate YouTube seed list (~50–75 URLs total for 10-pair demo)
-- [ ] Curate article seed list (~150–200 URLs)
+- [x] YouTube channel handle list (7 channels, resolved + channel IDs verified) and review-site RSS feed URLs (9 sites, 3 GREEN / 5 YELLOW / 1 RED) supplied at session-24 close — see `configs/wave5_rss_sources_draft.yaml`

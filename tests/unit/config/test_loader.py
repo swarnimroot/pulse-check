@@ -137,5 +137,5 @@ def test_demo_configs_parse_structurally() -> None:
     demo_run = _REPO_ROOT / "configs" / "run_demo_2026_04.yaml"
     run, product_set, pair_plan = load_run(demo_run)
     assert run.run_id == "demo_2026_04"
-    assert len(product_set.products) == 7
+    assert len(product_set.products) == 59
     assert len(pair_plan.pairs) == 10

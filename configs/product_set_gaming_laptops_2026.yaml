@@ -1,9 +1,24 @@
-# Demo product set for the Wave 5 pilot run (PRD §9).
-# TODO Wave 5: fill in real URLs (bestbuy / amazon / manufacturer) + curated
-#   youtube_seeds + article_seeds per product. Attribution patterns below are
-#   a first pass and will iterate during the first scrape.
+# Product set for the Wave 5 pilot run (PRD §9, operator-locked 2026-05-12).
+#
+# 59 products covering the 2025-2026 gaming-laptop competitive set.
+# Multi-size lines split into separate products per operator (D9, D10, D11).
+# Chip variants (Intel/AMD) merged into single products per operator (D13, D14).
+#
+# Pattern engineering notes:
+#   - Source text is lowercased before matching (see anchors.py); patterns use
+#     lowercase regex only.
+#   - Word boundaries (\b) mandatory at edges.
+#   - High-collision SKUs disambiguated with negative lookahead/lookbehind:
+#     Omen 16 vs Omen Max/Slim/Transcend 16; Helios vs Helios Neo vs Predator
+#     Neo 16s; Strix G vs Strix Scar vs Zephyrus; Legion 5/5i/5 Pro/7/7i/7 Pro.
+#   - urls: {} for all — operator chose not to scrape retailer / manufacturer
+#     / hand-seeded YouTube/Article URLs. Article + YouTube come in via the
+#     rss_discovery bite (session 25) — see SESSION_LOG.
 
 products:
+  # -------------------------------------------------------------------------
+  # Alienware (4)
+  # -------------------------------------------------------------------------
   - product_id: alienware_16_aurora
     display_name: "Alienware 16 Aurora"
     brand: "Alienware"
@@ -30,6 +45,39 @@ products:
         - "\\baurora\\s+16x\\b"
     urls: {}
 
+  - product_id: alienware_16_area_51
+    display_name: "Alienware 16 Area-51"
+    brand: "Alienware"
+    aliases:
+      - "Area-51 16"
+      - "Alienware Area 51 16"
+      - "16 Area-51"
+    attribution_patterns:
+      primary:
+        - "\\balienware\\s+16\\s+area[-\\s]?51\\b"
+        - "\\barea[-\\s]?51\\s+16\\b"
+        - "\\b16\\s+area[-\\s]?51\\b"
+    urls: {}
+
+  - product_id: alienware_18_area_51
+    display_name: "Alienware 18 Area-51"
+    brand: "Alienware"
+    aliases:
+      - "Area-51 18"
+      - "Alienware Area 51 18"
+      - "18 Area-51"
+    attribution_patterns:
+      primary:
+        - "\\balienware\\s+18\\s+area[-\\s]?51\\b"
+        - "\\barea[-\\s]?51\\s+18\\b"
+        - "\\b18\\s+area[-\\s]?51\\b"
+    urls: {}
+
+  # -------------------------------------------------------------------------
+  # ASUS ROG (9) — Strix G + Strix Scar + Zephyrus + Flow
+  # COLLISION GROUP: Strix G16 / Strix Scar 16 / Zephyrus G16 all 16-inch ROG.
+  # Each pattern REQUIRES the line word (Strix / Scar / Zephyrus).
+  # -------------------------------------------------------------------------
   - product_id: rog_strix_g16
     display_name: "ROG Strix G16"
     brand: "ASUS ROG"
@@ -42,41 +90,196 @@ products:
         - "\\bstrix\\s+g16\\b"
     urls: {}
 
-  - product_id: rog_tuf_16
-    display_name: "ROG TUF 16"
+  - product_id: rog_strix_g17
+    display_name: "ROG Strix G17"
     brand: "ASUS ROG"
+    aliases:
+      - "Strix G17"
+      - "ROG G17"
+    attribution_patterns:
+      primary:
+        - "\\brog\\s+strix\\s+g17\\b"
+        - "\\bstrix\\s+g17\\b"
+    urls: {}
+
+  - product_id: rog_strix_g18
+    display_name: "ROG Strix G18"
+    brand: "ASUS ROG"
+    aliases:
+      - "Strix G18"
+      - "ROG G18"
+    attribution_patterns:
+      primary:
+        - "\\brog\\s+strix\\s+g18\\b"
+        - "\\bstrix\\s+g18\\b"
+    urls: {}
+
+  - product_id: rog_strix_scar_16
+    display_name: "ROG Strix Scar 16"
+    brand: "ASUS ROG"
+    aliases:
+      - "Strix Scar 16"
+      - "ROG Scar 16"
+      - "Scar 16"
+    attribution_patterns:
+      primary:
+        - "\\brog\\s+strix\\s+scar\\s+16\\b"
+        - "\\bstrix\\s+scar\\s+16\\b"
+        - "\\bscar\\s+16\\b"
+    urls: {}
+
+  - product_id: rog_strix_scar_18
+    display_name: "ROG Strix Scar 18"
+    brand: "ASUS ROG"
+    aliases:
+      - "Strix Scar 18"
+      - "ROG Scar 18"
+      - "Scar 18"
+    attribution_patterns:
+      primary:
+        - "\\brog\\s+strix\\s+scar\\s+18\\b"
+        - "\\bstrix\\s+scar\\s+18\\b"
+        - "\\bscar\\s+18\\b"
+    urls: {}
+
+  - product_id: rog_zephyrus_g14
+    display_name: "ROG Zephyrus G14"
+    brand: "ASUS ROG"
+    aliases:
+      - "Zephyrus G14"
+      - "ROG G14"
+      - "Asus G14"
+    attribution_patterns:
+      primary:
+        - "\\brog\\s+zephyrus\\s+g14\\b"
+        - "\\bzephyrus\\s+g14\\b"
+    urls: {}
+
+  - product_id: rog_zephyrus_g16
+    display_name: "ROG Zephyrus G16"
+    brand: "ASUS ROG"
+    aliases:
+      - "Zephyrus G16"
+      - "ROG Zephyrus 16"
+    attribution_patterns:
+      primary:
+        - "\\brog\\s+zephyrus\\s+g16\\b"
+        - "\\bzephyrus\\s+g16\\b"
+        - "\\bzephyrus\\s+16\\b"
+    urls: {}
+
+  - product_id: rog_flow_z13
+    display_name: "ROG Flow Z13"
+    brand: "ASUS ROG"
+    aliases:
+      - "Flow Z13"
+      - "ROG Flow 13"
+      - "Flow 13"
+    attribution_patterns:
+      primary:
+        - "\\brog\\s+flow\\s+z?13\\b"
+        - "\\bflow\\s+z?13\\b"
+    urls: {}
+
+  - product_id: rog_flow_x16
+    display_name: "ROG Flow X16"
+    brand: "ASUS ROG"
+    aliases:
+      - "Flow X16"
+      - "ROG Flow 16"
+      - "Flow 16"
+    attribution_patterns:
+      primary:
+        - "\\brog\\s+flow\\s+x?16\\b"
+        - "\\bflow\\s+x?16\\b"
+    urls: {}
+
+  # -------------------------------------------------------------------------
+  # ASUS non-ROG (5) — TUF Gaming + Vivobook V16
+  # NOTE: TUF F (Intel) and TUF A (AMD) chip variants MERGED per D13 — one
+  # product per screen size, pattern tolerates optional A/F letter.
+  # -------------------------------------------------------------------------
+  - product_id: asus_tuf_14
+    display_name: "ASUS TUF Gaming 14"
+    brand: "ASUS"
+    aliases:
+      - "TUF 14"
+      - "ASUS TUF 14"
+      - "TUF Gaming 14"
+      - "TUF A14"
+    attribution_patterns:
+      primary:
+        - "\\basus\\s+tuf\\s+(?:gaming\\s+)?(?:a|f)?14\\b"
+        - "\\btuf\\s+(?:gaming\\s+)?(?:a|f)?14\\b"
+    urls: {}
+
+  - product_id: asus_tuf_15
+    display_name: "ASUS TUF Gaming 15"
+    brand: "ASUS"
+    aliases:
+      - "TUF 15"
+      - "ASUS TUF 15"
+      - "TUF Gaming 15"
+      - "TUF A15"
+      - "TUF F15"
+    attribution_patterns:
+      primary:
+        - "\\basus\\s+tuf\\s+(?:gaming\\s+)?(?:a|f)?15\\b"
+        - "\\btuf\\s+(?:gaming\\s+)?(?:a|f)?15\\b"
+    urls: {}
+
+  # RENAMED from rog_tuf_16 (bugfix: TUF is the ASUS gaming line, not ROG).
+  - product_id: asus_tuf_16
+    display_name: "ASUS TUF Gaming 16"
+    brand: "ASUS"
     aliases:
       - "TUF 16"
       - "ASUS TUF 16"
+      - "TUF Gaming 16"
+      - "TUF A16"
+      - "TUF F16"
     attribution_patterns:
       primary:
-        - "\\brog\\s+tuf\\s+16\\b"
-        - "\\btuf\\s+16\\b"
+        - "\\basus\\s+tuf\\s+(?:gaming\\s+)?(?:a|f)?16\\b"
+        - "\\btuf\\s+(?:gaming\\s+)?(?:a|f)?16\\b"
     urls: {}
 
-  - product_id: legion_5_pro
-    display_name: "Lenovo Legion 5 Pro"
-    brand: "Lenovo"
+  - product_id: asus_tuf_17
+    display_name: "ASUS TUF Gaming 17"
+    brand: "ASUS"
     aliases:
-      - "Legion 5 Pro"
-      - "Legion Pro 5"
+      - "TUF 17"
+      - "ASUS TUF 17"
+      - "TUF Gaming 17"
+      - "TUF A17"
+      - "TUF F17"
     attribution_patterns:
       primary:
-        - "\\blegion\\s+5\\s*pro\\b"
-        - "\\blegion\\s+pro\\s+5\\b"
+        - "\\basus\\s+tuf\\s+(?:gaming\\s+)?(?:a|f)?17\\b"
+        - "\\btuf\\s+(?:gaming\\s+)?(?:a|f)?17\\b"
     urls: {}
 
-  - product_id: legion_7i
-    display_name: "Lenovo Legion 7i"
-    brand: "Lenovo"
+  # COLLISION: "V16" bare is too generic — require "asus" or "vivobook" qualifier.
+  - product_id: asus_v16
+    display_name: "ASUS V16 Gaming"
+    brand: "ASUS"
     aliases:
-      - "Legion 7i"
-      - "Legion 7"
+      - "ASUS V16"
+      - "Vivobook V16"
+      - "V16 Gaming"
     attribution_patterns:
       primary:
-        - "\\blegion\\s+7i\\b"
+        - "\\basus\\s+v16\\b"
+        - "\\bvivobook\\s+(?:gaming\\s+)?v16\\b"
+        - "\\bv16\\s+gaming\\b"
     urls: {}
 
+  # -------------------------------------------------------------------------
+  # HP (7) — Omen line + Victus
+  # COLLISION GROUP: Omen 16 / Omen Max 16 / Omen Slim 16 / Omen Transcend 16.
+  # hp_omen_16 pattern uses negative lookbehind to reject the qualifiers.
+  # -------------------------------------------------------------------------
+  # REWORKED: previous pattern \bomen\s+16\b false-positives on Max/Slim/Transcend.
   - product_id: hp_omen_16
     display_name: "HP Omen 16"
     brand: "HP"
@@ -85,6 +288,530 @@ products:
       - "HP OMEN 16"
     attribution_patterns:
       primary:
-        - "\\bhp\\s+omen\\s+16\\b"
-        - "\\bomen\\s+16\\b"
+        - "\\bhp\\s+omen\\s+16\\b(?!\\s+(?:max|slim|transcend))"
+        - "(?<!max\\s)(?<!slim\\s)(?<!transcend\\s)\\bomen\\s+16\\b"
+    urls: {}
+
+  - product_id: hp_omen_17
+    display_name: "HP Omen 17"
+    brand: "HP"
+    aliases:
+      - "Omen 17"
+      - "HP OMEN 17"
+    attribution_patterns:
+      primary:
+        - "\\bhp\\s+omen\\s+17\\b"
+        - "(?<!max\\s)(?<!slim\\s)(?<!transcend\\s)\\bomen\\s+17\\b"
+    urls: {}
+
+  - product_id: hp_omen_max_16
+    display_name: "HP Omen Max 16"
+    brand: "HP"
+    aliases:
+      - "Omen Max 16"
+      - "HP OMEN Max 16"
+      - "Omen Max"
+    attribution_patterns:
+      primary:
+        - "\\bhp\\s+omen\\s+max\\s+16\\b"
+        - "\\bomen\\s+max\\s+16\\b"
+        - "\\bomen\\s+max\\b(?!\\s+1[78])"
+    urls: {}
+
+  - product_id: hp_omen_slim_16
+    display_name: "HP Omen Slim 16"
+    brand: "HP"
+    aliases:
+      - "Omen Slim 16"
+      - "HP OMEN Slim 16"
+    attribution_patterns:
+      primary:
+        - "\\bhp\\s+omen\\s+slim\\s+16\\b"
+        - "\\bomen\\s+slim\\s+16\\b"
+    urls: {}
+
+  - product_id: hp_omen_transcend_14
+    display_name: "HP Omen Transcend 14"
+    brand: "HP"
+    aliases:
+      - "Omen Transcend 14"
+      - "HP OMEN Transcend 14"
+      - "Transcend 14"
+    attribution_patterns:
+      primary:
+        - "\\bhp\\s+omen\\s+transcend\\s+14\\b"
+        - "\\bomen\\s+transcend\\s+14\\b"
+    urls: {}
+
+  - product_id: hp_omen_transcend_16
+    display_name: "HP Omen Transcend 16"
+    brand: "HP"
+    aliases:
+      - "Omen Transcend 16"
+      - "HP OMEN Transcend 16"
+      - "Transcend 16"
+    attribution_patterns:
+      primary:
+        - "\\bhp\\s+omen\\s+transcend\\s+16\\b"
+        - "\\bomen\\s+transcend\\s+16\\b"
+    urls: {}
+
+  - product_id: hp_victus_15
+    display_name: "HP Victus 15"
+    brand: "HP"
+    aliases:
+      - "Victus 15"
+      - "HP Victus 15"
+    attribution_patterns:
+      primary:
+        - "\\bhp\\s+victus\\s+15\\b"
+        - "\\bvictus\\s+15\\b"
+    urls: {}
+
+  # -------------------------------------------------------------------------
+  # Acer (10) — Nitro + Predator Helios + Helios Neo + Predator Neo 16s + Triton
+  # COLLISION GROUP: Helios 16 vs Helios Neo 16 vs Predator Neo 16s (3 distinct
+  # SKUs sharing tokens). Helios patterns use negative lookahead to reject
+  # Neo trailing; Helios Neo requires explicit "neo"; Predator Neo 16s
+  # REQUIRES the `s` suffix per D15.
+  # -------------------------------------------------------------------------
+  - product_id: acer_nitro_14
+    display_name: "Acer Nitro 14"
+    brand: "Acer"
+    aliases:
+      - "Nitro 14"
+      - "Acer Nitro 14"
+    attribution_patterns:
+      primary:
+        - "\\bacer\\s+nitro\\s+14\\b"
+        - "\\bnitro\\s+14\\b"
+    urls: {}
+
+  - product_id: acer_nitro_15
+    display_name: "Acer Nitro 15"
+    brand: "Acer"
+    aliases:
+      - "Nitro 15"
+      - "Acer Nitro 15"
+      - "Nitro 5"
+    attribution_patterns:
+      primary:
+        - "\\bacer\\s+nitro\\s+15\\b"
+        - "\\bnitro\\s+15\\b"
+        - "\\bnitro\\s+5\\b"
+    urls: {}
+
+  - product_id: acer_nitro_16
+    display_name: "Acer Nitro 16"
+    brand: "Acer"
+    aliases:
+      - "Nitro 16"
+      - "Acer Nitro 16"
+    attribution_patterns:
+      primary:
+        - "\\bacer\\s+nitro\\s+16\\b"
+        - "\\bnitro\\s+16\\b"
+    urls: {}
+
+  - product_id: acer_nitro_17
+    display_name: "Acer Nitro 17"
+    brand: "Acer"
+    aliases:
+      - "Nitro 17"
+      - "Acer Nitro 17"
+    attribution_patterns:
+      primary:
+        - "\\bacer\\s+nitro\\s+17\\b"
+        - "\\bnitro\\s+17\\b"
+    urls: {}
+
+  # COLLISION: must NOT match "Helios Neo 16" (separate SKU).
+  - product_id: acer_predator_helios_16
+    display_name: "Acer Predator Helios 16"
+    brand: "Acer"
+    aliases:
+      - "Helios 16"
+      - "Predator Helios 16"
+    attribution_patterns:
+      primary:
+        - "\\bpredator\\s+helios\\s+16\\b"
+        - "\\bhelios\\s+16\\b"
+      secondary:
+        - "\\bacer\\s+helios\\s+16\\b"
+
+  - product_id: acer_predator_helios_18
+    display_name: "Acer Predator Helios 18"
+    brand: "Acer"
+    aliases:
+      - "Helios 18"
+      - "Predator Helios 18"
+    attribution_patterns:
+      primary:
+        - "\\bpredator\\s+helios\\s+18\\b"
+        - "\\bhelios\\s+18\\b"
+      secondary:
+        - "\\bacer\\s+helios\\s+18\\b"
+
+  - product_id: acer_predator_helios_neo_16
+    display_name: "Acer Predator Helios Neo 16"
+    brand: "Acer"
+    aliases:
+      - "Helios Neo 16"
+      - "Predator Helios Neo 16"
+      - "Helios Neo"
+    attribution_patterns:
+      primary:
+        - "\\bpredator\\s+helios\\s+neo\\s+16\\b"
+        - "\\bhelios\\s+neo\\s+16\\b"
+    urls: {}
+
+  - product_id: acer_predator_helios_neo_18
+    display_name: "Acer Predator Helios Neo 18"
+    brand: "Acer"
+    aliases:
+      - "Helios Neo 18"
+      - "Predator Helios Neo 18"
+    attribution_patterns:
+      primary:
+        - "\\bpredator\\s+helios\\s+neo\\s+18\\b"
+        - "\\bhelios\\s+neo\\s+18\\b"
+    urls: {}
+
+  # COLLISION: distinct SKU from Helios Neo. `s` suffix REQUIRED per D15 to
+  # prevent false-positive on "Predator Neo 16" (which collides with Helios Neo).
+  # False negatives on dropped `s` accepted.
+  - product_id: acer_predator_neo_16s
+    display_name: "Acer Predator Neo 16s"
+    brand: "Acer"
+    aliases:
+      - "Predator Neo 16s"
+      - "Neo 16s"
+    attribution_patterns:
+      primary:
+        - "\\bpredator\\s+neo\\s+16s\\b"
+        - "(?<!helios\\s)\\bneo\\s+16s\\b"
+    urls: {}
+
+  - product_id: acer_predator_triton_14
+    display_name: "Acer Predator Triton 14"
+    brand: "Acer"
+    aliases:
+      - "Predator Triton 14"
+      - "Triton 14"
+    attribution_patterns:
+      primary:
+        - "\\bpredator\\s+triton\\s+14\\b"
+        - "\\btriton\\s+14\\b"
+    urls: {}
+
+  # -------------------------------------------------------------------------
+  # Lenovo (8) — LOQ + Legion
+  # COLLISION GROUP: Legion 5 / 5i / 5 Pro / 5i Pro / Legion 7 / 7i / 7 Pro /
+  # 7i Pro / Legion 9 / 9i. Chip variants (i = Intel, no-i = AMD) MERGED per
+  # D14: 5 Pro covers 5i Pro, 7 Pro covers 7i Pro. legion_7i (Intel non-Pro)
+  # stays separate per operator's explicit list. Legion Slim dropped per D10.
+  # -------------------------------------------------------------------------
+  - product_id: lenovo_loq_15
+    display_name: "Lenovo LOQ 15"
+    brand: "Lenovo"
+    aliases:
+      - "LOQ 15"
+      - "Lenovo LOQ 15"
+    attribution_patterns:
+      primary:
+        - "\\blenovo\\s+loq\\s+15\\b"
+        - "\\bloq\\s+15\\b"
+    urls: {}
+
+  - product_id: lenovo_loq_17
+    display_name: "Lenovo LOQ 17"
+    brand: "Lenovo"
+    aliases:
+      - "LOQ 17"
+      - "Lenovo LOQ 17"
+    attribution_patterns:
+      primary:
+        - "\\blenovo\\s+loq\\s+17\\b"
+        - "\\bloq\\s+17\\b"
+    urls: {}
+
+  # COLLISION: must NOT match "Legion 5 Pro", "Legion 5i", "Legion 5 16/17/18".
+  - product_id: lenovo_legion_5_15
+    display_name: "Lenovo Legion 5 (15-inch)"
+    brand: "Lenovo"
+    aliases:
+      - "Legion 5"
+      - "Legion 5 15"
+      - "Lenovo Legion 5"
+    attribution_patterns:
+      primary:
+        - "\\blegion\\s+5\\b(?!i)(?!\\s*pro)(?!\\s*1[678])"
+        - "\\blegion\\s+5\\s+15\\b"
+    urls: {}
+
+  # RENAMED from legion_5_pro (adds explicit size + merges Intel "5i Pro").
+  - product_id: lenovo_legion_5_pro_16
+    display_name: "Lenovo Legion 5 Pro 16 (incl. 5i Pro)"
+    brand: "Lenovo"
+    aliases:
+      - "Legion 5 Pro"
+      - "Legion 5i Pro"
+      - "Legion Pro 5"
+      - "Legion 5 Pro 16"
+    attribution_patterns:
+      primary:
+        - "\\blegion\\s+5i?\\s*pro\\s+16\\b"
+        - "\\blegion\\s+5i?\\s*pro\\b(?!\\s+1[578])"
+        - "\\blegion\\s+pro\\s+5i?\\b"
+    urls: {}
+
+  # COLLISION: must NOT match "Legion 7i", "Legion 7 Pro", "Legion 7i Pro".
+  - product_id: lenovo_legion_7
+    display_name: "Lenovo Legion 7 (AMD, non-Pro)"
+    brand: "Lenovo"
+    aliases:
+      - "Legion 7"
+      - "Lenovo Legion 7"
+    attribution_patterns:
+      primary:
+        - "\\blegion\\s+7\\b(?!i)(?!\\s*pro)(?!\\s*1[68])"
+    urls: {}
+
+  # REWORKED: tightened from prior pattern; dropped bad "Legion 7" alias.
+  - product_id: legion_7i
+    display_name: "Lenovo Legion 7i"
+    brand: "Lenovo"
+    aliases:
+      - "Legion 7i"
+      - "Lenovo Legion 7i"
+    attribution_patterns:
+      primary:
+        - "\\blegion\\s+7i\\b(?!\\s*pro)"
+    urls: {}
+
+  - product_id: lenovo_legion_7_pro_16
+    display_name: "Lenovo Legion 7 Pro 16 (incl. 7i Pro)"
+    brand: "Lenovo"
+    aliases:
+      - "Legion 7 Pro"
+      - "Legion 7i Pro"
+      - "Legion Pro 7"
+      - "Legion 7 Pro 16"
+    attribution_patterns:
+      primary:
+        - "\\blegion\\s+7i?\\s*pro\\s+16\\b"
+        - "\\blegion\\s+7i?\\s*pro\\b(?!\\s+1[78])"
+        - "\\blegion\\s+pro\\s+7i?\\b"
+    urls: {}
+
+  - product_id: lenovo_legion_9
+    display_name: "Lenovo Legion 9i"
+    brand: "Lenovo"
+    aliases:
+      - "Legion 9"
+      - "Legion 9i"
+    attribution_patterns:
+      primary:
+        - "\\blegion\\s+9i?\\b"
+    urls: {}
+
+  # -------------------------------------------------------------------------
+  # MSI (16) — Crosshair + Katana + Cyborg + Vector + Raider + Titan + Stealth
+  # All patterns REQUIRE the line word (e.g. "crosshair", "katana") — bare
+  # "MSI 16" alone is too ambiguous.
+  # -------------------------------------------------------------------------
+  - product_id: msi_crosshair_16
+    display_name: "MSI Crosshair 16"
+    brand: "MSI"
+    aliases:
+      - "Crosshair 16"
+      - "MSI Crosshair 16"
+    attribution_patterns:
+      primary:
+        - "\\bmsi\\s+crosshair\\s+16\\b"
+        - "\\bcrosshair\\s+16\\b"
+    urls: {}
+
+  - product_id: msi_crosshair_17
+    display_name: "MSI Crosshair 17"
+    brand: "MSI"
+    aliases:
+      - "Crosshair 17"
+      - "MSI Crosshair 17"
+    attribution_patterns:
+      primary:
+        - "\\bmsi\\s+crosshair\\s+17\\b"
+        - "\\bcrosshair\\s+17\\b"
+    urls: {}
+
+  - product_id: msi_crosshair_18
+    display_name: "MSI Crosshair 18"
+    brand: "MSI"
+    aliases:
+      - "Crosshair 18"
+      - "MSI Crosshair 18"
+    attribution_patterns:
+      primary:
+        - "\\bmsi\\s+crosshair\\s+18\\b"
+        - "\\bcrosshair\\s+18\\b"
+    urls: {}
+
+  - product_id: msi_katana_15
+    display_name: "MSI Katana 15"
+    brand: "MSI"
+    aliases:
+      - "Katana 15"
+      - "MSI Katana 15"
+    attribution_patterns:
+      primary:
+        - "\\bmsi\\s+katana\\s+15\\b"
+        - "\\bkatana\\s+15\\b"
+    urls: {}
+
+  - product_id: msi_katana_17
+    display_name: "MSI Katana 17"
+    brand: "MSI"
+    aliases:
+      - "Katana 17"
+      - "MSI Katana 17"
+    attribution_patterns:
+      primary:
+        - "\\bmsi\\s+katana\\s+17\\b"
+        - "\\bkatana\\s+17\\b"
+    urls: {}
+
+  - product_id: msi_cyborg_14
+    display_name: "MSI Cyborg 14"
+    brand: "MSI"
+    aliases:
+      - "Cyborg 14"
+      - "MSI Cyborg 14"
+    attribution_patterns:
+      primary:
+        - "\\bmsi\\s+cyborg\\s+14\\b"
+        - "\\bcyborg\\s+14\\b"
+    urls: {}
+
+  - product_id: msi_cyborg_15
+    display_name: "MSI Cyborg 15"
+    brand: "MSI"
+    aliases:
+      - "Cyborg 15"
+      - "MSI Cyborg 15"
+    attribution_patterns:
+      primary:
+        - "\\bmsi\\s+cyborg\\s+15\\b"
+        - "\\bcyborg\\s+15\\b"
+    urls: {}
+
+  - product_id: msi_cyborg_17
+    display_name: "MSI Cyborg 17"
+    brand: "MSI"
+    aliases:
+      - "Cyborg 17"
+      - "MSI Cyborg 17"
+    attribution_patterns:
+      primary:
+        - "\\bmsi\\s+cyborg\\s+17\\b"
+        - "\\bcyborg\\s+17\\b"
+    urls: {}
+
+  - product_id: msi_vector_16
+    display_name: "MSI Vector 16"
+    brand: "MSI"
+    aliases:
+      - "Vector 16"
+      - "MSI Vector 16"
+    attribution_patterns:
+      primary:
+        - "\\bmsi\\s+vector\\s+16\\b"
+        - "\\bvector\\s+16\\b"
+    urls: {}
+
+  - product_id: msi_vector_17
+    display_name: "MSI Vector 17"
+    brand: "MSI"
+    aliases:
+      - "Vector 17"
+      - "MSI Vector 17"
+    attribution_patterns:
+      primary:
+        - "\\bmsi\\s+vector\\s+17\\b"
+        - "\\bvector\\s+17\\b"
+    urls: {}
+
+  - product_id: msi_vector_18
+    display_name: "MSI Vector 18"
+    brand: "MSI"
+    aliases:
+      - "Vector 18"
+      - "MSI Vector 18"
+    attribution_patterns:
+      primary:
+        - "\\bmsi\\s+vector\\s+18\\b"
+        - "\\bvector\\s+18\\b"
+    urls: {}
+
+  - product_id: msi_raider_16
+    display_name: "MSI Raider 16"
+    brand: "MSI"
+    aliases:
+      - "Raider 16"
+      - "MSI Raider 16"
+      - "Raider GE76"
+    attribution_patterns:
+      primary:
+        - "\\bmsi\\s+raider\\s+(?:ge)?16\\b"
+        - "\\braider\\s+(?:ge)?16\\b"
+    urls: {}
+
+  - product_id: msi_raider_18
+    display_name: "MSI Raider 18"
+    brand: "MSI"
+    aliases:
+      - "Raider 18"
+      - "MSI Raider 18"
+      - "Raider GE78"
+    attribution_patterns:
+      primary:
+        - "\\bmsi\\s+raider\\s+(?:ge)?18\\b"
+        - "\\braider\\s+(?:ge)?18\\b"
+    urls: {}
+
+  - product_id: msi_titan_18
+    display_name: "MSI Titan 18"
+    brand: "MSI"
+    aliases:
+      - "Titan 18"
+      - "MSI Titan 18"
+      - "Titan GT77"
+    attribution_patterns:
+      primary:
+        - "\\bmsi\\s+titan\\s+(?:gt)?18\\b"
+        - "\\btitan\\s+(?:gt)?18\\b"
+    urls: {}
+
+  - product_id: msi_stealth_16
+    display_name: "MSI Stealth 16"
+    brand: "MSI"
+    aliases:
+      - "Stealth 16"
+      - "MSI Stealth 16"
+    attribution_patterns:
+      primary:
+        - "\\bmsi\\s+stealth\\s+16\\b"
+        - "\\bstealth\\s+16\\b"
+    urls: {}
+
+  - product_id: msi_stealth_18
+    display_name: "MSI Stealth 18"
+    brand: "MSI"
+    aliases:
+      - "Stealth 18"
+      - "MSI Stealth 18"
+      - "Stealth GS77"
+    attribution_patterns:
+      primary:
+        - "\\bmsi\\s+stealth\\s+18\\b"
+        - "\\bstealth\\s+18\\b"
     urls: {}

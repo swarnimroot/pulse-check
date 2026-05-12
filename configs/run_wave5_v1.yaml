@@ -1,0 +1,43 @@
+# Wave 5 first scrape (PRD §9, operator-locked 2026-05-12).
+#
+# Staged on a 13-product subset of the full 59-product universe (4 Alienware
+# flagships + 9 nearest competitors). See pair_plan_wave5_staged.yaml.
+# Full-universe scrape follows once the staged scrape validates pattern
+# accuracy and cost.
+#
+# Source posture for the first scrape:
+#   - reddit:    ENABLED, 12 subreddits, 6-month backfill.
+#   - article:   DISABLED for the staged scrape. Will be flipped on by the
+#                rss_discovery bite (session 25) which wires per-site RSS
+#                feeds → title filter → existing Article fetcher.
+#   - youtube:   DISABLED for the same reason. Same rss_discovery bite wires
+#                per-channel RSS → title filter → existing YouTube fetcher.
+#   - bestbuy/amazon: DISABLED — retailer fetchers deferred per bite 6.4.
+#                Operator out of scope for this pilot.
+
+run_id: wave5_v1
+product_set: product_set_gaming_laptops_2026.yaml
+pair_plan: pair_plan_wave5_staged.yaml
+source_windows:
+  reddit:
+    enabled: true
+    backfill_months: 6
+    subreddits:
+      # Existing 6 (v1 corpus base):
+      - GamingLaptops
+      - SuggestALaptop
+      - buildapc
+      - laptops
+      - Alienware
+      - LenovoLegion
+      # New 6 (brand subs + deal-discussion):
+      - ROG
+      - ASUS
+      - MSILaptops
+      - AcerOfficial
+      - OmenByHP
+      - LaptopDeals
+  # article + youtube will be enabled when session-25 rss_discovery bite lands;
+  # leaving them omitted (None) keeps the orchestrator from enqueueing empty
+  # per-product-seed jobs in the meantime.
+taxonomy_version: v0

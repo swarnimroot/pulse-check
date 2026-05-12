@@ -1,0 +1,132 @@
+# Wave 5 staged pair plan — 4 Alienware models × 9 competitors = 36 pairs.
+#
+# Used for the FIRST Wave 5 scrape (session 26) which covers a 13-product
+# subset of the full ~59-product universe (operator-locked 2026-05-12).
+# Full-universe pair plan to follow in a later wave.
+#
+# Pair-direction convention: primary = Alienware (manufacturer POV).
+
+pairs:
+  # -------------------------------------------------------------------------
+  # Alienware 16 Aurora vs 9 competitors
+  # -------------------------------------------------------------------------
+  - pair_id: alienware_16_aurora_vs_hp_victus_15
+    primary: alienware_16_aurora
+    comparator: hp_victus_15
+  - pair_id: alienware_16_aurora_vs_rog_strix_g16
+    primary: alienware_16_aurora
+    comparator: rog_strix_g16
+  - pair_id: alienware_16_aurora_vs_rog_zephyrus_g16
+    primary: alienware_16_aurora
+    comparator: rog_zephyrus_g16
+  - pair_id: alienware_16_aurora_vs_asus_tuf_15
+    primary: alienware_16_aurora
+    comparator: asus_tuf_15
+  - pair_id: alienware_16_aurora_vs_asus_tuf_16
+    primary: alienware_16_aurora
+    comparator: asus_tuf_16
+  - pair_id: alienware_16_aurora_vs_lenovo_loq_15
+    primary: alienware_16_aurora
+    comparator: lenovo_loq_15
+  - pair_id: alienware_16_aurora_vs_lenovo_legion_5_pro_16
+    primary: alienware_16_aurora
+    comparator: lenovo_legion_5_pro_16
+  - pair_id: alienware_16_aurora_vs_lenovo_legion_7
+    primary: alienware_16_aurora
+    comparator: lenovo_legion_7
+  - pair_id: alienware_16_aurora_vs_lenovo_legion_7_pro_16
+    primary: alienware_16_aurora
+    comparator: lenovo_legion_7_pro_16
+
+  # -------------------------------------------------------------------------
+  # Alienware 16x Aurora vs 9 competitors
+  # -------------------------------------------------------------------------
+  - pair_id: alienware_16x_aurora_vs_hp_victus_15
+    primary: alienware_16x_aurora
+    comparator: hp_victus_15
+  - pair_id: alienware_16x_aurora_vs_rog_strix_g16
+    primary: alienware_16x_aurora
+    comparator: rog_strix_g16
+  - pair_id: alienware_16x_aurora_vs_rog_zephyrus_g16
+    primary: alienware_16x_aurora
+    comparator: rog_zephyrus_g16
+  - pair_id: alienware_16x_aurora_vs_asus_tuf_15
+    primary: alienware_16x_aurora
+    comparator: asus_tuf_15
+  - pair_id: alienware_16x_aurora_vs_asus_tuf_16
+    primary: alienware_16x_aurora
+    comparator: asus_tuf_16
+  - pair_id: alienware_16x_aurora_vs_lenovo_loq_15
+    primary: alienware_16x_aurora
+    comparator: lenovo_loq_15
+  - pair_id: alienware_16x_aurora_vs_lenovo_legion_5_pro_16
+    primary: alienware_16x_aurora
+    comparator: lenovo_legion_5_pro_16
+  - pair_id: alienware_16x_aurora_vs_lenovo_legion_7
+    primary: alienware_16x_aurora
+    comparator: lenovo_legion_7
+  - pair_id: alienware_16x_aurora_vs_lenovo_legion_7_pro_16
+    primary: alienware_16x_aurora
+    comparator: lenovo_legion_7_pro_16
+
+  # -------------------------------------------------------------------------
+  # Alienware 16 Area-51 vs 9 competitors
+  # -------------------------------------------------------------------------
+  - pair_id: alienware_16_area_51_vs_hp_victus_15
+    primary: alienware_16_area_51
+    comparator: hp_victus_15
+  - pair_id: alienware_16_area_51_vs_rog_strix_g16
+    primary: alienware_16_area_51
+    comparator: rog_strix_g16
+  - pair_id: alienware_16_area_51_vs_rog_zephyrus_g16
+    primary: alienware_16_area_51
+    comparator: rog_zephyrus_g16
+  - pair_id: alienware_16_area_51_vs_asus_tuf_15
+    primary: alienware_16_area_51
+    comparator: asus_tuf_15
+  - pair_id: alienware_16_area_51_vs_asus_tuf_16
+    primary: alienware_16_area_51
+    comparator: asus_tuf_16
+  - pair_id: alienware_16_area_51_vs_lenovo_loq_15
+    primary: alienware_16_area_51
+    comparator: lenovo_loq_15
+  - pair_id: alienware_16_area_51_vs_lenovo_legion_5_pro_16
+    primary: alienware_16_area_51
+    comparator: lenovo_legion_5_pro_16
+  - pair_id: alienware_16_area_51_vs_lenovo_legion_7
+    primary: alienware_16_area_51
+    comparator: lenovo_legion_7
+  - pair_id: alienware_16_area_51_vs_lenovo_legion_7_pro_16
+    primary: alienware_16_area_51
+    comparator: lenovo_legion_7_pro_16
+
+  # -------------------------------------------------------------------------
+  # Alienware 18 Area-51 vs 9 competitors
+  # -------------------------------------------------------------------------
+  - pair_id: alienware_18_area_51_vs_hp_victus_15
+    primary: alienware_18_area_51
+    comparator: hp_victus_15
+  - pair_id: alienware_18_area_51_vs_rog_strix_g16
+    primary: alienware_18_area_51
+    comparator: rog_strix_g16
+  - pair_id: alienware_18_area_51_vs_rog_zephyrus_g16
+    primary: alienware_18_area_51
+    comparator: rog_zephyrus_g16
+  - pair_id: alienware_18_area_51_vs_asus_tuf_15
+    primary: alienware_18_area_51
+    comparator: asus_tuf_15
+  - pair_id: alienware_18_area_51_vs_asus_tuf_16
+    primary: alienware_18_area_51
+    comparator: asus_tuf_16
+  - pair_id: alienware_18_area_51_vs_lenovo_loq_15
+    primary: alienware_18_area_51
+    comparator: lenovo_loq_15
+  - pair_id: alienware_18_area_51_vs_lenovo_legion_5_pro_16
+    primary: alienware_18_area_51
+    comparator: lenovo_legion_5_pro_16
+  - pair_id: alienware_18_area_51_vs_lenovo_legion_7
+    primary: alienware_18_area_51
+    comparator: lenovo_legion_7
+  - pair_id: alienware_18_area_51_vs_lenovo_legion_7_pro_16
+    primary: alienware_18_area_51
+    comparator: lenovo_legion_7_pro_16

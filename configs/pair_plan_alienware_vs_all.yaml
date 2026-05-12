@@ -5,12 +5,12 @@ pairs:
   - pair_id: alienware_16_aurora_vs_rog_strix_g16
     primary: alienware_16_aurora
     comparator: rog_strix_g16
-  - pair_id: alienware_16_aurora_vs_rog_tuf_16
+  - pair_id: alienware_16_aurora_vs_asus_tuf_16
     primary: alienware_16_aurora
-    comparator: rog_tuf_16
-  - pair_id: alienware_16_aurora_vs_legion_5_pro
+    comparator: asus_tuf_16
+  - pair_id: alienware_16_aurora_vs_lenovo_legion_5_pro_16
     primary: alienware_16_aurora
-    comparator: legion_5_pro
+    comparator: lenovo_legion_5_pro_16
   - pair_id: alienware_16_aurora_vs_legion_7i
     primary: alienware_16_aurora
     comparator: legion_7i
@@ -20,12 +20,12 @@ pairs:
   - pair_id: alienware_16x_aurora_vs_rog_strix_g16
     primary: alienware_16x_aurora
     comparator: rog_strix_g16
-  - pair_id: alienware_16x_aurora_vs_rog_tuf_16
+  - pair_id: alienware_16x_aurora_vs_asus_tuf_16
     primary: alienware_16x_aurora
-    comparator: rog_tuf_16
-  - pair_id: alienware_16x_aurora_vs_legion_5_pro
+    comparator: asus_tuf_16
+  - pair_id: alienware_16x_aurora_vs_lenovo_legion_5_pro_16
     primary: alienware_16x_aurora
-    comparator: legion_5_pro
+    comparator: lenovo_legion_5_pro_16
   - pair_id: alienware_16x_aurora_vs_legion_7i
     primary: alienware_16x_aurora
     comparator: legion_7i
