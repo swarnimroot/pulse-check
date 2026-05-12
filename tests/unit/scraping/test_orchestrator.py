@@ -23,13 +23,18 @@ import pytest
 from sqlalchemy.orm import Session
 
 from pulse_check.config.models import (
+    ArticleRSSFeedSource,
     AttributionPatterns,
     ProductConfig,
     ProductSet,
     ProductUrls,
+    RSSSources,
+    RSSWindow,
+    YouTubeChannelSource,
 )
 from pulse_check.scraping.orchestrator import (
     _enqueue_reddit_comment_followups,
+    _enqueue_rss_discovered,
     _upsert_products,
 )
 from pulse_check.storage.enums import AttributionMethod, AttributionType, SourceType
@@ -337,6 +342,96 @@ def test_returns_zero_when_no_buildable_anchors(
         scheduler,
         session,
         _ps(_pc("alienware_16_aurora", primary=[])),
+    )
+
+    assert count == 0
+    scheduler.enqueue.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# `_enqueue_rss_discovered` (bite: rss_discovery)
+# ---------------------------------------------------------------------------
+
+
+def _rss_sources_for_orch_test() -> RSSSources:
+    return RSSSources(
+        title_keywords=["review"],
+        youtube_channels=[
+            YouTubeChannelSource(
+                handle="@x",
+                display_name="x",
+                channel_id="UCx",
+                rss_url="https://yt.example/feed",
+            )
+        ],
+        article_rss_feeds=[
+            ArticleRSSFeedSource(site="ex", rss_url="https://art.example/feed")
+        ],
+    )
+
+
+def test_enqueue_rss_discovered_enqueues_with_all_product_anchors(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scheduler = MagicMock()
+    ps = _ps(_pc("alienware_16_aurora"), _pc("rog_strix_g16"))
+
+    # Stub the discover() call inside orchestrator to a deterministic 2-item list.
+    from pulse_check.scraping import orchestrator as orch
+    from pulse_check.scraping.rss_discovery import DiscoveredItem, DiscoveryStats
+
+    fake_items = [
+        DiscoveredItem(
+            url="https://yt.example/v/1",
+            title="review yay",
+            published_at=None,
+            target_source="youtube",
+            origin_feed="https://yt.example/feed",
+        ),
+        DiscoveredItem(
+            url="https://art.example/a/1",
+            title="review nay",
+            published_at=None,
+            target_source="article",
+            origin_feed="https://art.example/feed",
+        ),
+    ]
+    fake_stats = DiscoveryStats(
+        feeds_polled=2,
+        feeds_with_zero_entries=0,
+        feeds_recovered_by_html_fallback=0,
+        items_seen=2,
+        items_after_title_filter=2,
+        items_after_window_filter=2,
+    )
+    monkeypatch.setattr(
+        orch, "discover", lambda *_args, **_kwargs: (fake_items, fake_stats)
+    )
+
+    count = _enqueue_rss_discovered(
+        scheduler, ps, _rss_sources_for_orch_test(), RSSWindow(enabled=True)
+    )
+
+    assert count == 2
+    assert scheduler.enqueue.call_count == 2
+    # Each call gets all-product anchors and the target source.
+    calls = scheduler.enqueue.call_args_list
+    sources = [c.kwargs["source"] for c in calls]
+    assert sources == ["youtube", "article"]
+    for c in calls:
+        anchors = c.kwargs["anchors"]
+        assert {a.anchor_id for a in anchors} == {
+            "alienware_16_aurora",
+            "rog_strix_g16",
+        }
+
+
+def test_enqueue_rss_discovered_noop_when_no_buildable_anchors() -> None:
+    scheduler = MagicMock()
+    ps = _ps(_pc("alienware_16_aurora", primary=[]))  # no patterns → no anchor
+
+    count = _enqueue_rss_discovered(
+        scheduler, ps, _rss_sources_for_orch_test(), RSSWindow(enabled=True)
     )
 
     assert count == 0

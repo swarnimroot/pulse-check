@@ -20,7 +20,7 @@ from pathlib import Path
 import yaml
 from pydantic import BaseModel, ValidationError
 
-from pulse_check.config.models import PairPlan, ProductSet, RunConfig
+from pulse_check.config.models import PairPlan, ProductSet, RSSSources, RunConfig
 
 
 class ConfigError(Exception):
@@ -65,6 +65,11 @@ def load_pair_plan(path: Path | str) -> PairPlan:
     return _parse(PairPlan, _read_yaml(p), p)
 
 
+def load_rss_sources(path: Path | str) -> RSSSources:
+    p = Path(path)
+    return _parse(RSSSources, _read_yaml(p), p)
+
+
 def load_run_config(path: Path | str) -> RunConfig:
     p = Path(path)
     run = _parse(RunConfig, _read_yaml(p), p)
@@ -75,17 +80,30 @@ def load_run_config(path: Path | str) -> RunConfig:
         product_set = (base / product_set).resolve()
     if not pair_plan.is_absolute():
         pair_plan = (base / pair_plan).resolve()
-    return run.model_copy(update={"product_set": product_set, "pair_plan": pair_plan})
+    updates: dict[str, Path] = {"product_set": product_set, "pair_plan": pair_plan}
+    if run.rss_sources is not None:
+        rss = run.rss_sources
+        if not rss.is_absolute():
+            rss = (base / rss).resolve()
+        updates["rss_sources"] = rss
+    return run.model_copy(update=updates)
 
 
-def load_run(path: Path | str) -> tuple[RunConfig, ProductSet, PairPlan]:
-    """Load a run config and its referenced product_set + pair_plan, with
-    cross-reference validation."""
+def load_run(
+    path: Path | str,
+) -> tuple[RunConfig, ProductSet, PairPlan, RSSSources | None]:
+    """Load a run config and its referenced product_set + pair_plan (+ optional
+    rss_sources), with cross-reference validation.
+
+    Returns a 4-tuple; the trailing element is None when the run config omits
+    `rss_sources`.
+    """
     run = load_run_config(path)
     product_set = load_product_set(run.product_set)
     pair_plan = load_pair_plan(run.pair_plan)
     _validate_cross_refs(product_set, pair_plan, Path(path))
-    return run, product_set, pair_plan
+    rss_sources = load_rss_sources(run.rss_sources) if run.rss_sources is not None else None
+    return run, product_set, pair_plan, rss_sources
 
 
 def _validate_cross_refs(

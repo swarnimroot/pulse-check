@@ -73,7 +73,7 @@ def main(argv: list[str] | None = None) -> int:
     configure_logging()
 
     settings = get_settings()
-    run_config, product_set, _pair_plan = load_run(args.run_config)
+    run_config, product_set, _pair_plan, _rss_sources = load_run(args.run_config)
 
     products = [
         ProductContext(product_id=p.product_id, display_name=p.display_name)

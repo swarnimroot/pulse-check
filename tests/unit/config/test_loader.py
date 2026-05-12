@@ -15,6 +15,7 @@ from pulse_check.config import (
     ConfigError,
     load_pair_plan,
     load_product_set,
+    load_rss_sources,
     load_run,
     load_run_config,
 )
@@ -50,10 +51,11 @@ def test_load_run_config_resolves_relative_paths() -> None:
 
 
 def test_load_run_end_to_end_on_smoke_configs() -> None:
-    run, product_set, pair_plan = load_run(_SMOKE_RUN)
+    run, product_set, pair_plan, rss_sources = load_run(_SMOKE_RUN)
     assert run.run_id == "smoke_test"
     assert product_set.product_ids() == {"alienware_16_aurora", "rog_strix_g16"}
     assert pair_plan.pairs[0].primary == "alienware_16_aurora"
+    assert rss_sources is None  # smoke run does not reference an RSS sources file
 
 
 # ---------------------------------------------------------------------------
@@ -135,7 +137,35 @@ def test_load_run_rejects_unknown_product_in_pair_plan(tmp_path: Path) -> None:
 
 def test_demo_configs_parse_structurally() -> None:
     demo_run = _REPO_ROOT / "configs" / "run_demo_2026_04.yaml"
-    run, product_set, pair_plan = load_run(demo_run)
+    run, product_set, pair_plan, rss_sources = load_run(demo_run)
     assert run.run_id == "demo_2026_04"
     assert len(product_set.products) == 59
     assert len(pair_plan.pairs) == 10
+    assert rss_sources is None
+
+
+def test_load_wave5_rss_sources_yaml_parses() -> None:
+    path = _REPO_ROOT / "configs" / "wave5_rss_sources.yaml"
+    rss = load_rss_sources(path)
+    assert len(rss.youtube_channels) == 7
+    assert len(rss.article_rss_feeds) == 9
+    # title_keywords seeded with the operator's filter list
+    assert "review" in rss.title_keywords
+    # RTINGS entry retains its index-page URL; the rss_discovery module handles
+    # the auto-discovery fallback at runtime.
+    rtings = next(f for f in rss.article_rss_feeds if f.site == "RTINGS")
+    assert rtings.rss_url.endswith("/rss-feeds")
+    assert rtings.status == "RED"
+
+
+def test_load_run_wave5_v1_threads_rss_sources_through_load_run() -> None:
+    path = _REPO_ROOT / "configs" / "run_wave5_v1.yaml"
+    run, _ps, _pp, rss = load_run(path)
+    assert run.run_id == "wave5_v1"
+    assert run.rss_sources is not None
+    assert run.rss_sources.name == "wave5_rss_sources.yaml"
+    assert run.source_windows.rss is not None
+    assert run.source_windows.rss.enabled is True
+    assert run.source_windows.rss.backfill_months == 6
+    assert rss is not None
+    assert len(rss.youtube_channels) == 7

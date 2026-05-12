@@ -7,17 +7,19 @@
 #
 # Source posture for the first scrape:
 #   - reddit:    ENABLED, 12 subreddits, 6-month backfill.
-#   - article:   DISABLED for the staged scrape. Will be flipped on by the
-#                rss_discovery bite (session 25) which wires per-site RSS
-#                feeds → title filter → existing Article fetcher.
-#   - youtube:   DISABLED for the same reason. Same rss_discovery bite wires
-#                per-channel RSS → title filter → existing YouTube fetcher.
+#   - rss:       ENABLED — runs RSS-discovery from `rss_sources` at orchestrator
+#                startup. Discovered URLs are enqueued against scrapers-lib's
+#                existing youtube + article fetchers with all-product anchors.
+#   - article/youtube (per-product seed loops): OMITTED — the 59-product config
+#                has `urls: {}` everywhere, so no per-product seeds exist. RSS
+#                discovery is the sole article/youtube path for Wave 5.
 #   - bestbuy/amazon: DISABLED — retailer fetchers deferred per bite 6.4.
 #                Operator out of scope for this pilot.
 
 run_id: wave5_v1
 product_set: product_set_gaming_laptops_2026.yaml
 pair_plan: pair_plan_wave5_staged.yaml
+rss_sources: wave5_rss_sources.yaml
 source_windows:
   reddit:
     enabled: true
@@ -37,7 +39,7 @@ source_windows:
       - AcerOfficial
       - OmenByHP
       - LaptopDeals
-  # article + youtube will be enabled when session-25 rss_discovery bite lands;
-  # leaving them omitted (None) keeps the orchestrator from enqueueing empty
-  # per-product-seed jobs in the meantime.
+  rss:
+    enabled: true
+    backfill_months: 6
 taxonomy_version: v0

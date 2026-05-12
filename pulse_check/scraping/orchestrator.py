@@ -34,7 +34,13 @@ from scrapers_lib.tier3 import amazon, bestbuy  # noqa: F401
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from pulse_check.config.models import ProductConfig, ProductSet, RunConfig
+from pulse_check.config.models import (
+    ProductConfig,
+    ProductSet,
+    RSSSources,
+    RSSWindow,
+    RunConfig,
+)
 from pulse_check.scraping.anchors import to_anchor, to_anchors
 from pulse_check.scraping.attribution import (
     SecondaryAttributionStats,
@@ -45,6 +51,7 @@ from pulse_check.scraping.comment_inheritance import (
     apply_comment_inheritance,
 )
 from pulse_check.scraping.ingester import IngestStats, ingest_batch
+from pulse_check.scraping.rss_discovery import discover
 from pulse_check.settings import get_settings
 from pulse_check.storage.enums import AttributionType, SourceType
 from pulse_check.storage.models import Mention, MentionAttribution, Product
@@ -57,12 +64,20 @@ def run_scrape(
     run_config: RunConfig,
     product_set: ProductSet,
     *,
+    rss_sources: RSSSources | None = None,
     state_file: str | Path | None = None,
 ) -> tuple[IngestStats, SecondaryAttributionStats, CommentInheritanceStats]:
     """Drain a full scrape for the given run config and persist to `session`.
 
     The caller owns the session's transaction lifetime. A fresh Scheduler is
     constructed at `state_file` (default: `settings.scheduler_db_path`).
+
+    When `run_config.source_windows.rss.enabled` is true and `rss_sources` is
+    supplied, the RSS-discovery pass runs at orchestrator startup before the
+    per-product enqueues. Discovered URLs are enqueued with all-product
+    anchors against the `youtube` / `article` fetchers; per-product seed
+    URLs (`youtube_seeds` / `article_seeds`) still fire alongside if their
+    own windows are enabled (coexist; no de-dup at this layer).
     """
     ingest_stats = IngestStats()
 
@@ -79,6 +94,9 @@ def run_scrape(
 
     scheduler = Scheduler(state_file=state_file, result_sink=_sink)
     try:
+        sw = run_config.source_windows
+        if sw.rss is not None and sw.rss.enabled and rss_sources is not None:
+            _enqueue_rss_discovered(scheduler, product_set, rss_sources, sw.rss)
         _enqueue_all_sources(scheduler, run_config, product_set)
         scheduler.run_worker(mode="until_empty")
 
@@ -249,6 +267,34 @@ def _single_anchor(product: ProductConfig) -> object | None:
 def _reddit_url(subreddit: str) -> str:
     sub = subreddit.removeprefix("r/").removeprefix("/r/")
     return f"https://www.reddit.com/r/{sub}/"
+
+
+def _enqueue_rss_discovered(
+    scheduler: Scheduler,
+    product_set: ProductSet,
+    rss_sources: RSSSources,
+    rss_window: RSSWindow,
+) -> int:
+    """Run RSS discovery and enqueue surviving URLs with all-product anchors.
+
+    Each `DiscoveredItem` becomes one scheduler job; `target_source`
+    determines the fetcher (`youtube` for channel-feed video URLs,
+    `article` for review-site article URLs). Returns the job count.
+    """
+    all_anchors = to_anchors(product_set)
+    if not all_anchors:
+        log.info("rss_discovery: no anchors built; skipping")
+        return 0
+
+    items, _stats = discover(rss_sources, rss_window)
+    for item in items:
+        scheduler.enqueue(
+            url=item.url,
+            source=item.target_source,
+            anchors=all_anchors,
+        )
+    log.info("rss_discovery: enqueued %d jobs", len(items))
+    return len(items)
 
 
 def _enqueue_reddit_comment_followups(

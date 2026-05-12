@@ -1,0 +1,111 @@
+# Wave 5 RSS-discovery seed data (operator-supplied, session 24 close; promoted
+# session 25 from `wave5_rss_sources_draft.yaml`).
+#
+# Loaded by `pulse_check.scraping.rss_discovery` when the run config sets
+# `rss_sources: wave5_rss_sources.yaml` and `source_windows.rss.enabled: true`.
+#
+# YouTube channels: per-channel atom RSS at the standard YouTube pattern. The
+# discovery module fetches each feed, filters by `title_keywords`, and routes
+# surviving video URLs to scrapers-lib's `fetch_youtube_transcript`.
+#
+# Article feeds: per-site RSS. The module fetches each feed, filters by
+# `title_keywords`, and routes surviving article URLs to scrapers-lib's
+# `fetch_article` (trafilatura body extract).
+#
+# Title-filter posture (session-24 D7 / session-25 fork): case-insensitive
+# substring match against the entry title. At least ONE keyword must appear.
+# Operator-edit this list to tune coverage.
+#
+# Auto-discovery fallback: if a `rss_url` returns zero entries when parsed as
+# a feed (e.g. RTINGS index page), the module fetches it as HTML and scrapes
+# for `<a>`/`<link>` tags containing both a feed-ish hint ("rss"/"feed"/"xml")
+# AND the keyword "laptop", then retries that discovered URL once.
+
+title_keywords:
+  - "gaming laptop"
+  - "vs"
+  - "comparison"
+  - "review"
+  - "best"
+
+youtube_channels:
+  - handle: "@LinusTechTips"
+    display_name: "Linus Tech Tips"
+    channel_id: "UCXuqSBlHAE6Xw-yeJA0Tunw"
+    rss_url: "https://www.youtube.com/feeds/videos.xml?channel_id=UCXuqSBlHAE6Xw-yeJA0Tunw"
+
+  - handle: "@HardwareUnboxed"
+    display_name: "Hardware Unboxed"
+    channel_id: "UCI8iQa1hv7oV_Z8D35vVuSg"
+    rss_url: "https://www.youtube.com/feeds/videos.xml?channel_id=UCI8iQa1hv7oV_Z8D35vVuSg"
+
+  - handle: "@Dave2D"
+    display_name: "Dave2D"
+    channel_id: "UCVYamHliCI9rw1tHR1xbkfw"
+    rss_url: "https://www.youtube.com/feeds/videos.xml?channel_id=UCVYamHliCI9rw1tHR1xbkfw"
+
+  - handle: "@JustJoshTech"
+    display_name: "Just Josh"
+    channel_id: "UCtHm9ai5zSb-yfRnnUBopAg"
+    rss_url: "https://www.youtube.com/feeds/videos.xml?channel_id=UCtHm9ai5zSb-yfRnnUBopAg"
+
+  - handle: "@JarrodsTech"
+    display_name: "Jarrod's Tech"
+    channel_id: "UC2Rzju32yQPkQ7oIhmeuLwg"
+    rss_url: "https://www.youtube.com/feeds/videos.xml?channel_id=UC2Rzju32yQPkQ7oIhmeuLwg"
+
+  - handle: "@NotebookcheckReviews"
+    display_name: "Notebookcheck Reviews"
+    channel_id: "UCvfUcuSDNOoFsAPsiGdaGPg"
+    rss_url: "https://www.youtube.com/feeds/videos.xml?channel_id=UCvfUcuSDNOoFsAPsiGdaGPg"
+
+  - handle: "@LAPTOPMagazine"
+    display_name: "Laptop Mag"
+    channel_id: "UCtwEcI-GxMLF5M1pSGSdULw"
+    rss_url: "https://www.youtube.com/feeds/videos.xml?channel_id=UCtwEcI-GxMLF5M1pSGSdULw"
+
+article_rss_feeds:
+  - site: "Notebookcheck"
+    rss_url: "https://www.notebookcheck.net/RSS-Feed-Notebook-Reviews.8156.0.html"
+    status: "YELLOW"
+    notes: "Notebook-reviews subfeed (preferred over site-wide); ~20 items; mixed device-category content."
+
+  - site: "LaptopMag"
+    rss_url: "http://www.laptopmag.com/feeds.xml"
+    status: "GREEN"
+    notes: "Future PLC standard feed pattern; ~35 items; comprehensive laptop coverage."
+
+  - site: "Tom's Hardware"
+    rss_url: "http://www.tomshardware.com/feeds.xml"
+    status: "GREEN"
+    notes: "Future PLC standard feed pattern; ~40 items."
+
+  - site: "PCMag"
+    rss_url: "https://www.pcmag.com/feeds/rss/latest"
+    status: "YELLOW"
+    notes: "General tech feed; laptop content mixed."
+
+  - site: "TechRadar"
+    rss_url: "http://www.techradar.com/feeds.xml"
+    status: "YELLOW"
+    notes: "Future PLC pattern; ~30 items; limited dedicated laptop coverage."
+
+  - site: "RTINGS"
+    rss_url: "https://www.rtings.com/rss-feeds"
+    status: "RED"
+    notes: "URL is the RSS-feeds INDEX page, NOT a feed. The discovery module auto-falls-back to HTML scrape for laptop-keyword feed link."
+
+  - site: "Engadget"
+    rss_url: "https://www.engadget.com/rss.xml"
+    status: "GREEN"
+    notes: "Verified standard feed; current laptop content present."
+
+  - site: "The Verge"
+    rss_url: "https://www.theverge.com/rss/index.xml"
+    status: "YELLOW"
+    notes: "Feed returns excerpt-only; full articles partly paywalled. Article fetcher (trafilatura) extracts publicly-visible body."
+
+  - site: "Ars Technica"
+    rss_url: "https://feeds.arstechnica.com/arstechnica/index"
+    status: "YELLOW"
+    notes: "Primary feed; free RSS returns excerpts; full-text needs paid sub."

@@ -24,14 +24,22 @@ from pulse_check.scraping.converter import (
 )
 from pulse_check.scraping.ingester import IngestStats, ingest_batch
 from pulse_check.scraping.orchestrator import run_scrape
+from pulse_check.scraping.rss_discovery import (
+    DiscoveredItem,
+    DiscoveryStats,
+    discover,
+)
 
 __all__ = [
     "CommentInheritanceStats",
+    "DiscoveredItem",
+    "DiscoveryStats",
     "IngestStats",
     "SecondaryAttributionStats",
     "apply_comment_inheritance",
     "apply_secondary_attribution",
     "attribution_to_row",
+    "discover",
     "ingest_batch",
     "raw_mention_to_mention",
     "resolve_source_type",

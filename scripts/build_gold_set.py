@@ -75,7 +75,7 @@ def main(argv: list[str] | None = None) -> int:
         log.error("ANTHROPIC_API_KEY is not set; cannot call Sonnet.")
         return 2
 
-    _run_config, product_set, _pair_plan = load_run(args.run_config)
+    _run_config, product_set, _pair_plan, _rss_sources = load_run(args.run_config)
     product_ids = {p.product_id for p in product_set.products}
     out_path: Path = args.out or (_GOLD_SET_DIR / f"{args.task}_v1.jsonl")
 

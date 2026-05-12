@@ -200,9 +200,20 @@ class ArticleWindow(SourceWindow):
     pass
 
 
+class RSSWindow(SourceWindow):
+    """RSS-discovery window. `backfill_months` filters feed entries by
+    published_at; entries with no published_at pass through. Discovery runs
+    BEFORE per-product YouTube/Article enqueues (coexists; per-product seed
+    URLs still fire when their lists are non-empty)."""
+
+
 class SourceWindows(BaseModel):
-    """All five v1 sources. A source absent from the YAML defaults to None
-    (fetcher not run); a source with `enabled: false` is explicit opt-out.
+    """v1 sources. A source absent from the YAML defaults to None (fetcher not
+    run); a source with `enabled: false` is explicit opt-out.
+
+    `rss` toggles the RSS-discovery pass (see `pulse_check.scraping.rss_discovery`);
+    the discovered URLs flow through the `youtube` / `article` fetchers, but the
+    `rss` window is what gates whether discovery runs at all.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -212,6 +223,7 @@ class SourceWindows(BaseModel):
     amazon_reviews: AmazonReviewsWindow | None = None
     youtube: YouTubeWindow | None = None
     article: ArticleWindow | None = None
+    rss: RSSWindow | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -222,8 +234,9 @@ class SourceWindows(BaseModel):
 class RunConfig(BaseModel):
     """A full pilot run configuration.
 
-    `product_set` and `pair_plan` are paths to YAML files; the loader resolves
-    them against the run config's directory when relative.
+    `product_set`, `pair_plan`, and (optional) `rss_sources` are paths to
+    YAML files; the loader resolves them against the run config's directory
+    when relative.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -231,5 +244,58 @@ class RunConfig(BaseModel):
     run_id: RunIdStr
     product_set: Path
     pair_plan: Path
+    rss_sources: Path | None = None
     source_windows: SourceWindows = Field(default_factory=SourceWindows)
     taxonomy_version: str = Field(min_length=1, max_length=32)
+
+
+# ---------------------------------------------------------------------------
+# RSS sources (operator-supplied feeds for the RSS-discovery pass)
+# ---------------------------------------------------------------------------
+
+
+class YouTubeChannelSource(BaseModel):
+    """One YouTube channel whose atom feed is polled for video discovery.
+
+    `channel_id` is the resolved canonical YouTube channel ID (e.g.
+    `UCXuqSBlHAE6Xw-yeJA0Tunw`); `rss_url` is the corresponding atom feed
+    (`https://www.youtube.com/feeds/videos.xml?channel_id=<channel_id>`).
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    handle: str = Field(min_length=1)
+    display_name: str = Field(min_length=1)
+    channel_id: str = Field(min_length=1)
+    rss_url: str = Field(min_length=1)
+
+
+class ArticleRSSFeedSource(BaseModel):
+    """One review-site RSS feed polled for article discovery.
+
+    `enabled: false` skips this feed without removing the entry.
+    `status` / `notes` are operator-facing curation metadata (no business
+    logic); kept here so the source file is self-describing.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    site: str = Field(min_length=1)
+    rss_url: str = Field(min_length=1)
+    enabled: bool = True
+    status: str | None = None
+    notes: str | None = None
+
+
+class RSSSources(BaseModel):
+    """Operator-supplied RSS-discovery configuration.
+
+    `title_keywords` are case-insensitive substring matches against entry
+    titles; at least ONE must match for an entry to survive the filter.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    title_keywords: list[str] = Field(min_length=1)
+    youtube_channels: list[YouTubeChannelSource] = Field(default_factory=list)
+    article_rss_feeds: list[ArticleRSSFeedSource] = Field(default_factory=list)

@@ -37,16 +37,17 @@ def main(argv: list[str] | None = None) -> int:
     args = _parse_args(argv if argv is not None else sys.argv[1:])
     configure_logging()
 
-    run_config, product_set, _pair_plan = load_run(args.run_config)
+    run_config, product_set, _pair_plan, rss_sources = load_run(args.run_config)
     log.info(
-        "starting scrape: run_id=%s products=%d",
+        "starting scrape: run_id=%s products=%d rss_sources=%s",
         run_config.run_id,
         len(product_set.products),
+        "yes" if rss_sources is not None else "no",
     )
 
     with session_scope() as session:
         ingest_stats, secondary_stats, inheritance_stats = run_scrape(
-            session, run_config, product_set
+            session, run_config, product_set, rss_sources=rss_sources
         )
 
     log.info(
