@@ -275,6 +275,40 @@ def select_candidate_thread_ids(
 # ---------------------------------------------------------------------------
 
 
+def fetch_top_level_comments(
+    session: Session,
+    *,
+    thread_mention_id: str,
+) -> list[Mention]:
+    """Return the top-level ``reddit_comment`` Mentions under a ``reddit_post``.
+
+    Top-level = ``metadata_["parent_id"] == "t3_<post_id>"`` where ``post_id``
+    is recovered from the post's ``reddit_post_<post_id>_<anchor_id>`` form.
+    Nested comments (parent ``t1_...``) are excluded. Results ordered by
+    mention_id for determinism.
+
+    Returns an empty list if the post is missing, not a reddit_post, or its
+    mention_id does not decode (e.g. malformed). Used by the orchestrator
+    to gather comments for reason-labeling.
+    """
+    post = session.execute(
+        select(Mention).where(Mention.mention_id == thread_mention_id)
+    ).scalar_one_or_none()
+    if post is None or post.source_type != SourceType.REDDIT_POST:
+        return []
+    post_id = _post_id_from_post_mention_id(thread_mention_id)
+    if post_id is None:
+        return []
+    comments = list(
+        session.execute(
+            select(Mention)
+            .where(Mention.source_type == SourceType.REDDIT_COMMENT)
+            .order_by(Mention.mention_id.asc())
+        ).scalars()
+    )
+    return [c for c in comments if _is_top_level_under(c, post_id)]
+
+
 def build_candidate_thread(
     session: Session,
     *,
@@ -295,24 +329,13 @@ def build_candidate_thread(
     if post is None or post.source_type != SourceType.REDDIT_POST:
         return None
 
-    post_id = _post_id_from_post_mention_id(thread_mention_id)
     op_top: list[str] = []
     other_top: list[str] = []
-    if post_id is not None:
-        comments = list(
-            session.execute(
-                select(Mention)
-                .where(Mention.source_type == SourceType.REDDIT_COMMENT)
-                .order_by(Mention.mention_id.asc())
-            ).scalars()
-        )
-        for comment in comments:
-            if not _is_top_level_under(comment, post_id):
-                continue
-            if post.author is not None and comment.author == post.author:
-                op_top.append(comment.raw_text)
-            else:
-                other_top.append(comment.raw_text)
+    for comment in fetch_top_level_comments(session, thread_mention_id=thread_mention_id):
+        if post.author is not None and comment.author == post.author:
+            op_top.append(comment.raw_text)
+        else:
+            other_top.append(comment.raw_text)
 
     primary_products = sorted(
         session.execute(

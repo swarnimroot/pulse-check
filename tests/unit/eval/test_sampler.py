@@ -25,6 +25,7 @@ from pulse_check.eval.sampler import (
     LabeledCandidate,
     LabeledComment,
     build_candidate_thread,
+    fetch_top_level_comments,
     select_candidate_thread_ids,
     select_reason_candidates,
     stratify_and_sample_threads,
@@ -389,6 +390,58 @@ def test_build_candidate_thread_carries_title_and_body(session: Session) -> None
     assert thread.op_post_title == "My Title"
     assert thread.op_post_text == "Body text here"
     assert thread.op_author == "op_user"
+
+
+# ---------------------------------------------------------------------------
+# fetch_top_level_comments — public helper used by the orchestrator
+# ---------------------------------------------------------------------------
+
+
+def test_fetch_top_level_comments_returns_empty_for_missing_post(session: Session) -> None:
+    assert fetch_top_level_comments(session, thread_mention_id="missing") == []
+
+
+def test_fetch_top_level_comments_returns_empty_for_non_post(session: Session) -> None:
+    _seed_comment(session, mention_id="reddit_comment_1", parent_id="t3_abc")
+    session.flush()
+    assert fetch_top_level_comments(session, thread_mention_id="reddit_comment_1") == []
+
+
+def test_fetch_top_level_comments_includes_only_top_level(session: Session) -> None:
+    _seed_post(session, mention_id="reddit_post_abc_x", author="op_user")
+    _seed_comment(
+        session,
+        mention_id="reddit_comment_t1",
+        parent_id="t3_abc",
+        body="top-level",
+        author="alice",
+    )
+    _seed_comment(
+        session,
+        mention_id="reddit_comment_n1",
+        parent_id="t1_xyz",
+        body="nested",
+        author="bob",
+    )
+    _seed_comment(
+        session,
+        mention_id="reddit_comment_other",
+        parent_id="t3_zzz",
+        body="under-other-post",
+        author="carol",
+    )
+    session.flush()
+    comments = fetch_top_level_comments(session, thread_mention_id="reddit_post_abc_x")
+    assert [c.mention_id for c in comments] == ["reddit_comment_t1"]
+
+
+def test_fetch_top_level_comments_ordered_by_mention_id(session: Session) -> None:
+    _seed_post(session, mention_id="reddit_post_abc_x", author="op_user")
+    _seed_comment(session, mention_id="reddit_comment_z", parent_id="t3_abc", body="z")
+    _seed_comment(session, mention_id="reddit_comment_a", parent_id="t3_abc", body="a")
+    session.flush()
+    comments = fetch_top_level_comments(session, thread_mention_id="reddit_post_abc_x")
+    assert [c.mention_id for c in comments] == ["reddit_comment_a", "reddit_comment_z"]
 
 
 # ---------------------------------------------------------------------------
