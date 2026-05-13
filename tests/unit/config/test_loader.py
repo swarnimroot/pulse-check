@@ -220,12 +220,18 @@ def test_load_run_wave5_v1_threads_rss_sources_through_load_run() -> None:
     assert run.run_id == "wave5_v1"
     assert run.rss_sources is not None
     assert run.rss_sources.name == "wave5_rss_sources.yaml"
+    # Full Wave 5 posture: reddit + rss both enabled at 6-month backfill;
+    # operator-curated discovered_urls_sources flipped on; article window
+    # enabled (required by the discovered-URLs orchestrator guard).
     assert run.source_windows.rss is not None
     assert run.source_windows.rss.enabled is True
-    # Session 26 staged run: window narrowed to 3 months; reddit disabled
-    # ("Reddit untouched"). Both flips reversed before the full Wave 5 scrape.
-    assert run.source_windows.rss.backfill_months == 3
+    assert run.source_windows.rss.backfill_months == 6
     assert run.source_windows.reddit is not None
-    assert run.source_windows.reddit.enabled is False
+    assert run.source_windows.reddit.enabled is True
+    assert run.source_windows.reddit.backfill_months == 6
+    assert run.source_windows.article is not None
+    assert run.source_windows.article.enabled is True
+    assert run.discovered_urls_sources is not None
+    assert run.discovered_urls_sources.name == "notebookcheck"
     assert rss is not None
     assert len(rss.youtube_channels) == 7

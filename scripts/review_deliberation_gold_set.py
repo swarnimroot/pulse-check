@@ -17,6 +17,7 @@ Corrected labels schema (JSON object — mirrors DeliberationPrediction)::
       "is_resolved": false,
       "products_discussed": ["rog_strix_g16"],
       "chosen_product_id": null,
+      "chosen_external_name": null,
       "confidence": 0.85
     }
 
@@ -103,11 +104,12 @@ def _format_entry(
     lines.extend([
         "",
         "sonnet prediction:",
-        f"  is_deliberation: {pred.get('is_deliberation')}",
-        f"  is_resolved:     {pred.get('is_resolved')}",
-        f"  products_discussed: {pred.get('products_discussed')}",
-        f"  chosen_product_id:  {pred.get('chosen_product_id')}",
-        f"  confidence:      {pred.get('confidence')}",
+        f"  is_deliberation:      {pred.get('is_deliberation')}",
+        f"  is_resolved:          {pred.get('is_resolved')}",
+        f"  products_discussed:   {pred.get('products_discussed')}",
+        f"  chosen_product_id:    {pred.get('chosen_product_id')}",
+        f"  chosen_external_name: {pred.get('chosen_external_name')}",
+        f"  confidence:           {pred.get('confidence')}",
         "",
         "[a]ccept  [f]lag  [c]orrect  [s]kip  [q]uit",
     ])
@@ -127,7 +129,8 @@ def _read_corrected_labels(inp: TextIO) -> dict[str, object] | None:
         "corrected labels as JSON object (e.g. "
         '{"is_deliberation":true,"is_resolved":true,'
         '"products_discussed":["rog_strix_g16"],'
-        '"chosen_product_id":"rog_strix_g16","confidence":0.9}):'
+        '"chosen_product_id":"rog_strix_g16",'
+        '"chosen_external_name":null,"confidence":0.9}):'
     )
     raw = inp.readline().strip()
     try:

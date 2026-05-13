@@ -192,9 +192,10 @@ Unique constraint: `(mention_id, product_id, aspect, taxonomy_version, prompt_ve
 | `tag_id` | int (PK) | |
 | `thread_mention_id` | FK → mentions | typically the root post of a Reddit thread |
 | `is_deliberation` | bool | |
-| `is_resolved` | bool | |
+| `is_resolved` | bool | v2: true iff exactly one of `chosen_product_id` or `chosen_external_name` is set |
 | `products_discussed` | JSON | list of product_ids |
-| `chosen_product_id` | FK → products | nullable; the winner if resolved |
+| `chosen_product_id` | FK → products | nullable; the tracked winner if resolved (mutually exclusive with `chosen_external_name`) |
+| `chosen_external_name` | str(256) | nullable; v2 — free-text name of an untracked external winner (e.g. "Razer Blade 16") when resolved to a product NOT in the tracked universe; mutually exclusive with `chosen_product_id` |
 | `prompt_version` | str | |
 | `model`, `temperature`, `created_at` | | |
 
@@ -412,10 +413,12 @@ Batch-time, high-volume classification. Every call: `temperature=0`, structured 
 | Function | Input | Output |
 |---|---|---|
 | `tag_mention_aspects(mention_text, product_context)` | mention text + the product it's attributed to | list of `{aspect, polarity, intensity, confidence}` — multi-label; empty list is valid |
-| `classify_deliberation_thread(thread, products)` | role-segmented `DeliberationThread` (OP post + optional OP edit + OP top-level comments + other top-level comments) + tracked-product universe `tuple[ProductContext, ...]` | `{is_deliberation: bool, is_resolved: bool, products_discussed: [product_id str], chosen_product_id: product_id str \| null, confidence: float \| null}` |
+| `classify_deliberation_thread(thread, products)` | role-segmented `DeliberationThread` (OP post + optional OP edit + OP top-level comments + other top-level comments) + tracked-product universe `tuple[ProductContext, ...]` | `{is_deliberation: bool, is_resolved: bool, products_discussed: [product_id str], chosen_product_id: product_id str \| null, chosen_external_name: str \| null, confidence: float \| null}` |
 | `tag_reasons(comment_text, context)` | comment text + `ThreadContext` (winning product id + display_name + OP post text + the `tuple[ProductContext, ...]` of products debated in the thread) | list of `{reason_bucket, polarity, intensity}` |
 
 **Deliberation input is role-segmented**, not flat thread text, so the OP-only resolution rule (§11) is enforced structurally: the prompt renders OP segments under `[OP_POST] / [OP_EDIT] / [OP_COMMENT n]` markers and other-commenter segments under `[OTHER_COMMENT n]`. The rule line in the prompt explicitly blocks `[OTHER_COMMENT]` assertions from resolving the thread. `thread_id` and per-product `display_name` are excluded from the cache key — same content + same product_id set rehydrate without re-classifying.
+
+**Winner has two channels (v2):** `chosen_product_id` for tracked winners (must be a `product_id` from `products_discussed`); `chosen_external_name` as free-text for untracked winners ("the Razer Blade 16", "MSI Stealth 16 AI Studio"). The two are **mutually exclusive** — at most one is set per thread. `is_resolved` holds iff exactly one is set. External winners surface the "tracked product was considered but lost to X" signal that v1's tracked-only schema dropped; tracked-only consumers (e.g. the reason-tagging gate in `deliberation_gold_set.py`) still filter on `chosen_product_id is not None` and silently skip external-winner threads. Free-text representation (not normalized via a known-untracked-products list) is deliberate — clusters can be derived post-hoc if patterns emerge, and the curation burden of maintaining an external-product index is avoided.
 
 **Reason-tagger input is comment-scoped with a bundled `ThreadContext`** rather than three positional args, so callers (batch driver, eval runner) pass one dataclass per thread and reuse it across the thread's comments. The context bundles the winning product (id + display_name) + the OP post + the products_discussed list; polarity in the output is relative to the *winning* product, so dissent ("would've gone with the Blade for thermals") and endorsement ("Strix nailed the thermals") both surface `thermals` as a deliberation criterion with the appropriate sign. `winning_product_display_name` and per-product `display_name` strings render in the prompt but are excluded from the cache key — same comment + same product_id set rehydrate without re-tagging. Output schema is strict three-field `{reason_bucket, polarity, intensity}`: no `confidence` here (the aspect + deliberation classifiers emit one; reason tagging does not — adding it requires a `PROMPT_VERSION` bump).
 
@@ -523,7 +526,7 @@ For each (product, aspect) pair in the run:
 
 For each pair in the pair plan:
 1. **Find resolved deliberation threads** covering this pair: `deliberation_tags` where `is_resolved = True` and both products are in `products_discussed`.
-2. **Win-rate:** count `chosen_product_id = A` vs `= B`; write `pair_win_rates` row with `thread_mention_ids`.
+2. **Win-rate:** count `chosen_product_id = A` vs `= B`; write `pair_win_rates` row with `thread_mention_ids`. Resolved-to-external threads (`chosen_external_name` set, `chosen_product_id` null) are excluded from this pair aggregate by construction and surface separately via a future `lost_to_external` aggregate (v2 lays the schema; no aggregator yet).
 3. **Reason buckets:** gather `reason_tags` from comments within resolved threads, grouped by `(winning_product_id, reason_bucket)`.
 4. For each bucket with count ≥ small floor: compute `total_mentions`, `intensity_counts`, collect `mention_ids`.
 5. Sonnet classifies `addressability` for each bucket using a sample of verbatims.

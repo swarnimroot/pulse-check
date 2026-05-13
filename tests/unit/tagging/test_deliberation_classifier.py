@@ -135,6 +135,14 @@ def test_build_prompt_omits_op_edit_segment_when_absent() -> None:
     assert "EDIT: an addendum that should appear" in with_edit
 
 
+def test_build_prompt_describes_chosen_external_name_field() -> None:
+    """v2: prompt must instruct the model on the untracked-winner channel."""
+    prompt = build_prompt(thread=_basic_thread(), products=_UNIVERSE)
+    assert "chosen_external_name" in prompt
+    assert "NOT in PRODUCT UNIVERSE" in prompt
+    assert "mutually exclusive" in prompt
+
+
 def test_build_prompt_renders_op_and_other_comment_markers() -> None:
     thread = _resolved_thread()
     prompt = build_prompt(thread=thread, products=_UNIVERSE)
@@ -269,6 +277,137 @@ def test_parse_response_demotes_resolved_with_null_chosen() -> None:
     }
     pred = parse_response(payload, products=_UNIVERSE)
     assert pred.is_resolved is False
+
+
+# ---------------------------------------------------------------------------
+# parse_response — chosen_external_name (v2)
+# ---------------------------------------------------------------------------
+
+
+def test_parse_response_happy_path_external_winner() -> None:
+    """OP picks an untracked product → chosen_external_name set, is_resolved true."""
+    payload = {
+        "is_deliberation": True,
+        "is_resolved": True,
+        "products_discussed": ["aw16", "strix_g16"],
+        "chosen_product_id": None,
+        "chosen_external_name": "Razer Blade 16",
+        "confidence": 0.85,
+    }
+    pred = parse_response(payload, products=_UNIVERSE)
+    assert pred.is_resolved is True
+    assert pred.chosen_product_id is None
+    assert pred.chosen_external_name == "Razer Blade 16"
+    assert pred.products_discussed == ("aw16", "strix_g16")
+
+
+def test_parse_response_external_name_absent_defaults_to_none() -> None:
+    """v1-shaped payload (no chosen_external_name) parses cleanly."""
+    payload = {
+        "is_deliberation": True,
+        "is_resolved": True,
+        "products_discussed": ["aw16"],
+        "chosen_product_id": "aw16",
+        "confidence": 0.9,
+    }
+    pred = parse_response(payload, products=_UNIVERSE)
+    assert pred.chosen_external_name is None
+    assert pred.chosen_product_id == "aw16"
+
+
+def test_parse_response_mutex_prefers_tracked_when_both_set() -> None:
+    """Both winner channels set → tracked wins, external dropped."""
+    payload = {
+        "is_deliberation": True,
+        "is_resolved": True,
+        "products_discussed": ["aw16"],
+        "chosen_product_id": "aw16",
+        "chosen_external_name": "Razer Blade 16",
+        "confidence": 0.7,
+    }
+    pred = parse_response(payload, products=_UNIVERSE)
+    assert pred.chosen_product_id == "aw16"
+    assert pred.chosen_external_name is None
+    assert pred.is_resolved is True
+
+
+def test_parse_response_demotes_resolved_when_no_winner() -> None:
+    """is_resolved=true but both winner channels null → demote."""
+    payload = {
+        "is_deliberation": True,
+        "is_resolved": True,
+        "products_discussed": ["aw16", "strix_g16"],
+        "chosen_product_id": None,
+        "chosen_external_name": None,
+        "confidence": 0.4,
+    }
+    pred = parse_response(payload, products=_UNIVERSE)
+    assert pred.is_resolved is False
+
+
+def test_parse_response_external_name_strips_whitespace() -> None:
+    payload = {
+        "is_deliberation": True,
+        "is_resolved": True,
+        "products_discussed": ["aw16"],
+        "chosen_product_id": None,
+        "chosen_external_name": "  Razer Blade 16  ",
+        "confidence": 0.8,
+    }
+    pred = parse_response(payload, products=_UNIVERSE)
+    assert pred.chosen_external_name == "Razer Blade 16"
+
+
+def test_parse_response_external_name_empty_string_becomes_none() -> None:
+    payload = {
+        "is_deliberation": True,
+        "is_resolved": False,
+        "products_discussed": ["aw16"],
+        "chosen_product_id": None,
+        "chosen_external_name": "   ",
+        "confidence": 0.5,
+    }
+    pred = parse_response(payload, products=_UNIVERSE)
+    assert pred.chosen_external_name is None
+
+
+def test_parse_response_external_name_non_string_becomes_none() -> None:
+    payload = {
+        "is_deliberation": True,
+        "is_resolved": False,
+        "products_discussed": ["aw16"],
+        "chosen_product_id": None,
+        "chosen_external_name": 42,
+        "confidence": 0.5,
+    }
+    pred = parse_response(payload, products=_UNIVERSE)
+    assert pred.chosen_external_name is None
+
+
+def test_parse_response_non_deliberation_clears_external_name() -> None:
+    payload = {
+        "is_deliberation": False,
+        "is_resolved": True,
+        "products_discussed": [],
+        "chosen_product_id": None,
+        "chosen_external_name": "Razer Blade 16",
+        "confidence": 0.3,
+    }
+    pred = parse_response(payload, products=_UNIVERSE)
+    assert pred.chosen_external_name is None
+    assert pred.is_resolved is False
+
+
+def test_prediction_dataclass_external_name_defaults_to_none() -> None:
+    """v1-shape construction still works (backward-compat for tests/fixtures)."""
+    pred = DeliberationPrediction(
+        is_deliberation=True,
+        is_resolved=False,
+        products_discussed=("aw16",),
+        chosen_product_id=None,
+        confidence=0.5,
+    )
+    assert pred.chosen_external_name is None
 
 
 def test_parse_response_forces_empty_state_when_not_deliberation() -> None:

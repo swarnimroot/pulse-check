@@ -634,3 +634,114 @@ def test_build_gold_sets_skips_resolved_with_unknown_chosen_product(
     )
     assert stats.resolved_threads == 0
     assert r_client.generate_json.call_count == 0
+
+
+# ---------------------------------------------------------------------------
+# v2 — chosen_external_name flows through JSONL + reason-gate
+# ---------------------------------------------------------------------------
+
+
+def test_jsonl_round_trip_with_chosen_external_name(tmp_path: Path) -> None:
+    """v2: sonnet_prediction carrying chosen_external_name round-trips byte-faithfully."""
+    entry = DeliberationGoldEntry(
+        thread_mention_id="reddit_post_ext_x",
+        op_post_title="Title",
+        op_post_text="Tracked vs tracked but I picked an outsider",
+        op_top_level_comments=["went with the Razer Blade 16"],
+        other_top_level_comments=[],
+        product_universe_ids=["alienware_16_aurora", "rog_strix_g16"],
+        attributed_primary_product_ids=["alienware_16_aurora"],
+        sonnet_prediction={
+            "is_deliberation": True,
+            "is_resolved": True,
+            "products_discussed": ["alienware_16_aurora", "rog_strix_g16"],
+            "chosen_product_id": None,
+            "chosen_external_name": "Razer Blade 16",
+            "confidence": 0.88,
+        },
+        force_include_rule=None,
+    )
+    path = tmp_path / "deliberation_v2.jsonl"
+    write_deliberation_gold_jsonl([entry], path)
+    read_back = read_deliberation_gold_jsonl(path)
+    assert read_back == [entry]
+    assert read_back[0].sonnet_prediction["chosen_external_name"] == "Razer Blade 16"
+
+
+def test_jsonl_v1_payload_reads_with_external_name_none(tmp_path: Path) -> None:
+    """v1-shaped JSONL (no chosen_external_name field) still loads."""
+    path = tmp_path / "v1.jsonl"
+    path.write_text(
+        json.dumps(
+            {
+                "thread_mention_id": "reddit_post_v1",
+                "op_post_title": "Title",
+                "op_post_text": "Body",
+                "op_top_level_comments": [],
+                "other_top_level_comments": [],
+                "product_universe_ids": ["alienware_16_aurora"],
+                "attributed_primary_product_ids": [],
+                "sonnet_prediction": {
+                    "is_deliberation": True,
+                    "is_resolved": True,
+                    "products_discussed": ["alienware_16_aurora"],
+                    "chosen_product_id": "alienware_16_aurora",
+                    "confidence": 0.8,
+                },
+                "force_include_rule": None,
+            }
+        )
+        + "\n"
+    )
+    read_back = read_deliberation_gold_jsonl(path)
+    assert "chosen_external_name" not in read_back[0].sonnet_prediction
+
+
+def test_build_gold_sets_skips_external_winner_for_reason_labeling(
+    session: Session, tmp_path: Path
+) -> None:
+    """v2 regression: chosen_external_name set + chosen_product_id null → reason labeling skipped.
+
+    The reason-gate filters on ``chosen_product_id is None``. External-winner
+    threads have chosen_product_id null by construction, so they should be
+    excluded from reason labeling — they didn't choose a tracked product, so
+    there are no reasons-for-tracked-product to tag.
+    """
+    _seed_post(session, mention_id="reddit_post_ext_x")
+    _seed_comment(session, mention_id="reddit_comment_1", parent_id="t3_abc")
+    session.flush()
+
+    d_client = _make_client(
+        _deliberation_response(
+            chosen_product_id=None,
+            chosen_external_name="Razer Blade 16",
+        )
+    )
+    r_client = _make_client(_reason_response())
+    d_labeler = DeliberationLabeler(d_client)
+    r_labeler = ReasonLabeler(r_client)
+
+    stats = build_gold_sets(
+        session,
+        deliberation_labeler=d_labeler,
+        reason_labeler=r_labeler,
+        products=_PRODUCTS,
+        rng=random.Random(0),
+        deliberation_output_path=tmp_path / "d.jsonl",
+        reason_output_path=tmp_path / "r.jsonl",
+        target_size=5,
+        force_include_per_rule=0,
+    )
+
+    deliberation_entries = read_deliberation_gold_jsonl(tmp_path / "d.jsonl")
+    assert len(deliberation_entries) == 1
+    pred = deliberation_entries[0].sonnet_prediction
+    assert pred["chosen_external_name"] == "Razer Blade 16"
+    assert pred["chosen_product_id"] is None
+    assert pred["is_resolved"] is True
+
+    # Gate behaviour: external winner → no reason calls, no reason entries.
+    assert stats.resolved_threads == 0
+    assert r_client.generate_json.call_count == 0
+    reason_entries = read_reason_gold_jsonl(tmp_path / "r.jsonl")
+    assert reason_entries == []

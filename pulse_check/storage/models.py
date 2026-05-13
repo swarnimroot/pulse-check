@@ -234,6 +234,7 @@ class DeliberationTag(Base):
     chosen_product_id: Mapped[str | None] = mapped_column(
         ForeignKey("products.product_id", ondelete="SET NULL"), nullable=True
     )
+    chosen_external_name: Mapped[str | None] = mapped_column(String(256), nullable=True)
     prompt_version: Mapped[str] = mapped_column(String(64), nullable=False)
     model: Mapped[str] = mapped_column(String(128), nullable=False)
     temperature: Mapped[float] = mapped_column(Float, nullable=False)

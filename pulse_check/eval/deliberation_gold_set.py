@@ -135,6 +135,7 @@ def _prediction_to_dict(pred: DeliberationPrediction) -> dict[str, Any]:
         "is_resolved": pred.is_resolved,
         "products_discussed": list(pred.products_discussed),
         "chosen_product_id": pred.chosen_product_id,
+        "chosen_external_name": pred.chosen_external_name,
         "confidence": pred.confidence,
     }
 
@@ -146,6 +147,7 @@ def _dict_to_prediction(data: dict[str, Any]) -> DeliberationPrediction:
         products_discussed=tuple(data.get("products_discussed") or []),
         chosen_product_id=data.get("chosen_product_id"),
         confidence=data.get("confidence"),
+        chosen_external_name=data.get("chosen_external_name"),
     )
 
 

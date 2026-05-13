@@ -3,12 +3,18 @@
 Implements the ``classify_deliberation_thread`` contract (ARCHITECTURE §6.1):
 
     input:   (thread, products)
-    output:  {is_deliberation, is_resolved, products_discussed, chosen_product_id}
+    output:  {is_deliberation, is_resolved, products_discussed,
+              chosen_product_id, chosen_external_name, confidence}
 
-One Qwen call returns all four fields — outcome extraction is folded into the
+One Qwen call returns all six fields — outcome extraction is folded into the
 classifier rather than split into a separate pass. The classifier is
 full-product-universe: callers pass the run's full tracked product set per
 thread, not a per-pair subset.
+
+``chosen_external_name`` (v2) captures the OP's chosen winner when it is NOT
+in the tracked product universe (e.g., "I went with the Razer Blade 16" when
+Razer is untracked). Free-text. Mutually exclusive with ``chosen_product_id``:
+at most one is set per thread.
 
 Resolution is **OP-only** per ARCHITECTURE §11 ("Resolved deliberation
 thread"). Third-party assertions ("I think OP went with X") do not resolve.
@@ -54,7 +60,7 @@ class JsonGenerator(Protocol):
     ) -> LlmResponse: ...
 
 
-PROMPT_VERSION = "deliberation_classifier_v1"
+PROMPT_VERSION = "deliberation_classifier_v2"
 _DEFAULT_MODEL = "qwen2.5:7b-q4_K_M"
 
 
@@ -90,13 +96,19 @@ class DeliberationThread:
 
 @dataclass(frozen=True)
 class DeliberationPrediction:
-    """Per-thread classification — mirrors ARCH §6.1 JSON shape + confidence."""
+    """Per-thread classification — mirrors ARCH §6.1 JSON shape + confidence.
+
+    ``chosen_external_name`` (v2) is mutually exclusive with
+    ``chosen_product_id``: at most one is set. The default is ``None`` so v1
+    callers that don't pass it still construct a valid v2 prediction.
+    """
 
     is_deliberation: bool
     is_resolved: bool
     products_discussed: tuple[str, ...]
     chosen_product_id: str | None
     confidence: float | None
+    chosen_external_name: str | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -156,22 +168,32 @@ substantively discussed anywhere in the thread. Use the exact id strings. \
 Products mentioned only in passing, or referenced but not in the universe, \
 are excluded.
 3. is_resolved = true ONLY if a segment labeled [OP_POST], [OP_EDIT], or \
-[OP_COMMENT] names the chosen product. Assertions made in [OTHER_COMMENT] \
-segments (e.g., "I think OP went with X") do NOT count toward resolution.
-4. chosen_product_id, if resolved, MUST be a product_id from \
-products_discussed. If unresolved or unclear, set chosen_product_id = null \
-and is_resolved = false.
-5. confidence = your overall confidence in the classification, between 0 \
+[OP_COMMENT] names the chosen product. The chosen product can be either:
+   (a) a tracked product from PRODUCT UNIVERSE — set chosen_product_id to \
+its product_id and leave chosen_external_name = null; OR
+   (b) an untracked external product (a specific product NOT in PRODUCT \
+UNIVERSE, e.g. "the Razer Blade 16", "MSI Stealth 16 AI Studio") — set \
+chosen_external_name to the product name as the OP wrote it and leave \
+chosen_product_id = null.
+   Assertions made in [OTHER_COMMENT] segments (e.g., "I think OP went \
+with X") do NOT count toward resolution.
+4. chosen_product_id, if set, MUST be a product_id from products_discussed.
+5. chosen_product_id and chosen_external_name are mutually exclusive — at \
+most one is set per thread. If neither is set, both MUST be null and \
+is_resolved = false.
+6. confidence = your overall confidence in the classification, between 0 \
 and 1.
 
 OUTPUT — JSON only, no prose, no markdown:
 {{"is_deliberation": <bool>, "is_resolved": <bool>, "products_discussed": \
 ["<product_id>", ...], "chosen_product_id": "<product_id>" | null, \
-"confidence": <number between 0 and 1>}}
+"chosen_external_name": "<product name>" | null, "confidence": <number \
+between 0 and 1>}}
 
 If the thread is not a deliberation, output \
 {{"is_deliberation": false, "is_resolved": false, "products_discussed": [], \
-"chosen_product_id": null, "confidence": <number between 0 and 1>}}.
+"chosen_product_id": null, "chosen_external_name": null, "confidence": \
+<number between 0 and 1>}}.
 """
 
 
@@ -242,6 +264,20 @@ def _coerce_chosen_product_id(value: Any, discussed: list[str]) -> str | None:
     return value
 
 
+def _coerce_chosen_external_name(value: Any) -> str | None:
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        log.warning(
+            "deliberation_classifier: chosen_external_name not a string: %r", value
+        )
+        return None
+    stripped = value.strip()
+    if not stripped:
+        return None
+    return stripped
+
+
 def _coerce_confidence(value: Any) -> float | None:
     if value is None:
         return None
@@ -271,10 +307,12 @@ def parse_response(
 
     Defensive consistency rules:
     - If ``is_deliberation`` is false, ``products_discussed`` is forced to
-      empty, ``chosen_product_id`` to null, and ``is_resolved`` to false.
+      empty, both winner fields to null, and ``is_resolved`` to false.
     - If ``chosen_product_id`` is not in (the filtered) ``products_discussed``,
-      it is demoted to null and ``is_resolved`` to false.
-    - If ``is_resolved`` is true but ``chosen_product_id`` is null, the
+      it is demoted to null.
+    - If ``chosen_product_id`` and ``chosen_external_name`` are both set, the
+      tracked id wins (more specific) and the external name is dropped.
+    - If ``is_resolved`` is true but BOTH winner fields are null, the
       resolution is demoted to false.
     """
     if not isinstance(parsed, dict):
@@ -293,21 +331,33 @@ def parse_response(
 
     discussed_list = _coerce_product_id_list(parsed.get("products_discussed"), universe)
     chosen = _coerce_chosen_product_id(parsed.get("chosen_product_id"), discussed_list)
+    external = _coerce_chosen_external_name(parsed.get("chosen_external_name"))
     confidence = _coerce_confidence(parsed.get("confidence"))
 
     if not is_deliberation:
-        if discussed_list or chosen is not None or is_resolved:
+        if discussed_list or chosen is not None or external is not None or is_resolved:
             log.warning(
                 "deliberation_classifier: is_deliberation=false but downstream fields "
                 "non-empty; forcing to safe defaults"
             )
         discussed_list = []
         chosen = None
+        external = None
         is_resolved = False
 
-    if is_resolved and chosen is None:
+    if chosen is not None and external is not None:
         log.warning(
-            "deliberation_classifier: is_resolved=true but chosen_product_id=null; demoting"
+            "deliberation_classifier: both chosen_product_id=%r and "
+            "chosen_external_name=%r set; dropping external name (tracked wins)",
+            chosen,
+            external,
+        )
+        external = None
+
+    if is_resolved and chosen is None and external is None:
+        log.warning(
+            "deliberation_classifier: is_resolved=true but no winner set "
+            "(chosen_product_id and chosen_external_name both null); demoting"
         )
         is_resolved = False
 
@@ -317,6 +367,7 @@ def parse_response(
         products_discussed=tuple(discussed_list),
         chosen_product_id=chosen,
         confidence=confidence,
+        chosen_external_name=external,
     )
 
 

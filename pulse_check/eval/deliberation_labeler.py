@@ -9,7 +9,7 @@ The labeler exists only to namespace the Sonnet call under a separate
 ``task`` + ``prompt_version`` in the LLM cache:
 
 - ``task='deliberation_labeling'`` (vs classifier's ``deliberation_tagging``)
-- ``PROMPT_VERSION='deliberation_labeling_v1'``
+- ``PROMPT_VERSION='deliberation_labeling_v2'``
 
 so labels and predictions occupy disjoint cache rows. Either side can be
 re-run without invalidating the other, and operator review pass can iterate
@@ -35,7 +35,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
 
-PROMPT_VERSION = "deliberation_labeling_v1"
+PROMPT_VERSION = "deliberation_labeling_v2"
 _DEFAULT_MODEL = "claude-sonnet-4-6"
 
 

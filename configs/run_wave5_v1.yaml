@@ -1,34 +1,27 @@
-# Wave 5 first scrape (PRD §9, operator-locked 2026-05-12).
+# Wave 5 full-scrape posture (PRD §9, operator-locked 2026-05-12).
 #
-# Staged on a 13-product subset of the full 59-product universe (4 Alienware
-# flagships + 9 nearest competitors). See pair_plan_wave5_staged.yaml.
-# Full-universe scrape follows once the staged scrape validates pattern
-# accuracy and cost.
-#
-# Source posture for the STAGED scrape (session 26 — RSS-only validation pass):
-#   - reddit:    DISABLED for the staged run ("Reddit untouched" — keep
-#                session-8's 1143 Reddit mentions stable so any cost or count
-#                anomaly attributes cleanly to the new Article + YouTube
-#                fetchers). Subreddit list preserved below for full Wave 5.
-#                Flip enabled:true before the full 59-product Wave 5 scrape.
-#   - rss:       ENABLED — runs RSS-discovery from `rss_sources` at orchestrator
-#                startup. Discovered URLs are enqueued against scrapers-lib's
-#                existing youtube + article fetchers with all-product anchors.
-#                backfill_months: 3 for the staged run (matches dry-run window);
-#                expand to 6 before full Wave 5.
+# Source posture:
+#   - reddit:    enabled; 6-month backfill across 12 subreddits.
+#   - rss:       enabled; 6-month backfill window.
+#   - discovered_urls_sources: operator-curated Notebookcheck editorial URLs
+#                (single-anchor enqueue, mirrors article_seeds; NOT RSS-broadcast).
+#                Requires `article.enabled: true` for the orchestrator guard.
 #   - article/youtube (per-product seed loops): OMITTED — the 59-product config
-#                has `urls: {}` everywhere, so no per-product seeds exist. RSS
-#                discovery is the sole article/youtube path for Wave 5.
-#   - bestbuy/amazon: DISABLED — retailer fetchers deferred per bite 6.4.
-#                Operator out of scope for this pilot.
+#                has `urls: {}` everywhere; RSS-discovery + discovered_urls are
+#                the sole article/youtube paths.
+#   - bestbuy/amazon: DISABLED — retailer fetchers deferred per pilot scope.
 
 run_id: wave5_v1
 product_set: product_set_gaming_laptops_2026.yaml
 pair_plan: pair_plan_wave5_staged.yaml
 rss_sources: wave5_rss_sources.yaml
+# Stage-1 flip: enqueue the 33 operator-curated Notebookcheck editorial URLs
+# via the discovered-URLs single-anchor path (mirrors `article_seeds`, NOT
+# RSS-broadcast). Loader resolves the path relative to this YAML's directory.
+discovered_urls_sources: ../data/discovered_urls/notebookcheck
 source_windows:
   reddit:
-    enabled: false  # Session 26 staged run: see header note. Flip back to true for full Wave 5.
+    enabled: true
     backfill_months: 6
     subreddits:
       # Existing 6 (v1 corpus base):
@@ -47,5 +40,9 @@ source_windows:
       - LaptopDeals
   rss:
     enabled: true
-    backfill_months: 3  # Session 26 staged run; expand to 6 for full Wave 5.
+    backfill_months: 6
+  # Article window must be enabled for the discovered-URLs path to enqueue
+  # (orchestrator guard: sw.article.enabled AND discovered_urls is not None).
+  article:
+    enabled: true
 taxonomy_version: v0

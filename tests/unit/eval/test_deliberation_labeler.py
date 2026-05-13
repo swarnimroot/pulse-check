@@ -86,8 +86,8 @@ def _thread(**overrides: Any) -> DeliberationThread:
 # ---------------------------------------------------------------------------
 
 
-def test_prompt_version_is_deliberation_labeling_v1() -> None:
-    assert PROMPT_VERSION == "deliberation_labeling_v1"
+def test_prompt_version_is_deliberation_labeling_v2() -> None:
+    assert PROMPT_VERSION == "deliberation_labeling_v2"
 
 
 def test_default_model_is_sonnet() -> None:
@@ -267,6 +267,33 @@ def test_label_returns_confidence_field_when_present(session: Session) -> None:
         session, thread=_thread(), products=_PRODUCTS
     )
     assert pred.confidence == 0.42
+
+
+def test_label_propagates_chosen_external_name(session: Session) -> None:
+    """v2: external-winner payload flows through unchanged."""
+    response = _good_response(
+        chosen_product_id=None,
+        chosen_external_name="Razer Blade 16",
+    )
+    pred = DeliberationLabeler(_make_client(response)).label(
+        session, thread=_thread(), products=_PRODUCTS
+    )
+    assert pred.chosen_product_id is None
+    assert pred.chosen_external_name == "Razer Blade 16"
+    assert pred.is_resolved is True
+
+
+def test_label_mutex_drops_external_when_chosen_set(session: Session) -> None:
+    """v2: classifier's mutex coercion fires through the labeler too."""
+    response = _good_response(
+        chosen_external_name="Razer Blade 16",
+    )
+    # chosen_product_id stays "alienware_16_aurora" from _good_response default.
+    pred = DeliberationLabeler(_make_client(response)).label(
+        session, thread=_thread(), products=_PRODUCTS
+    )
+    assert pred.chosen_product_id == "alienware_16_aurora"
+    assert pred.chosen_external_name is None
 
 
 def test_label_full_thread_with_edit_and_comments(session: Session) -> None:
