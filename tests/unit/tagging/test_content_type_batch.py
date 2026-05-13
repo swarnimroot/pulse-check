@@ -177,6 +177,35 @@ def test_empty_products_is_noop(session: Session) -> None:
     assert stats == type(stats)(0, 0, 0, 0, 0)
 
 
+def test_commit_every_fires_periodic_commits(session: Session, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    """commit_every>0 should fire session.commit() at the configured cadence."""
+    _fixture(session)
+
+    commits: list[str] = []
+    original = session.commit
+
+    def spy() -> None:
+        commits.append("commit")
+        original()
+
+    monkeypatch.setattr(session, "commit", spy)
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json=_canned({"content_type": "review"}))
+
+    stats = classify_corpus_content_type(
+        session,
+        classifier=_classifier(handler),
+        product_ids=["aw16"],
+        commit_every=1,
+    )
+
+    # 2 mentions classified at commit_every=1 → 2 mid-loop commits + 1 end-of-loop commit
+    assert stats.mentions_classified == 2
+    assert stats.tags_inserted == 2
+    assert len(commits) == 3
+
+
 def test_unique_mention_classified_once_per_pass(session: Session) -> None:
     """A mention attributed to multiple products should still be classified once
     (content type is mention-scoped)."""

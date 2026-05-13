@@ -8,9 +8,70 @@ Running one-page chronicle. Updated **at session close**, when the operator says
 
 Paste at the start of your next session:
 
-> Resume pulse-check session 30. Audit per `docs/SESSION_LOG.md` "Audit checklist (session 29 → 30)" first. Tagging phase is next — expensive batch. Per cost-estimate memory, do NOT fire any LLM batch until per-phase estimate is in chat and operator says go. Settle the three pre-bite forks at session-30 open. Be very concise. Ultrathink. Use agents to save context.
+> Resume pulse-check session 31. Audit per `docs/SESSION_LOG.md` "Audit checklist (session 30 → 31)" first. Aspect gold v2 locked at N=115 (113 accept + 2 flag); deliberation gold v2 locked at N=32 (31 accept + 1 flag); reason gold v2 empty (0 resolved-tracked threads — corpus-shape finding, not a tagger bug). Three pre-bite forks at open: Qwen aspect-eval against v2 gold · reason-tagging path given empty gold · OP-strictness investigation per the 1 deliberation flag. Per cost-estimate memory: per-phase estimate before any LLM batch + wait for explicit go. Be very concise. Ultrathink. Use agents to save context.
 
-### Audit checklist (session 29 → 30)
+### Audit checklist (session 30 → 31)
+
+- Use `.venv/Scripts/python.exe` for backend tooling.
+- `pytest tests/unit/` → **618 pass** (was 615; +3 = +1 `tests/unit/tagging/test_content_type_batch.py::test_commit_every_fires_periodic_commits` + +2 `tests/unit/eval/test_gold_set.py::test_sample_excludes_filtered_content_types` + `::test_sample_default_no_exclusion_preserves_existing_behavior`).
+- `mypy pulse_check/ tests/ scripts/` → expected clean, **122 source files** (was 119; +3 new scripts: `retry_30a_helios_neo_16.py`, `auto_accept_non_priority_gold.py`, `dump_gold_review_md.py`).
+- `ruff check pulse_check/ tests/ scripts/` → expected clean.
+- Frontend untouched in session 30.
+- **TASKS.md drift check:**
+  - `Status` line reflects: v2 gold sets locked — `aspect_tagging_v2` (115 entries; 113 accept + 2 flag), `deliberation_v2` (32 entries; 31 accept + 1 flag), `reason_tagging_v2` (empty; 0 resolved-tracked in v2 candidate pool — corpus-shape property). content_type now covers all 5061 mentions.
+  - `Active` line: Qwen aspect eval against v2 gold (free, local); reason-eval path decision given empty gold; OP-strictness investigation on the deliberation classifier.
+  - `Last reconciled = 2026-05-13`.
+  - Wave 5 items closed in session 30: aspect-tagging gold-set rebuild at N=150 (substantively done at N=115 — undershoot from thin source buckets; documented as ceiling-not-bug) · deliberation + reason gold-set rebuild on expanded corpus (deliberation done at N=32; reason empty by corpus shape, not deferral).
+  - **CLAUDE.md flat-checklist rule is enforced.** Re-audit at session-31 open: search TASKS.md for `session[- ]?\d+`; expect zero matches in wave items.
+- **ARCH §6.1 drift check:** **No changes this session** — no LLM-contract touched.
+- **Migration head:** `eb05da255474` (unchanged from session 29). Verify via `.venv/Scripts/python -m alembic current`.
+- **Config artifacts on disk:**
+  - `data/pulse_check.db` mention count: **5061** (unchanged from session 29).
+  - `content_type_tags` rows: **5061** (was 1143). Breakdown: 4075 `other` / 659 `review` / 327 `deal` (deal ratio ~6.5% — healthier than v1 gold's 71%; eval-mirrors-production memory satisfied via new sampler filter).
+  - `data/gold_sets/aspect_tagging_v2.jsonl` (115 entries; 113 accept + 2 flag + 0 corrected).
+  - `data/gold_sets/deliberation_v2.jsonl` (32 entries; 31 accept + 1 flag + 0 corrected).
+  - `data/gold_sets/reason_tagging_v2.jsonl` exists but **empty** (0 entries; produced by C-stage but had no resolved-tracked threads to populate).
+  - `data/gold_sets/*_v2.jsonl.bak` siblings preserve pre-review state (from `auto_accept_non_priority_gold.py`).
+  - v1 gold files preserved on disk for audit trail (`aspect_tagging_v1.jsonl`, `deliberation_v1.jsonl`, `reason_tagging_v1.jsonl` — NOT overwritten).
+- **Code structure shipped (bites 30.a / 30.b / 30.c):**
+  - **`pulse_check/tagging/content_type_batch.py`** — added `commit_every: int = 0` kwarg to `classify_corpus_content_type`. When > 0, `session.commit()` fires every N successful inserts + once at end-of-loop. Default 0 preserves the caller-owns-transaction contract. Closes the all-or-nothing-rollback gap that lost 437 paid Haiku calls in the first B1 attempt.
+  - **`scripts/classify_content_type.py`** — added `--commit-every` CLI flag with default 50.
+  - **`pulse_check/eval/gold_set.py`** — added `exclude_content_types: Iterable[ContentType] | None = None` kwarg to `sample_attributions_stratified`. Pre-filters mentions via `ContentTypeTag` lookup before stratification. Mentions without a content_type row are kept (un-classified ≠ excluded). Mirrors production filter chain.
+  - **`scripts/build_gold_set.py`** — added `--exclude-content-types` CLI flag with default `[ContentType.DEAL]`.
+  - **`tests/unit/tagging/test_content_type_batch.py`** — +1 test (`test_commit_every_fires_periodic_commits`): spy on `session.commit` to verify cadence.
+  - **`tests/unit/eval/test_gold_set.py`** — +2 tests (`test_sample_excludes_filtered_content_types`, `test_sample_default_no_exclusion_preserves_existing_behavior`).
+  - **NEW `scripts/retry_30a_helios_neo_16.py`** — one-off retry of the session-29 lost NBC URL. Findings: URL is for the untracked `Helios Neo 16S AI` variant; correctly rejected by ingest (no PRIMARY anchor matches; catalog uses `(?<!helios\s)\bneo\s+16s\b` lookbehind + `\b16\b` word-boundary on `helios_neo_16`).
+  - **NEW `scripts/auto_accept_non_priority_gold.py`** — bulk-accepts non-priority v2 gold entries so interactive review only shows the priority slice. Makes `.bak` siblings first. Priority rules: aspect = zero-aspect OR `reddit_comment` source; deliberation = (`is_deliberation=True AND is_resolved=False`) OR `chosen_external_name` set.
+  - **NEW `scripts/dump_gold_review_md.py`** — renders v2 gold sets to markdown for bulk visual review (fallback to interactive CLI).
+- **Operator-confirmed locks from session 30 (do not re-debate without flag):**
+  - **`acer_predator_helios_neo_16` URL is for the untracked `Helios Neo 16S AI` variant** — NOT a Cloudflare issue. Session-29 diagnosis was wrong. Accepted loss; expanding the catalog to track the 16S variant is out-of-scope for the pilot.
+  - **Long LLM batches must commit periodically.** The all-or-nothing rollback in `session_scope` cost ~$0.26 + 437 lost cache rows on the first B1 attempt. Pattern: any function that fires ≥50 paid LLM calls inside one transaction needs a `commit_every` knob. Fixed in `content_type_batch.py`; the same pattern would bite `label_with_sonnet` + `build_gold_sets` if those run on larger corpora.
+  - **Gold-set sampling mirrors the production filter chain.** `sample_attributions_stratified` now exposes `exclude_content_types` (default `[DEAL]` via CLI). Closes the v1 gold pollution gap (per the `feedback_eval_must_mirror_production_filters` memory).
+  - **v1 gold files preserved on disk** — NOT overwritten by the rebuild. v2 written to `*_v2.jsonl`. Eval runners + tests will need to be pointed at v2 paths in session 31 (eval-runner path update is a session-31 prerequisite).
+  - **Reddit gaming-laptop deliberation is exploratory, not resolution-heavy.** N=50 candidate sample on the expanded 610-post corpus surfaced 0 resolved-to-tracked threads (same shape as v1's 33-post corpus). The new `chosen_external_name` channel fired exactly once. This is a corpus-shape property, not a tagger bug. Implication: Wave 3 A2 `pair_win_rates` aggregator will have very thin per-pair data; the OP-only resolution rule (ARCH §11) is a candidate for relaxation if session 31 confirms operator-flagged misses generalize.
+- **Live findings from session 30 (operator visibility — these gate session-31 work):**
+  - **B1 first attempt was killed mid-loop (~10 min in, after 437 successful Haiku 200 OKs)** — likely the general-purpose subagent's runtime budget terminated its Bash child. `session_scope` rolled back everything (cache rows included); zero rows landed. ~$0.26 sunk at Anthropic. Patched + retried in foreground with `--commit-every 50`; succeeded cleanly (3918 inserted, 0 parse_failures).
+  - **Gold-set N=150 target undershot to 115 by structural ceiling.** 4 source buckets (no retailer-review data); quota 150//4 = 37/bucket; `article` only has 35 eligible mentions, `reddit_comment` only has 6 PRIMARY-attributed (the rest are SECONDARY via comment-inheritance, correctly excluded from A1 sampling per the function's docstring). Not a sampler bug.
+  - **Operator review caught 3 Sonnet labeling errors (11% on priority slice).** Aspect: 2/15 flagged (attribution error on rog_strix_g16 vs strix_scar; aspect-applicability question on alienware_16_aurora). Deliberation: 1/13 flagged (`reddit_post_1tbbyv9_lenovo_legion_7_pro_16` — operator note: "looks like OP has already decided on the Legion Pro 7, just not confirmed on the config, but it counts as made decision on legion pro 7"). 89% Sonnet-correct on the priority slice — good gold quality.
+  - **Reason gold is empty.** 0 resolved-to-tracked threads → no comments to label. Session 31 needs to decide: (a) eval reason classifier against a synthesized gold (e.g., the 1 flagged Legion case curated into a single resolved-tracked thread); (b) defer reason eval until corpus grows; (c) relax OP-only rule, re-sample.
+  - **Session 30 spend:** ~$3.85 / ~$5.35 ceiling. B1 (~$2.35) + ~$0.26 sunk + B3 (~$0.69) + C-stage (~$0.50-1.00). Under ceiling.
+- **Pre-bite forks for session 31 — settle BEFORE moving forward:**
+  1. **Qwen aspect-tagging eval against v2 gold.** Free (Qwen local). The eval runner needs to point at `aspect_tagging_v2.jsonl` (was `_v1`) and skip entries with `operator_flag == 'flag'` (no corrected labels available) from F1. If F1 ≥80% → ship Qwen; iterate prompt or swap to Haiku if not (ARCH §6.5 permits per-task Haiku fallback).
+  2. **Reason-tagging eval path given empty gold.** Three options above. Cost on (a) synthesis: ~$0.50-1.00 if Sonnet re-labels a curated thread subset. Estimate before firing.
+  3. **OP-strictness investigation on the deliberation classifier.** 1/12 flagged at session-30 review (8% miss rate on the strictness slice). Whether to relax the OP-only rule (ARCH §11) before full-corpus deliberation tagging fires. Architectural change; would require plan + ARCH update + new prompt version.
+- **Bite candidates for session 31 (priority order):**
+  - **Bite 30.d — Qwen aspect-tagging eval** against v2 gold (Wave 2 ≥80% formal closure).
+  - **Bite 30.e — Reason-tagging eval path decision + execution** (Wave 3 carry-over).
+  - **Bite 30.f — Full aspect + deliberation tagging on 5061-mention corpus** (Qwen local; free for the tagging itself). Pre-req: the long-batch commit pattern from B1 applied to any bundled Sonnet runs in the post-tagging synthesis stack.
+  - **Aggregation + synthesis** for all pairs + all products (depends on full tagging).
+  - **README.md** (still pending; setup + run-a-pilot operator doc).
+- **Alternative pre-bite paths if operator changes mind at session-31 open:**
+  - **OP-strictness deep-dive** — re-read the 12 deliberation-not-resolved threads via the markdown bulk view; classify operator-side which are "real misses" vs "Sonnet was right". Informs the ARCH §11 relaxation question.
+  - **Manufacturer-dropdown POST extension** — Notebookcheck mega-product corpus expansion (deferred from session 28).
+  - **Operator visual confirm** (Path D) — still pending; 5-min browser walk against live uvicorn.
+  - **Frontend bites** — A2 pair UI + DESIGN_SYSTEM A2 atoms. Depends on A2 aggregator (not yet built).
+
+### Audit checklist (session 29 → 30) — archived, completed in session 30
 
 - Use `.venv/Scripts/python.exe` for backend tooling.
 - `pytest tests/unit/` → **615 pass** (was 600; +15 = +10 `tests/unit/tagging/test_deliberation_classifier.py` v2 parse cases + prompt rule + dataclass default + +2 `tests/unit/eval/test_deliberation_labeler.py` external-name propagation + mutex regression + +3 `tests/unit/eval/test_deliberation_gold_set.py` JSONL round-trip + v1 back-compat + reason-gate regression; **2 modified tests**: labeler `PROMPT_VERSION` → v2 rename + `tests/unit/config/test_loader.py::test_load_run_wave5_v1_threads_rss_sources_through_load_run` re-anchored from session-26 staged posture to full-scrape posture — now asserts `rss.backfill_months == 6` + `reddit.enabled is True` + `article.enabled is True` + `discovered_urls_sources` resolves).

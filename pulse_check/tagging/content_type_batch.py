@@ -41,14 +41,19 @@ def classify_corpus_content_type(
     *,
     classifier: ContentTypeClassifier,
     product_ids: Iterable[str],
+    commit_every: int = 0,
 ) -> BatchContentTypeStats:
     """Classify content-type for every distinct in-scope mention.
 
     Arguments
     ---------
     session:
-        Open SQLAlchemy session. Flushes but does not commit; caller owns
-        the transaction boundary.
+        Open SQLAlchemy session. By default flushes but does not commit
+        (caller owns the transaction boundary). If ``commit_every > 0``,
+        the function additionally commits every N successful inserts and
+        once more after the loop, so a mid-loop interruption preserves the
+        ContentTypeTag rows (and their backing ``llm_cache`` entries) that
+        were already paid for.
     classifier:
         Configured ``ContentTypeClassifier``. Its ``prompt_version`` +
         ``model`` + ``temperature`` are stamped on every inserted row and
@@ -57,6 +62,10 @@ def classify_corpus_content_type(
         Only mentions with at least one attribution to one of these
         product_ids are classified. Mention-scoped: each unique mention
         is classified once, regardless of how many products it references.
+    commit_every:
+        If > 0, ``session.commit()`` fires after every N successful
+        ``ContentTypeTag`` inserts and once at end-of-loop. Default 0
+        preserves the original caller-owns-transaction contract.
     """
     pid_set = set(product_ids)
     if not pid_set:
@@ -157,7 +166,12 @@ def classify_corpus_content_type(
         inserted += 1
         already_tagged.add(mention_id)
 
+        if commit_every > 0 and inserted % commit_every == 0:
+            session.commit()
+
     session.flush()
+    if commit_every > 0:
+        session.commit()
     return BatchContentTypeStats(
         mentions_seen=seen,
         mentions_skipped_existing=skipped,

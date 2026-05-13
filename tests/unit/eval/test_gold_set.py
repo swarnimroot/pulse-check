@@ -30,9 +30,11 @@ from pulse_check.eval.gold_set import (
 from pulse_check.storage.enums import (
     AttributionMethod,
     AttributionType,
+    ContentType,
     SourceType,
 )
 from pulse_check.storage.models import (
+    ContentTypeTag,
     LlmCache,
     Mention,
     MentionAttribution,
@@ -202,6 +204,70 @@ def test_sample_is_deterministic_with_same_seed(session: Session) -> None:
         session, product_ids=["aw16"], total=6, rng=random.Random(7)
     )
     assert [s.mention_id for s in s1] == [s.mention_id for s in s2]
+
+
+def test_sample_excludes_filtered_content_types(session: Session) -> None:
+    """exclude_content_types drops matching ContentTypeTag rows before stratification.
+
+    Mentions without a ContentTypeTag row are kept (un-classified != excluded).
+    """
+    _make_corpus(session, per_source=3, products=[("aw16", "Alienware 16 Aurora")])
+    # Tag every mention_id ending in '-0' as deal; '-1' as review; '-2' left untagged.
+    for source_type in SourceType:
+        session.add(
+            ContentTypeTag(
+                mention_id=f"{source_type.value}-aw16-0",
+                content_type=ContentType.DEAL,
+                prompt_version="content_type_classifier_v1",
+                model="claude-haiku-4-5-20251001",
+                temperature=0.0,
+            )
+        )
+        session.add(
+            ContentTypeTag(
+                mention_id=f"{source_type.value}-aw16-1",
+                content_type=ContentType.REVIEW,
+                prompt_version="content_type_classifier_v1",
+                model="claude-haiku-4-5-20251001",
+                temperature=0.0,
+            )
+        )
+    session.flush()
+
+    rng = random.Random(0)
+    samples = sample_attributions_stratified(
+        session,
+        product_ids=["aw16"],
+        total=100,
+        rng=rng,
+        exclude_content_types=[ContentType.DEAL],
+    )
+    # 6 deal mentions excluded; 12 remain (6 review + 6 untagged).
+    sampled_ids = {s.mention_id for s in samples}
+    assert len(sampled_ids) == 12
+    assert not any(mid.endswith("-0") for mid in sampled_ids)
+
+
+def test_sample_default_no_exclusion_preserves_existing_behavior(session: Session) -> None:
+    """exclude_content_types=None (the default) MUST behave identically to the
+    pre-patch sampler so existing callers aren't surprised."""
+    _make_corpus(session, per_source=2, products=[("aw16", "Alienware 16 Aurora")])
+    # Tag one mention deal; default sampler should still include it.
+    session.add(
+        ContentTypeTag(
+            mention_id="reddit_post-aw16-0",
+            content_type=ContentType.DEAL,
+            prompt_version="content_type_classifier_v1",
+            model="claude-haiku-4-5-20251001",
+            temperature=0.0,
+        )
+    )
+    session.flush()
+
+    rng = random.Random(0)
+    samples = sample_attributions_stratified(session, product_ids=["aw16"], total=100, rng=rng)
+    sampled_ids = {s.mention_id for s in samples}
+    assert "reddit_post-aw16-0" in sampled_ids
 
 
 def test_sample_shortfall_when_bucket_too_thin(session: Session) -> None:

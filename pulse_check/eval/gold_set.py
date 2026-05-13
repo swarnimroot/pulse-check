@@ -47,8 +47,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from pulse_check.llm_cache import LlmResponse, call_with_cache
-from pulse_check.storage.enums import AttributionType, SourceType
-from pulse_check.storage.models import Mention, MentionAttribution, Product
+from pulse_check.storage.enums import AttributionType, ContentType, SourceType
+from pulse_check.storage.models import ContentTypeTag, Mention, MentionAttribution, Product
 from pulse_check.synthesis.anthropic_client import AnthropicClient
 from pulse_check.tagging.aspect_classifier import (
     PROMPT_VERSION as ASPECT_PROMPT_VERSION,
@@ -123,6 +123,7 @@ def sample_attributions_stratified(
     product_ids: Iterable[str],
     total: int,
     rng: random.Random,
+    exclude_content_types: Iterable[ContentType] | None = None,
 ) -> list[SampledAttribution]:
     """Draw ``total`` primary-attribution rows, evenly across source types.
 
@@ -134,6 +135,13 @@ def sample_attributions_stratified(
     Only PRIMARY attributions are sampled: the gold set measures A1 accuracy,
     which is "what does this mention say about the product it's primarily
     about." Secondary attributions are A2 territory (Wave 3).
+
+    When ``exclude_content_types`` is supplied, mentions whose ``ContentTypeTag``
+    row matches any of the listed types are dropped before stratification.
+    Mirrors the production filter chain (see ``scripts/tag.py
+    --exclude-content-types``) so eval distribution matches what the classifier
+    actually sees at tag time. Mentions without a ``ContentTypeTag`` row are
+    kept (un-classified ≠ excluded).
     """
     product_set = {pid for pid in product_ids}
     if not product_set or total <= 0:
@@ -152,6 +160,19 @@ def sample_attributions_stratified(
         .tuples()
         .all()
     )
+
+    if exclude_content_types:
+        excluded = set(exclude_content_types)
+        excluded_mention_ids: set[str] = set(
+            session.execute(
+                select(ContentTypeTag.mention_id).where(
+                    ContentTypeTag.content_type.in_(excluded)
+                )
+            )
+            .scalars()
+            .all()
+        )
+        rows = [r for r in rows if r[1].mention_id not in excluded_mention_ids]
 
     by_source: dict[SourceType, list[tuple[MentionAttribution, Mention, Product]]] = defaultdict(
         list

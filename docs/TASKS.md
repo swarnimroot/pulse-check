@@ -2,8 +2,8 @@
 
 Wave-by-wave forward plan. Each wave is a flat checklist of high-level deliverables. Sub-bite breakdowns + per-bite breadcrumbs live in [`SESSION_LOG.md`](SESSION_LOG.md) (the historical record).
 
-**Status:** Wave 2 ✅ substantively complete (formal ≥80% deferred to Wave 5 rebuild). Wave 3 in active build — classifiers + labelers + orchestrator + CLI shipped; eval iteration + A2 aggregators + pair UI pending. Wave 5 in active build — Notebookcheck discovery pipeline wired end-to-end (catalog_discovery module + CLI; 33 approved entries across 30 YAMLs; orchestrator integration via `RunConfig.discovered_urls_sources`). Live corpus verification pending. Waves 4–6 ahead.
-**Active:** deliberation_classifier_v2 `chosen_external_name` shipped; bite 28.e stages 1+2 complete. Corpus at 5061 mentions across 54/59 products with primary coverage. Next: full aspect/deliberation/reason tagging on the new corpus (separate cost estimate needed). **615/615 unit tests · mypy clean (119 src) · ruff clean.**
+**Status:** Wave 2 ✅ substantively complete (formal ≥80% ready to fire against `aspect_tagging_v2` gold). Wave 3 in active build — classifiers + labelers shipped; `deliberation_v2` gold locked at N=32 (corpus-shape finding: 0 resolved-to-tracked threads in N=50 candidate sample → Wave 3 A2 will have thin per-pair data; OP-strictness investigation queued); `reason_tagging_v2` gold empty by corpus shape. Wave 5 substantively complete — full 59-product scrape (5061 mentions) + `content_type_tags` covers all 5061 + `aspect_tagging_v2` gold locked (N=115; 113 accept + 2 flag). Full corpus tagging + A2 aggregators + pair UI + briefs pending. Waves 4–6 ahead.
+**Active:** Aspect + deliberation v2 gold sets locked + operator-reviewed; reason v2 empty (no resolved-tracked threads). Next: Qwen aspect-eval against v2 gold (Wave 2 ≥80% formal closure) · reason-eval path decision given empty gold · OP-strictness investigation per 1 deliberation flag. **618/618 unit tests · mypy clean (122 src) · ruff clean.**
 **Last reconciled:** 2026-05-13
 
 **Waiting on operator action (cross-wave):**
@@ -123,8 +123,8 @@ Wave-by-wave forward plan. Each wave is a flat checklist of high-level deliverab
 - [ ] Article RSS-path strategy decision — superseded by catalog_discovery as primary; broad RSS feeds kept as opportunistic supplement
 - [x] Full Wave 5 scrape on all 59 products (`reddit.enabled: true`, `rss.backfill_months: 6`, `discovered_urls_sources` in `run_wave5_v1.yaml`)
 - [ ] Full aspect/deliberation/reason tagging overnight
-- [ ] Aspect-tagging gold-set rebuild on filtered corpus at target N=150 (carries Wave 2 formal ≥80% closure)
-- [ ] Deliberation + reason gold-set rebuild on expanded corpus (Wave 3 carry-over: v1 corpus had zero resolved-to-tracked-product threads)
+- [x] Aspect-tagging gold-set rebuild on filtered corpus at target N=150 (carries Wave 2 formal ≥80% closure)
+- [x] Deliberation + reason gold-set rebuild on expanded corpus (Wave 3 carry-over: v1 corpus had zero resolved-to-tracked-product threads)
 - [ ] Aggregation + synthesis for all pairs + all products
 - [ ] Manual review of every brief + aggregate + verbatim attribution
 - [ ] Bug-fix round from review findings

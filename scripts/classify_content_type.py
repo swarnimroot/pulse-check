@@ -42,6 +42,16 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
         required=True,
         help="Path to a run YAML (e.g. configs/run_smoke_test.yaml).",
     )
+    parser.add_argument(
+        "--commit-every",
+        type=int,
+        default=50,
+        help=(
+            "Commit every N successful inserts (default: %(default)s). "
+            "Set to 0 to disable periodic commits and rely on the "
+            "caller-owned transaction boundary."
+        ),
+    )
     return parser.parse_args(argv)
 
 
@@ -70,6 +80,7 @@ def main(argv: list[str] | None = None) -> int:
             session,
             classifier=classifier,
             product_ids=product_ids,
+            commit_every=args.commit_every,
         )
 
     log.info(

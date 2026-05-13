@@ -29,6 +29,7 @@ from pulse_check.eval.gold_set import (
 )
 from pulse_check.logging_config import configure_logging
 from pulse_check.settings import get_settings
+from pulse_check.storage.enums import ContentType
 from pulse_check.storage.session import session_scope
 from pulse_check.synthesis.anthropic_client import AnthropicClient
 
@@ -63,6 +64,17 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
         default=None,
         help=f"Output path. Defaults to {_GOLD_SET_DIR}/<task>_v1.jsonl.",
     )
+    parser.add_argument(
+        "--exclude-content-types",
+        nargs="*",
+        type=ContentType,
+        default=[ContentType.DEAL],
+        choices=list(ContentType),
+        help=(
+            "Content types to exclude from sampling (mirrors production filter "
+            "chain). Default: %(default)s. Pass with no values to disable."
+        ),
+    )
     return parser.parse_args(argv)
 
 
@@ -93,6 +105,7 @@ def main(argv: list[str] | None = None) -> int:
             product_ids=product_ids,
             total=args.total,
             rng=rng,
+            exclude_content_types=args.exclude_content_types or None,
         )
         log.info("sampled %d attributions", len(samples))
         if not samples:
