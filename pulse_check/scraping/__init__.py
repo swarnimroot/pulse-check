@@ -22,6 +22,10 @@ from pulse_check.scraping.converter import (
     raw_mention_to_mention,
     resolve_source_type,
 )
+from pulse_check.scraping.discovered_urls import (
+    DiscoveredUrlEntry,
+    load_approved_discovered_urls,
+)
 from pulse_check.scraping.ingester import IngestStats, ingest_batch
 from pulse_check.scraping.orchestrator import run_scrape
 from pulse_check.scraping.rss_discovery import (
@@ -33,6 +37,7 @@ from pulse_check.scraping.rss_discovery import (
 __all__ = [
     "CommentInheritanceStats",
     "DiscoveredItem",
+    "DiscoveredUrlEntry",
     "DiscoveryStats",
     "IngestStats",
     "SecondaryAttributionStats",
@@ -41,6 +46,7 @@ __all__ = [
     "attribution_to_row",
     "discover",
     "ingest_batch",
+    "load_approved_discovered_urls",
     "raw_mention_to_mention",
     "resolve_source_type",
     "run_scrape",

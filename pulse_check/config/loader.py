@@ -86,6 +86,11 @@ def load_run_config(path: Path | str) -> RunConfig:
         if not rss.is_absolute():
             rss = (base / rss).resolve()
         updates["rss_sources"] = rss
+    if run.discovered_urls_sources is not None:
+        disc = run.discovered_urls_sources
+        if not disc.is_absolute():
+            disc = (base / disc).resolve()
+        updates["discovered_urls_sources"] = disc
     return run.model_copy(update=updates)
 
 

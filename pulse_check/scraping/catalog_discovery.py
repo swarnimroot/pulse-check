@@ -175,6 +175,26 @@ def search_notebookcheck(
     return reviews
 
 
+def filter_by_min_date(
+    reviews: list[DiscoveredReview],
+    min_published_date: date,
+) -> list[DiscoveredReview]:
+    """Drop reviews older than ``min_published_date`` (and those with no date).
+
+    Notebookcheck's catalog search is a substring match on display names, so
+    generic names ("ASUS TUF 14") sweep in prior-generation reviews. This
+    helper applies a recency cutoff at discovery time so the per-product
+    curation surface stays tractable. Entries with ``published_at is None``
+    (date couldn't be parsed) are dropped under an active filter — they're
+    unverifiable for a recency-based decision.
+    """
+    return [
+        r
+        for r in reviews
+        if r.published_at is not None and r.published_at >= min_published_date
+    ]
+
+
 def build_discovery_result(
     *,
     product_id: str,

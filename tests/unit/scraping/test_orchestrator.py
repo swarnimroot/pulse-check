@@ -32,7 +32,9 @@ from pulse_check.config.models import (
     RSSWindow,
     YouTubeChannelSource,
 )
+from pulse_check.scraping.discovered_urls import DiscoveredUrlEntry
 from pulse_check.scraping.orchestrator import (
+    _enqueue_discovered_urls,
     _enqueue_reddit_comment_followups,
     _enqueue_rss_discovered,
     _upsert_products,
@@ -433,6 +435,88 @@ def test_enqueue_rss_discovered_noop_when_no_buildable_anchors() -> None:
     count = _enqueue_rss_discovered(
         scheduler, ps, _rss_sources_for_orch_test(), RSSWindow(enabled=True)
     )
+
+    assert count == 0
+    scheduler.enqueue.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# `_enqueue_discovered_urls` (bite 28.c)
+# ---------------------------------------------------------------------------
+
+
+def _du(product_id: str, url: str) -> DiscoveredUrlEntry:
+    from pathlib import Path
+
+    return DiscoveredUrlEntry(
+        product_id=product_id,
+        url=url,
+        title=f"{product_id} review",
+        published_at=None,
+        source_file=Path(f"data/discovered_urls/notebookcheck/{product_id}.yaml"),
+    )
+
+
+def test_enqueue_discovered_urls_uses_single_product_anchor() -> None:
+    scheduler = MagicMock()
+    ps = _ps(_pc("alienware_16_aurora"), _pc("rog_strix_g16"))
+    entries = [
+        _du("alienware_16_aurora", "https://notebookcheck.net/A-review.1.0.html"),
+        _du("rog_strix_g16", "https://notebookcheck.net/B-review.2.0.html"),
+    ]
+
+    count = _enqueue_discovered_urls(scheduler, ps, entries)
+
+    assert count == 2
+    assert scheduler.enqueue.call_count == 2
+    calls = scheduler.enqueue.call_args_list
+    # Each enqueue carries exactly one anchor — the entry's own product.
+    anchors_by_url = {c.kwargs["url"]: c.kwargs["anchors"] for c in calls}
+    sources = {c.kwargs["source"] for c in calls}
+    assert sources == {"article"}
+    assert len(anchors_by_url["https://notebookcheck.net/A-review.1.0.html"]) == 1
+    assert (
+        anchors_by_url["https://notebookcheck.net/A-review.1.0.html"][0].anchor_id
+        == "alienware_16_aurora"
+    )
+    assert (
+        anchors_by_url["https://notebookcheck.net/B-review.2.0.html"][0].anchor_id
+        == "rog_strix_g16"
+    )
+
+
+def test_enqueue_discovered_urls_skips_unknown_product_id() -> None:
+    scheduler = MagicMock()
+    ps = _ps(_pc("rog_strix_g16"))
+    entries = [
+        _du("rog_strix_g16", "https://notebookcheck.net/A-review.1.0.html"),
+        _du("ghost_product", "https://notebookcheck.net/B-review.2.0.html"),
+    ]
+
+    count = _enqueue_discovered_urls(scheduler, ps, entries)
+
+    assert count == 1
+    scheduler.enqueue.assert_called_once()
+    args = scheduler.enqueue.call_args
+    assert args.kwargs["url"] == "https://notebookcheck.net/A-review.1.0.html"
+
+
+def test_enqueue_discovered_urls_skips_products_without_anchor() -> None:
+    scheduler = MagicMock()
+    ps = _ps(_pc("rog_strix_g16", primary=[]))  # no patterns → no anchor
+    entries = [_du("rog_strix_g16", "https://notebookcheck.net/X-review.1.0.html")]
+
+    count = _enqueue_discovered_urls(scheduler, ps, entries)
+
+    assert count == 0
+    scheduler.enqueue.assert_not_called()
+
+
+def test_enqueue_discovered_urls_empty_list_noop() -> None:
+    scheduler = MagicMock()
+    ps = _ps(_pc("rog_strix_g16"))
+
+    count = _enqueue_discovered_urls(scheduler, ps, [])
 
     assert count == 0
     scheduler.enqueue.assert_not_called()

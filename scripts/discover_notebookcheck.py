@@ -19,7 +19,7 @@ import argparse
 import logging
 import sys
 import time
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 
 import yaml
@@ -27,6 +27,7 @@ import yaml
 from pulse_check.config.loader import load_product_set
 from pulse_check.scraping.catalog_discovery import (
     build_discovery_result,
+    filter_by_min_date,
     search_notebookcheck,
 )
 
@@ -63,6 +64,17 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
         type=str,
         default=None,
         help="If set, only process this single product_id.",
+    )
+    parser.add_argument(
+        "--min-published-date",
+        type=date.fromisoformat,
+        default=None,
+        help=(
+            "If set (YYYY-MM-DD), drop reviews older than this date and those "
+            "with no parsable date. Notebookcheck search substring-matches "
+            "display names so generic names sweep in old generations; this "
+            "narrows the curation surface to a recency window."
+        ),
     )
     parser.add_argument(
         "--dry-run",
@@ -108,6 +120,9 @@ def main(argv: list[str] | None = None) -> int:
             continue
 
         editorial = [r for r in all_reviews if r.review_type == "editorial"]
+        editorial_pre_date_filter = len(editorial)
+        if args.min_published_date is not None:
+            editorial = filter_by_min_date(editorial, args.min_published_date)
         result = build_discovery_result(
             product_id=product.product_id,
             search_term=search_term,
@@ -115,11 +130,20 @@ def main(argv: list[str] | None = None) -> int:
             total_found=len(all_reviews),
             now=datetime.now(),
         )
-        log.info(
-            "  total=%d editorial_kept=%d",
-            result.total_found,
-            result.editorial_count,
-        )
+        if args.min_published_date is not None:
+            log.info(
+                "  total=%d editorial=%d editorial_kept=%d (>= %s)",
+                result.total_found,
+                editorial_pre_date_filter,
+                result.editorial_count,
+                args.min_published_date.isoformat(),
+            )
+        else:
+            log.info(
+                "  total=%d editorial_kept=%d",
+                result.total_found,
+                result.editorial_count,
+            )
 
         if args.dry_run:
             for r in editorial:

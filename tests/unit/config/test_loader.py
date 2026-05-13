@@ -171,6 +171,49 @@ def test_load_wave5_rss_sources_yaml_parses() -> None:
     assert not any(f.site == "LaptopMag" for f in rss.article_rss_feeds)
 
 
+def test_load_run_config_resolves_discovered_urls_sources_relative_path(
+    tmp_path: Path,
+) -> None:
+    """The new `discovered_urls_sources` field mirrors `rss_sources` path
+    resolution: relative values are resolved against the run config's
+    parent directory; absolute paths pass through unchanged.
+    """
+    # Build a self-contained run config + product/pair stubs alongside it,
+    # plus a discovered-urls directory referenced relatively.
+    products_path = tmp_path / "ps.yaml"
+    products_path.write_text(
+        "products:\n  - product_id: p1\n    display_name: P1\n    brand: x\n",
+        encoding="utf-8",
+    )
+    pairs_path = tmp_path / "pp.yaml"
+    pairs_path.write_text("pairs: []\n", encoding="utf-8")
+    disc_dir = tmp_path / "disc"
+    disc_dir.mkdir()
+    run_yaml = tmp_path / "run.yaml"
+    run_yaml.write_text(
+        (
+            "run_id: t_run\n"
+            "product_set: ps.yaml\n"
+            "pair_plan: pp.yaml\n"
+            "discovered_urls_sources: disc\n"
+            "taxonomy_version: v1\n"
+        ),
+        encoding="utf-8",
+    )
+
+    rc = load_run_config(run_yaml)
+    assert rc.discovered_urls_sources is not None
+    assert rc.discovered_urls_sources.is_absolute()
+    assert rc.discovered_urls_sources.name == "disc"
+    assert rc.discovered_urls_sources.parent == tmp_path.resolve()
+
+
+def test_load_run_config_discovered_urls_sources_defaults_to_none() -> None:
+    """Smoke run config omits `discovered_urls_sources` → loader returns None."""
+    rc = load_run_config(_SMOKE_RUN)
+    assert rc.discovered_urls_sources is None
+
+
 def test_load_run_wave5_v1_threads_rss_sources_through_load_run() -> None:
     path = _REPO_ROOT / "configs" / "run_wave5_v1.yaml"
     run, _ps, _pp, rss = load_run(path)

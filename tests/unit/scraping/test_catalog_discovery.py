@@ -19,6 +19,7 @@ from pulse_check.scraping.catalog_discovery import (
     DiscoveredReview,
     DiscoveryResult,
     build_discovery_result,
+    filter_by_min_date,
     parse_results,
     search_notebookcheck,
 )
@@ -215,6 +216,57 @@ def test_discovered_review_forbids_extra_fields() -> None:
                 "unexpected_field": True,
             }
         )
+
+
+def test_filter_by_min_date_keeps_only_recent_reviews() -> None:
+    cutoff = date(2024, 9, 1)
+    reviews = [
+        DiscoveredReview(
+            url="https://www.notebookcheck.net/Recent-review.1.0.html",
+            title="Recent",
+            published_at=date(2025, 3, 1),
+            review_type="editorial",
+        ),
+        DiscoveredReview(
+            url="https://www.notebookcheck.net/Old-review.2.0.html",
+            title="Old",
+            published_at=date(2023, 3, 17),
+            review_type="editorial",
+        ),
+        DiscoveredReview(
+            url="https://www.notebookcheck.net/OnCutoff-review.3.0.html",
+            title="OnCutoff",
+            published_at=cutoff,
+            review_type="editorial",
+        ),
+    ]
+    out = filter_by_min_date(reviews, cutoff)
+    titles = {r.title for r in out}
+    assert titles == {"Recent", "OnCutoff"}
+
+
+def test_filter_by_min_date_drops_reviews_with_no_date() -> None:
+    cutoff = date(2024, 9, 1)
+    reviews = [
+        DiscoveredReview(
+            url="https://www.notebookcheck.net/Dateless-review.1.0.html",
+            title="Dateless",
+            published_at=None,
+            review_type="editorial",
+        ),
+        DiscoveredReview(
+            url="https://www.notebookcheck.net/Dated-review.2.0.html",
+            title="Dated",
+            published_at=date(2025, 3, 1),
+            review_type="editorial",
+        ),
+    ]
+    out = filter_by_min_date(reviews, cutoff)
+    assert [r.title for r in out] == ["Dated"]
+
+
+def test_filter_by_min_date_empty_input_returns_empty() -> None:
+    assert filter_by_min_date([], date(2024, 9, 1)) == []
 
 
 def test_discovered_review_rejects_invalid_review_type() -> None:

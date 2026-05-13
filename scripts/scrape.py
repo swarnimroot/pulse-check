@@ -14,6 +14,7 @@ from pathlib import Path
 from pulse_check.config import load_run
 from pulse_check.logging_config import configure_logging
 from pulse_check.scraping import run_scrape
+from pulse_check.scraping.discovered_urls import load_approved_discovered_urls
 from pulse_check.storage.session import session_scope
 
 log = logging.getLogger("pulse_check.scripts.scrape")
@@ -38,16 +39,26 @@ def main(argv: list[str] | None = None) -> int:
     configure_logging()
 
     run_config, product_set, _pair_plan, rss_sources = load_run(args.run_config)
+    discovered_urls = (
+        load_approved_discovered_urls(run_config.discovered_urls_sources)
+        if run_config.discovered_urls_sources is not None
+        else None
+    )
     log.info(
-        "starting scrape: run_id=%s products=%d rss_sources=%s",
+        "starting scrape: run_id=%s products=%d rss_sources=%s discovered_urls=%s",
         run_config.run_id,
         len(product_set.products),
         "yes" if rss_sources is not None else "no",
+        f"{len(discovered_urls)} entries" if discovered_urls is not None else "no",
     )
 
     with session_scope() as session:
         ingest_stats, secondary_stats, inheritance_stats = run_scrape(
-            session, run_config, product_set, rss_sources=rss_sources
+            session,
+            run_config,
+            product_set,
+            rss_sources=rss_sources,
+            discovered_urls=discovered_urls,
         )
 
     log.info(

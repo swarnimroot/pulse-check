@@ -234,9 +234,12 @@ class SourceWindows(BaseModel):
 class RunConfig(BaseModel):
     """A full pilot run configuration.
 
-    `product_set`, `pair_plan`, and (optional) `rss_sources` are paths to
-    YAML files; the loader resolves them against the run config's directory
-    when relative.
+    `product_set`, `pair_plan`, and (optional) `rss_sources` /
+    `discovered_urls_sources` are paths to YAML files / directories; the
+    loader resolves them against the run config's directory when relative.
+    `discovered_urls_sources` points to a directory of per-product YAMLs
+    produced by `scripts/discover_notebookcheck.py` after operator curation
+    (see `pulse_check.scraping.discovered_urls`).
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -245,6 +248,7 @@ class RunConfig(BaseModel):
     product_set: Path
     pair_plan: Path
     rss_sources: Path | None = None
+    discovered_urls_sources: Path | None = None
     source_windows: SourceWindows = Field(default_factory=SourceWindows)
     taxonomy_version: str = Field(min_length=1, max_length=32)
 

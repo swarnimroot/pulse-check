@@ -50,6 +50,7 @@ from pulse_check.scraping.comment_inheritance import (
     CommentInheritanceStats,
     apply_comment_inheritance,
 )
+from pulse_check.scraping.discovered_urls import DiscoveredUrlEntry
 from pulse_check.scraping.ingester import IngestStats, ingest_batch
 from pulse_check.scraping.rss_discovery import discover
 from pulse_check.settings import get_settings
@@ -65,6 +66,7 @@ def run_scrape(
     product_set: ProductSet,
     *,
     rss_sources: RSSSources | None = None,
+    discovered_urls: list[DiscoveredUrlEntry] | None = None,
     state_file: str | Path | None = None,
 ) -> tuple[IngestStats, SecondaryAttributionStats, CommentInheritanceStats]:
     """Drain a full scrape for the given run config and persist to `session`.
@@ -78,6 +80,13 @@ def run_scrape(
     anchors against the `youtube` / `article` fetchers; per-product seed
     URLs (`youtube_seeds` / `article_seeds`) still fire alongside if their
     own windows are enabled (coexist; no de-dup at this layer).
+
+    When `discovered_urls` is supplied (operator-curated catalog-discovery
+    output), each entry is enqueued with its product's single anchor against
+    the `article` fetcher — mirroring per-product `article_seeds` rather than
+    RSS broadcast, since each entry is already product-anchored at the YAML
+    level. Gated on `source_windows.article.enabled` so the operator can
+    disable the article path globally without clearing this list.
     """
     ingest_stats = IngestStats()
 
@@ -98,6 +107,12 @@ def run_scrape(
         if sw.rss is not None and sw.rss.enabled and rss_sources is not None:
             _enqueue_rss_discovered(scheduler, product_set, rss_sources, sw.rss)
         _enqueue_all_sources(scheduler, run_config, product_set)
+        if (
+            sw.article is not None
+            and sw.article.enabled
+            and discovered_urls is not None
+        ):
+            _enqueue_discovered_urls(scheduler, product_set, discovered_urls)
         scheduler.run_worker(mode="until_empty")
 
         # Reddit-deepen pass: pull comment trees on every primary-attributed
@@ -267,6 +282,52 @@ def _single_anchor(product: ProductConfig) -> object | None:
 def _reddit_url(subreddit: str) -> str:
     sub = subreddit.removeprefix("r/").removeprefix("/r/")
     return f"https://www.reddit.com/r/{sub}/"
+
+
+def _enqueue_discovered_urls(
+    scheduler: Scheduler,
+    product_set: ProductSet,
+    entries: list[DiscoveredUrlEntry],
+) -> int:
+    """Enqueue operator-approved discovered URLs as single-anchor article jobs.
+
+    Each `DiscoveredUrlEntry` carries the product_id it was discovered for;
+    that product's anchor is the only one passed to the scheduler, so the
+    resulting mention is PRIMARY-attributed to the source product. Mentions
+    of other tracked products in the article body are picked up by the
+    post-fetch `apply_secondary_attribution` sweep.
+
+    Entries whose `product_id` is not present in `product_set` are skipped
+    with a log line — defensive against drift between curated YAMLs and the
+    active run's product set.
+    """
+    product_by_id = {p.product_id: p for p in product_set.products}
+    count = 0
+    skipped_unknown = 0
+    skipped_no_anchor = 0
+    for entry in entries:
+        product = product_by_id.get(entry.product_id)
+        if product is None:
+            skipped_unknown += 1
+            continue
+        anchor = to_anchor(product)
+        if anchor is None:
+            skipped_no_anchor += 1
+            continue
+        scheduler.enqueue(
+            url=entry.url,
+            source="article",
+            anchors=[anchor],
+        )
+        count += 1
+    log.info(
+        "discovered_urls: enqueued %d article jobs "
+        "(skipped %d unknown product_id, %d no-anchor)",
+        count,
+        skipped_unknown,
+        skipped_no_anchor,
+    )
+    return count
 
 
 def _enqueue_rss_discovered(
