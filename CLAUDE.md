@@ -4,7 +4,7 @@ Project-scoped guidance. Global `~/.claude/CLAUDE.md` still applies; this is add
 
 ## What this is
 
-Product-listening pilot engine for PC manufacturers. Two aspects: A1 standalone product voice, A2 comparative deliberation decoder. Sits on `scrapers-lib` (sibling, v1.1.0, stable). Full details in [`docs/PRD.md`](docs/PRD.md) and [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+Product-listening pilot engine for PC manufacturers. Two aspects: A1 standalone product voice, A2 comparative deliberation decoder. Sits on `scrapers-lib` (sibling, **>=1.4.0** — adds `curl_cffi` Chrome120 TLS impersonation for Cloudflare-protected article paths; pinned in `pyproject.toml`). Full details in [`docs/PRD.md`](docs/PRD.md) and [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
 ## Non-negotiable principles
 

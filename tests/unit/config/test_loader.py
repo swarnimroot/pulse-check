@@ -153,8 +153,15 @@ def test_load_wave5_rss_sources_yaml_parses() -> None:
     # laptop-keyword feed link in the session-26 dry-run).
     assert len(rss.article_rss_feeds) == 8
     assert sum(1 for f in rss.article_rss_feeds if f.enabled) == 7
-    # title_keywords seeded with the operator's filter list
-    assert "review" in rss.title_keywords
+    # title_keywords seeded with the operator's filter list. Session 27:
+    # tightened from bare "review"/"best" (admitted phones/tablets from
+    # Notebookcheck's mixed-category feed) to "laptop review" / "best laptop"
+    # compound phrases.
+    assert "gaming laptop" in rss.title_keywords
+    assert "laptop review" in rss.title_keywords
+    assert "best laptop" in rss.title_keywords
+    assert "review" not in rss.title_keywords
+    assert "best" not in rss.title_keywords
     # RTINGS entry retains its index-page URL; disabled at config level.
     rtings = next(f for f in rss.article_rss_feeds if f.site == "RTINGS")
     assert rtings.rss_url.endswith("/rss-feeds")
