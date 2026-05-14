@@ -61,7 +61,7 @@ def _scored_miss() -> ScoredEntry:
 class TestParseArgs:
     def test_defaults(self) -> None:
         args = _parse_args([])
-        assert args.gold_set == Path("data/gold_sets/aspect_tagging_v1.jsonl")
+        assert args.gold_set == Path("data/gold_sets/aspect_tagging_v2.jsonl")
         assert args.truth == "merged"
         assert args.provider == "haiku"
         assert args.output is None

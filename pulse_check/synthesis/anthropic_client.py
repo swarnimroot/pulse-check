@@ -118,22 +118,41 @@ class AnthropicClient:
         max_tokens: int,
     ) -> str:
         messages: list[anthropic.types.MessageParam] = [{"role": "user", "content": prompt}]
+        # Opus 4.7 returns HTTP 400 if `temperature` is passed (deprecated for this model).
+        # Cache keys still use the caller's requested temperature so the recorded
+        # deterministic intent stays consistent with the rest of the project.
+        omit_temperature = model.startswith("claude-opus-4-7")
         try:
             if system is None:
-                response = self._sdk.messages.create(
-                    model=model,
-                    max_tokens=max_tokens,
-                    temperature=temperature,
-                    messages=messages,
-                )
+                if omit_temperature:
+                    response = self._sdk.messages.create(
+                        model=model,
+                        max_tokens=max_tokens,
+                        messages=messages,
+                    )
+                else:
+                    response = self._sdk.messages.create(
+                        model=model,
+                        max_tokens=max_tokens,
+                        temperature=temperature,
+                        messages=messages,
+                    )
             else:
-                response = self._sdk.messages.create(
-                    model=model,
-                    max_tokens=max_tokens,
-                    temperature=temperature,
-                    system=system,
-                    messages=messages,
-                )
+                if omit_temperature:
+                    response = self._sdk.messages.create(
+                        model=model,
+                        max_tokens=max_tokens,
+                        system=system,
+                        messages=messages,
+                    )
+                else:
+                    response = self._sdk.messages.create(
+                        model=model,
+                        max_tokens=max_tokens,
+                        temperature=temperature,
+                        system=system,
+                        messages=messages,
+                    )
         except anthropic.APIConnectionError as exc:
             msg = f"could not reach Anthropic API: {exc}"
             raise LlmConnectionError(msg) from exc

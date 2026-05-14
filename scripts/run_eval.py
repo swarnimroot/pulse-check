@@ -4,7 +4,7 @@ Usage::
 
     python scripts/run_eval.py
     python scripts/run_eval.py --truth operator
-    python scripts/run_eval.py --provider qwen --gold-set data/gold_sets/aspect_tagging_v1.jsonl
+    python scripts/run_eval.py --provider qwen --gold-set data/gold_sets/aspect_tagging_v2.jsonl
 
 Loads the gold set, runs the production aspect classifier (Haiku per
 session-5 deviation; ``--provider qwen`` falls back to Ollama+Qwen for
@@ -47,7 +47,7 @@ from pulse_check.tagging.ollama import OllamaClient
 
 log = logging.getLogger("pulse_check.scripts.run_eval")
 
-_DEFAULT_GOLD_SET = Path("data/gold_sets/aspect_tagging_v1.jsonl")
+_DEFAULT_GOLD_SET = Path("data/gold_sets/aspect_tagging_v2.jsonl")
 _DEFAULT_OUTPUT_DIR = Path("data/eval_results")
 
 

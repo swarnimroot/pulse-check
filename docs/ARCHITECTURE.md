@@ -406,6 +406,8 @@ Attribution is the act of linking a mention to the product(s) it's about. Two pa
 
 Three models, three tiers of work.
 
+> **Exception (Opus carve-out, session 31):** Opus 4.7 is admitted ad-hoc as an *independent gold-quality adjudicator* (§6.6) when Sonnet has already acted as labeler and would otherwise act as judge (self-judgment bias). Opus does **NOT** run in the production tagging or synthesis pipeline. Per-invocation carve-out, not a routing change.
+
 ### 6.1 LOCAL — Qwen 7B via Ollama
 
 Batch-time, high-volume classification. Every call: `temperature=0`, structured JSON output (Ollama's `format=json` or explicit schema), versioned prompt strings, cached.
@@ -506,6 +508,27 @@ Two batch classifiers originally specced for Qwen now run on Haiku, against the 
 | `classify_content_type(mention_text)` | Haiku | mention text | `{content_type: review \| deal \| other, confidence}` |
 
 Cache keys substitute the Haiku model name; downstream contracts and prompt-version semantics unchanged. No other LLM-routing assumptions are affected.
+
+### 6.6 Opus — gold-quality adjudication (per-invocation carve-out)
+
+Operator-approved deviation from the "no Opus" rule in §6 (session 31). Opus 4.7 runs as an **independent adjudicator** of gold-set labels when:
+
+- Sonnet has acted as labeler AND would otherwise act as judge (self-judgment bias);
+- A formally cleaner verdict on label quality is needed to break a tie between two production-tier models (Sonnet gold-labels vs Haiku tagger predictions).
+
+This is a **per-adjudication carve-out**, not a routing change. Opus does NOT run in the production tagging/synthesis pipeline. Every invocation:
+
+- `temperature=0`, JSON-only output, cached via `call_with_cache` like every other LLM call;
+- adjudication prompt is versioned (`aspect_adjudication_v1` for the first use);
+- output is a per-(mention, label-tuple) verdict — `valid` / `over-labeled` / `wrong` / `ambiguous` — with one-line reasoning.
+
+**First use:** session 31 weak-bucket gold scrub on `aspect_tagging_v2.jsonl` — 47 (mention, weak-aspect) pairs where the Haiku-vs-Sonnet eval surfaced disagreement on `software_experience`, `aesthetics`, `support_warranty`. The 0.58 micro-F1 in the first run was partly suspected of being dragged by Sonnet over-labeling on NotebookCheck "Verdict" article excerpts; Opus arbitrates whether those Sonnet labels are substantive or passing.
+
+| Function | Model | Input | Output |
+|---|---|---|---|
+| `adjudicate_aspect_label(mention_text, aspect, polarity, intensity)` | Opus 4.7 | mention text + one (aspect, polarity, intensity) claim | `{verdict: valid \| over-labeled \| wrong \| ambiguous, reasoning: str}` |
+
+Cache key includes `claude-opus-4-7` as the model. Future Opus carve-outs (e.g. deliberation-classifier adjudication) follow the same per-invocation pattern; no broader routing change implied.
 
 ---
 

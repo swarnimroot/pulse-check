@@ -2,8 +2,8 @@
 
 Wave-by-wave forward plan. Each wave is a flat checklist of high-level deliverables. Sub-bite breakdowns + per-bite breadcrumbs live in [`SESSION_LOG.md`](SESSION_LOG.md) (the historical record).
 
-**Status:** Wave 2 ✅ substantively complete (formal ≥80% ready to fire against `aspect_tagging_v2` gold). Wave 3 in active build — classifiers + labelers shipped; `deliberation_v2` gold locked at N=32 (corpus-shape finding: 0 resolved-to-tracked threads in N=50 candidate sample → Wave 3 A2 will have thin per-pair data; OP-strictness investigation queued); `reason_tagging_v2` gold empty by corpus shape. Wave 5 substantively complete — full 59-product scrape (5061 mentions) + `content_type_tags` covers all 5061 + `aspect_tagging_v2` gold locked (N=115; 113 accept + 2 flag). Full corpus tagging + A2 aggregators + pair UI + briefs pending. Waves 4–6 ahead.
-**Active:** Aspect + deliberation v2 gold sets locked + operator-reviewed; reason v2 empty (no resolved-tracked threads). Next: Qwen aspect-eval against v2 gold (Wave 2 ≥80% formal closure) · reason-eval path decision given empty gold · OP-strictness investigation per 1 deliberation flag. **618/618 unit tests · mypy clean (122 src) · ruff clean.**
+**Status:** Wave 2 ✅ substantively ships (Haiku F1=0.5998 on Opus-scrubbed v2 gold; formal ≥80% NOT met but operator-accepted ship-with-caveat — 8/11 aspects ≥0.85 individually; brief quality is the real exit). Wave 5 Stage A complete: 3-product subset (Alienware 16 Aurora, ROG Strix Scar 16, HP Omen Max 16) tagged + aggregated + briefed under `run_wave5_v1`; 0 fabricated / 0 drift / 0 empty. Wave 5 Stage B (remaining 56 products) pending. Wave 3 A2 path (deliberation full-corpus + pair aggregator + pair briefs) pending. ARCH §6.6 Opus carve-out documented: Opus admissible only for one-off gold-quality adjudication, never production routing. Waves 4–6 ahead.
+**Active:** Next pre-bite forks — Stage B full A1 corpus (~$10.80 + ~90 min) · Wave 3 A2 path · Sonnet aspect-labeler prompt iteration (if pursued for Wave 4 polish) · README/operator runbook. **619/619 unit tests · mypy clean (124 src) · ruff clean.**
 **Last reconciled:** 2026-05-13
 
 **Waiting on operator action (cross-wave):**
@@ -52,10 +52,10 @@ Wave-by-wave forward plan. Each wave is a flat checklist of high-level deliverab
 - [x] Frontend pages (About, Standalone, Compare placeholder; hash router; AspectColumn 3-section partition)
 - [x] Frontend selectors + live API wiring (dropdowns, BriefPanel keyword routing)
 - [x] Headless visual smoke (Playwright, 13/13 functional checks, all routes)
-- [x] Aspect-tagging eval runner (`scripts/run_eval.py`; F1=0.7778 operator-verified on filtered N=8)
+- [x] Aspect-tagging eval runner (`scripts/run_eval.py`; F1=0.5998 on v2 gold post-Opus-scrub; formal ≥80% NOT met but operator-accepted ship-with-caveat)
 - [ ] Operator visual confirm against live uvicorn *(operator-side, ~5 min)*
 - [ ] BestBuy + Amazon retailer-reviews path *(deferred — 3 plumbing items)*
-- [ ] Iterate aspect classifier prompt *(deferred unless Wave 5 rebuild still misses 80%)*
+- [ ] Iterate aspect classifier prompt *(deferred to Wave 4 polish; Sonnet labeler over-labeling on Verdict excerpts is the primary remaining gap)*
 - [ ] Full brief-generation integration test on fixture corpus *(deferred to Wave 4)*
 
 ---
@@ -122,10 +122,11 @@ Wave-by-wave forward plan. Each wave is a flat checklist of high-level deliverab
 - [ ] (Optional) JS-rendered external-URL Playwright path — Notebookcheck spec/aggregation pages embed external review URLs via JavaScript
 - [ ] Article RSS-path strategy decision — superseded by catalog_discovery as primary; broad RSS feeds kept as opportunistic supplement
 - [x] Full Wave 5 scrape on all 59 products (`reddit.enabled: true`, `rss.backfill_months: 6`, `discovered_urls_sources` in `run_wave5_v1.yaml`)
-- [ ] Full aspect/deliberation/reason tagging overnight
+- [ ] Full aspect tagging overnight (Stage A done on 3-product subset; Stage B for remaining 56 pending)
+- [ ] Full deliberation/reason tagging overnight (Wave 3 A2 path)
 - [x] Aspect-tagging gold-set rebuild on filtered corpus at target N=150 (carries Wave 2 formal ≥80% closure)
 - [x] Deliberation + reason gold-set rebuild on expanded corpus (Wave 3 carry-over: v1 corpus had zero resolved-to-tracked-product threads)
-- [ ] Aggregation + synthesis for all pairs + all products
+- [ ] Aggregation + synthesis for all pairs + all products (Stage A done for 3 anchor products: Alienware 16 Aurora, ROG Strix Scar 16, HP Omen Max 16 — under `run_wave5_v1`)
 - [ ] Manual review of every brief + aggregate + verbatim attribution
 - [ ] Bug-fix round from review findings
 - [ ] Reproducibility test (re-run, verify cache hits + byte-identical outputs)

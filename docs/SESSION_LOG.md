@@ -8,9 +8,70 @@ Running one-page chronicle. Updated **at session close**, when the operator says
 
 Paste at the start of your next session:
 
-> Resume pulse-check session 31. Audit per `docs/SESSION_LOG.md` "Audit checklist (session 30 → 31)" first. Aspect gold v2 locked at N=115 (113 accept + 2 flag); deliberation gold v2 locked at N=32 (31 accept + 1 flag); reason gold v2 empty (0 resolved-tracked threads — corpus-shape finding, not a tagger bug). Three pre-bite forks at open: Qwen aspect-eval against v2 gold · reason-tagging path given empty gold · OP-strictness investigation per the 1 deliberation flag. Per cost-estimate memory: per-phase estimate before any LLM batch + wait for explicit go. Be very concise. Ultrathink. Use agents to save context.
+> Resume pulse-check session 32. Audit per `docs/SESSION_LOG.md` "Audit checklist (session 31 → 32)" first. Wave 2 substantively shipped at F1=0.5998 (formal ≥80% NOT met but operator-accepted ship-with-caveat after Opus-scrubbed gold + brief-quality verdict on Stage A). ARCH §6.6 Opus carve-out documented — Opus 4.7 admissible only for one-off gold-quality adjudication, never production routing. Stage A pilot artifact validated: 3 briefs (Alienware 16 Aurora, ROG Strix Scar 16, HP Omen Max 16) under run_id `run_wave5_v1`, 0 fabricated / 0 drift. Four pre-bite forks at open: Stage B full A1 corpus (~$10.80 + ~90 min) · Wave 3 A2 path (deliberation full-corpus + pair aggregator + pair briefs) · Sonnet aspect-labeler prompt iteration · README/operator runbook. Per cost-estimate memory: per-phase estimate before any LLM batch + wait for explicit go. Be very concise. Ultrathink. Use agents to save context.
 
-### Audit checklist (session 30 → 31)
+### Audit checklist (session 31 → 32)
+
+- Use `.venv/Scripts/python.exe` for backend tooling.
+- `pytest tests/unit/` → **619 pass** (was 618; +1 `tests/unit/tagging/test_batch.py::test_commit_every_fires_periodic_commits` mirroring session-30's content_type pattern. 1 modified: `tests/unit/eval/test_run_eval_cli.py::TestParseArgs::test_defaults` re-anchored from v1 to v2 gold-set default).
+- `mypy pulse_check/ tests/ scripts/` → expected clean, **124 source files** (was 122; +2 new scripts: `adjudicate_weak_bucket_gold.py`, `run_stage_a.py`).
+- `ruff check pulse_check/ tests/ scripts/` → expected clean.
+- Frontend untouched in session 31.
+- **TASKS.md drift check:**
+  - `Status` line reflects: Wave 2 substantively complete (Haiku F1=0.5998 on Opus-scrubbed v2 gold; formal ≥80% NOT met but operator-accepted ship-with-caveat — brief quality is the real exit criterion). Wave 5 Stage A complete: 3-product subset (Alienware 16 Aurora, ROG Strix Scar 16, HP Omen Max 16) tagged + aggregated + briefed under run_id `run_wave5_v1`; validated 0 fabricated / 0 drift / 0 empty. Wave 5 Stage B (remaining 56 products) deferred to session 32.
+  - `Active` line: pre-bite forks for session 32 — Stage B full corpus · Wave 3 A2 path · Sonnet labeler prompt iteration · README/operator runbook.
+  - `Last reconciled = 2026-05-13`.
+  - Wave 2 items closed in session 31: aspect-tagging eval ran against v2 gold (F1=0.5998 post-scrub).
+  - Wave 5 items partially closed: aspect tagging on 3-product subset + A1 aggregation + first product briefs. Full corpus + remaining briefs pending.
+  - **CLAUDE.md flat-checklist rule is enforced.** Re-audit at session-32 open: search TASKS.md for `session[- ]?\d+`; expect zero matches in wave items.
+- **ARCH §6 drift check:** **Changed this session** — added §6 exception line + new §6.6 subsection "Opus — gold-quality adjudication (per-invocation carve-out)". Operator-approved deviation from the "no Opus" rule. Per-invocation only; never production tagging/synthesis pipeline. Cache contract unchanged; new prompt_version `aspect_adjudication_v1`.
+- **Migration head:** `eb05da255474` (unchanged from session 29). No schema changes this session.
+- **Config artifacts on disk:**
+  - `data/pulse_check.db` mention count: **5061** (unchanged).
+  - `aspect_tags` rows: **+445** new this session (from Stage A 3-product subset); breakdown across Alienware 16 Aurora + ROG Strix Scar 16 + HP Omen Max 16.
+  - `aggregates_aspect_sku` rows: **+32** new for `run_wave5_v1` (3 products × ~11 aspects each; some aspects had no qualifying mentions and were skipped per ARCH §6.3 inclusion rules).
+  - `briefs` rows: **+3** new for `run_wave5_v1` (one per anchor product).
+  - `runs` table: `run_wave5_v1` Row inserted; `config_snapshot` carries the anchor-product list + bite reference.
+  - `data/gold_sets/aspect_tagging_v2.jsonl` (115 entries; **24 corrected** + 89 accept + 2 flag — was 113 accept + 2 flag + 0 corrected. The 24 are Opus-scrubbed weak-bucket over-labels and Sonnet-wrong polarity/intensity calls).
+  - `data/gold_sets/aspect_tagging_v2.jsonl.session31_bak` preserves the pre-scrub state for audit trail.
+  - `data/eval_results/20260513_184513_aspect_tagging.json` (pre-scrub Haiku eval; F1=0.5839).
+  - `data/eval_results/20260513_212425_opus_adjudication_verdicts.jsonl` (47 Opus verdicts: 22 valid / 20 over-labeled / 5 wrong / 0 ambiguous).
+  - `data/eval_results/20260513_212704_aspect_tagging.json` (post-scrub Haiku eval; F1=0.5998).
+  - `data/eval_results/stage_a_briefs.md` + `stage_a_briefs_clean.md` (operator review surfaces for the 3 Stage A briefs).
+- **Code structure shipped (bites 30.d, 30.f.0, 30.f.a):**
+  - **`pulse_check/synthesis/anthropic_client.py`** — `_call` gained model-aware branch: skips `temperature` parameter when `model.startswith("claude-opus-4-7")` (Opus 4.7 deprecated the param and returns HTTP 400 if passed). Cache key still records the caller's requested temperature so deterministic intent stays consistent. Required for the Opus carve-out to flow through the existing AnthropicClient contract without duplicating SDK calls.
+  - **`pulse_check/tagging/batch.py`** — `tag_corpus_aspects` gained `commit_every: int = 0` kwarg. When > 0, `session.commit()` fires every N successful classifications (each = one paid LLM call) + once at end-of-loop. Mirrors session-30 `content_type_batch.py` pattern. Closes the all-or-nothing-rollback gap on aspect tagging — would have lost ~$1.40 + 693 cache rows on a mid-batch crash before this patch.
+  - **`scripts/tag.py`** — `--commit-every` CLI flag (default 50).
+  - **`scripts/run_eval.py`** — `_DEFAULT_GOLD_SET` flipped from `aspect_tagging_v1.jsonl` to `aspect_tagging_v2.jsonl` (session-30 lock honored). Docstring example also updated.
+  - **`tests/unit/tagging/test_batch.py`** — +1 test (`test_commit_every_fires_periodic_commits`) mirroring content_type pattern.
+  - **`tests/unit/eval/test_run_eval_cli.py`** — `test_defaults` re-anchored to v2.
+  - **`docs/ARCHITECTURE.md`** — §6 Exception line + new §6.6 subsection.
+  - **NEW `scripts/adjudicate_weak_bucket_gold.py`** — one-off Opus adjudicator with two CLI modes. Adjudicate (default): reads eval JSON report, finds weak-bucket FN (aesthetics / software_experience / support_warranty), calls Opus 4.7 per (mention, aspect), writes verdicts to JSONL incrementally (append-mode survives partial crashes). Apply (`--apply <path>`): loads verdicts, marks gold entries `operator_flag='corrected'` with `operator_labels` = sonnet_labels minus the over-labeled tuples; writes `.session31_bak` sibling first.
+  - **NEW `scripts/run_stage_a.py`** — end-to-end Stage A orchestrator. Upserts Run row → aspect-tags 3 anchor products with `commit_every=50` and `exclude_content_types={DEAL}` → runs `aggregate_a1` → calls `synthesize_a1` per product → prints brief summaries. CLI: `--skip-tagging`, `--skip-aggregation`, `--skip-briefs` for partial re-runs.
+- **Operator-confirmed locks from session 31 (do not re-debate without flag):**
+  - **F1 = 0.60 ships for Wave 2.** Wave 2 formal ≥80% gate NOT met. 8/11 aspects individually ≥0.85; weakness concentrated on aesthetics (0.62), support_warranty (0.75), software_experience (0.73) — the most subjective categories. Operator-accepted ship-with-caveat over polish for v1. Brief quality is the real exit criterion; F1 is a proxy.
+  - **Sonnet over-labels gaming-laptop "Verdict" article excerpts.** Opus arbitration confirmed: 25/47 weak-bucket FN cases (53%) were Sonnet over-labels on NotebookCheck-style summary paragraphs (passing mentions tagged at intensity=low). Future Wave 4 polish could tighten the Sonnet labeler prompt and re-build gold v3, but not pursued in v1.
+  - **Opus carve-out is per-invocation only, never production routing.** ARCH §6.6 documents the exception scope. Future weak-bucket gold scrubs (e.g., if Stage B reveals new patterns) follow the same one-off contract. ~$0.60 per 47-case adjudication.
+  - **Opus 4.7 deprecates the `temperature` parameter.** AnthropicClient handles this transparently via the model-aware conditional. Future Opus-based work just works.
+  - **Stage A pilot artifact is validated.** The 3 briefs read true to operator's reading. Pipeline integrity verified (0 fabricated citations, 0 drift, 0 empty claims, 0 out-of-context). Stage B is mechanical scaling — pipeline correctness is no longer the risk.
+  - **Monthly refresh cadence (operational, not code).** No scheduler change. Public-voice drift is months, not weeks. Estimated steady-state: ~$10-20/month LLM + ~2-3 hrs operator review time. Weekly cadence would mostly produce noise indistinguishable from prior week.
+- **Live findings from session 31 (operator visibility):**
+  - **Haiku-tagger F1 against Sonnet-labeled gold: 0.5839 → 0.5998 after Opus scrub.** Bifurcated picture: 8 aspects ≥0.85 (keyboard, display, thermals, performance, battery, build_quality, price_value, portability); 3 weak (aesthetics, software_experience, support_warranty). Recall is the weakness (0.57), not precision (0.64) — Haiku is conservative but accurate when it tags. Mostly polarity/intensity drift on strong buckets + missing-aspect on weak buckets.
+  - **Stage A timing: ~17 min for 693 fresh Haiku tagging calls + 3 Sonnet briefs.** Tagging dominated runtime; briefs ~30s each. Stage B-class runs require background execution (~90 min estimate for the 56-product follow-up).
+  - **First Opus attempt failed 47/47 with HTTP 400.** "`temperature` is deprecated for this model." Anthropic does not bill 400s; $0 sunk. Patched AnthropicClient + retried; 47/47 succeeded on retry.
+  - **Pre-existing orphan `smoke_test` run_id artifacts found in DB.** 22 aggregates_aspect_sku + 2 briefs were orphan to a "smoke_test" run row that was never inserted (likely deleted in a prior session). Not touched this session; new work all under `run_wave5_v1`.
+  - **Session 31 spend: ~$2.45.** Eval-1 (~$0.25) + Opus adjudication (~$0.60) + Stage A (~$1.60). Cumulative across sessions: ~$6.30.
+- **Pre-bite forks for session 32 — settle BEFORE moving forward:**
+  1. **Bite 30.f.b — Stage B full A1 corpus.** Tag remaining 56 products + their A1 briefs. ~$10.80 + ~90 min background. Mechanical scaling; pipeline validated. The "complete the pilot artifact" path.
+  2. **Bite 31.a — Wave 3 A2 path.** Deliberation full-corpus tag on 610 reddit_post corpus + new pair_win_rates aggregator + new pair brief writer. Wave 3 is the bigger product question (what beats Alienware and why). Per session-30 note: reddit deliberation is exploratory (0/50 resolved-to-tracked in v2 sample); A2 will be thin. Estimated $5-10 + meaningful new code.
+  3. **Bite 31.b — Sonnet aspect-labeler prompt iteration.** Tighten labeler to avoid Verdict-paragraph over-labeling; re-build aspect_tagging_v3 gold; re-eval Haiku. Could hit ≥0.80 formally. ~$2-5 + iteration cycles. Wave 4 polish territory.
+  4. **Bite 31.c — README + operator runbook.** Setup, run-a-pilot, monthly refresh procedure. No LLM spend.
+- **Alternative pre-bite paths:**
+  - **Frontend wiring of Stage A briefs.** 3 briefs already in DB; FastAPI + React shells exist. ~1-2 hour bite to wire them in for operator visual verification.
+  - **OP-strictness investigation** on deliberation classifier (deferred from session 30) — still relevant if Wave 3 A2 fires.
+  - **Manufacturer-dropdown POST extension** for Notebookcheck mega-product corpus expansion (deferred from session 28).
+
+### Audit checklist (session 30 → 31) — archived, completed in session 31
 
 - Use `.venv/Scripts/python.exe` for backend tooling.
 - `pytest tests/unit/` → **618 pass** (was 615; +3 = +1 `tests/unit/tagging/test_content_type_batch.py::test_commit_every_fires_periodic_commits` + +2 `tests/unit/eval/test_gold_set.py::test_sample_excludes_filtered_content_types` + `::test_sample_default_no_exclusion_preserves_existing_behavior`).
@@ -445,6 +506,39 @@ Added in session 23:
 ---
 
 ## Session history (newest first)
+
+### 2026-05-13 — session 31: bite 30.d (aspect-tagging Haiku eval against v2 gold — F1=0.5839 pre-scrub → 0.5998 post-scrub after Opus carve-out adjudication; Wave 2 ≥80% formally NOT met but operator-accepted ship-with-caveat) + bite 30.f.0 (`commit_every` pattern extended to aspect-tagging batch, mirroring session-30's content_type fix) + bite 30.f.a (Stage A end-to-end pilot demo: tag → aggregate → 3 briefs for Alienware 16 Aurora, ROG Strix Scar 16, HP Omen Max 16 under `run_wave5_v1`; all validated 0 fabricated / 0 drift / 0 empty) + ARCH §6.6 Opus carve-out documented + AnthropicClient model-aware Opus temperature omit
+
+**Context entering.** Session 30 closed with v2 gold sets locked (aspect=115, deliberation=32, reason=empty) and three pre-bite forks queued. Operator chose fork 1 (aspect eval — Wave 2 formal-closure attempt). Operator also requested "swap Qwen with Anthropic for the next step"; clarified mid-session that ARCH §6.5 had already done this for aspect tagging in Wave 2 (no-op for fork 1; the swap question remains downstream for deliberation + reason classifiers).
+
+**Audit pass (session 30 → 31).** GREEN. 618/618 pytest / mypy 122 src clean / ruff clean / migration head `eb05da255474` / 5061 mentions + 5061 content_type rows / 115 aspect-gold + 32 delib-gold + 0 reason-gold entries verified on disk. Audit done by general-purpose subagent + parallel manual grep for TASKS.md `session[- ]?\d+` (memory `feedback_audit_subagent_verify`).
+
+**Decisions (product-level) reached this session.**
+- **D1 — Pre-bite fork 1 collapses to a no-op for the swap question.** ARCH §6.5 already routes aspect tagging to Haiku since Wave 2. The "swap Qwen → Anthropic" for the aspect eval was therefore unnecessary; eval ran against Haiku as already-routed. The deliberation + reason classifiers (still Qwen-spec'd) carry the swap question forward — surfaces in bite 31.a if Wave 3 A2 work fires.
+- **D2 — Wave 2 ships at F1 = 0.60.** Eval returned F1=0.5839 (P=0.64, R=0.54). Per-aspect bifurcated: 8 aspects ≥0.85; 3 (aesthetics, software_experience, support_warranty) <0.60 with FN dominant. Manual 8-case sample suggested 60-70% Sonnet over-labels on NotebookCheck "Verdict" excerpts.
+- **D3 — Opus carve-out admissible for one-off gold-quality adjudication.** Operator approved Opus 4.7 specifically for adjudicating the 47 weak-bucket FN cases (cleaner verdict than Sonnet-vs-Sonnet self-judgment). ARCH §6.6 added documenting per-invocation carve-out; explicit non-production-routing scope. First use this session. Cost: ~$0.60 for the 47-call batch.
+- **D4 — Brief quality is Wave 2 exit, not F1.** After Opus scrub returned F1=0.5998 (modest +0.016 from removing 25 over-labels), operator chose to ship Stage A briefs rather than chase ≥0.80. Reasoning: 8/11 aspects individually ≥0.85; brief readability is the artifact stakeholders consume; F1 is a proxy. Citation-integrity validation passes on all 3 Stage A briefs.
+- **D5 — Stage A 3-product anchor set.** Alienware 16 Aurora (manufacturer's product), ROG Strix Scar 16 (premium competitor), HP Omen Max 16 (mid-tier alternative). Coverage-driven + diversity-conscious selection. 954 attribution-pairs in scope (112 already tagged + 149 deal-filtered + 693 fresh classifications). Estimated $1.65-2.15; actual $1.60.
+- **D6 — Stage A pilot artifact accepted; Stage B deferred.** All 3 briefs read true per operator. Stage B (full 56-product follow-up, ~$10.80 + ~90 min) deferred to session 32 because pipeline correctness is no longer the risk and a fresh-budget session is cleaner discipline.
+- **D7 — Monthly refresh cadence (operational, not code).** No scheduler change. New-content rate (~1500-3000 mention-attributions per week) doesn't materially shift briefs week-to-week. Steady-state estimate: ~$10-20/month LLM + ~2-3 hrs operator review.
+
+**Technical housekeeping (operator does not engage).**
+- **TH1 — AnthropicClient model-aware Opus temperature omit.** First Opus attempt failed 47/47 with HTTP 400 "`temperature` is deprecated for this model." Patched `_call` to conditionally skip the `temperature` param when `model.startswith("claude-opus-4-7")`. Cache key still records the caller's requested temperature so deterministic intent stays consistent across the project. 8/8 anthropic tests pass.
+- **TH2 — Aspect-tagging commit_every pattern.** Mirrored session-30 content_type fix. `tag_corpus_aspects` gained `commit_every: int = 0` kwarg; `scripts/tag.py` gained `--commit-every` CLI flag (default 50). +1 test (`test_commit_every_fires_periodic_commits`).
+- **TH3 — Eval runner default path bumped to v2.** `scripts/run_eval.py::_DEFAULT_GOLD_SET` → `aspect_tagging_v2.jsonl`. Test `test_defaults` re-anchored.
+- **TH4 — Gold v2 scrubbed in-place (`.session31_bak` preserved).** 24 entries flipped from `accept` to `corrected` with `operator_labels` = sonnet_labels minus the 25 Opus-flagged over-labeled/wrong tuples. (25 removals across 24 entries because one entry had 2 weak-bucket labels both flagged.)
+- **TH5 — Run row inserted for `run_wave5_v1`.** Pre-existing `smoke_test` orphan aggregates + briefs (22 agg + 2 briefs, no Run row) untouched. New work all under `run_wave5_v1`.
+- **TH6 — Two new one-off scripts.** `scripts/adjudicate_weak_bucket_gold.py` (Opus adjudicator + apply-verdicts driver, 2-mode CLI) and `scripts/run_stage_a.py` (Stage A orchestrator with `--skip-*` flags for partial re-runs).
+
+**Spend (~$2.45 this session).** Eval-1 (113 Haiku calls @ aspect_classifier_v1, ~$0.25) + Opus adjudication (47 calls @ aspect_adjudication_v1 / claude-opus-4-7, ~$0.60) + Stage A tagging (693 Haiku, ~$1.40) + Stage A dedup + 3 briefs (~$0.20). Eval-2 free (cache hits). Cumulative across sessions ~$6.30. Operator approved each phase with cost estimate up front per memory.
+
+**Open items deferred to session 32.**
+- Stage B (full 56-product A1 corpus, ~$10.80 + ~90 min background).
+- Wave 3 A2 path (deliberation full-corpus tag + pair aggregator + pair briefs).
+- Sonnet aspect-labeler prompt iteration (if pursued for Wave 4 polish).
+- Frontend wiring of Stage A briefs (already in DB; FastAPI+React shells exist).
+- README.md / operator runbook.
+- OP-strictness investigation on the deliberation classifier (deferred from session 30, still relevant if A2 fires).
 
 ### 2026-05-13 — session 29: bite 28.d (`deliberation_classifier_v2` `chosen_external_name` shipped — free-text + mutex with `chosen_product_id` + dual-channel `is_resolved`; 10 files; alembic `eb05da255474` applied to live DB) + bite 28.e stages 1+2 (discovered_urls path verified live on 33 NBC editorials with $0 spend; full Wave 5 scrape on 59 products produced 5061 mentions, 4× corpus expansion) + TASKS.md drift cleanup (session-N breadcrumbs + wave-item narrative removed per CLAUDE.md flat-checklist rule)
 

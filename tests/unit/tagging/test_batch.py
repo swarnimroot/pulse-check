@@ -408,3 +408,36 @@ def test_tag_corpus_multiple_aspects_per_mention(session: Session) -> None:
     assert stats.aspect_tags_inserted == 2
     m1_aspects = {r.aspect.value for r in session.query(AspectTag).filter_by(mention_id="m1").all()}
     assert m1_aspects == {"thermals", "performance"}
+
+
+def test_commit_every_fires_periodic_commits(session: Session, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    """commit_every>0 should fire session.commit() at the configured cadence."""
+    _fixture(session)
+
+    commits: list[str] = []
+    original = session.commit
+
+    def spy() -> None:
+        commits.append("commit")
+        original()
+
+    monkeypatch.setattr(session, "commit", spy)
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json=_canned_tags({"aspect": "thermals", "polarity": "negative", "intensity": "low"}),
+        )
+
+    classifier = AspectClassifier(_ollama(handler))
+    stats = tag_corpus_aspects(
+        session,
+        classifier=classifier,
+        products=[_AW16, _STRIX],
+        commit_every=1,
+    )
+
+    # 2 attributions classified at commit_every=1 → 2 mid-loop commits + 1 end-of-loop commit
+    assert stats.attributions_classified == 2
+    assert stats.aspect_tags_inserted == 2
+    assert len(commits) == 3

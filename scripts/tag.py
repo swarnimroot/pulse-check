@@ -65,6 +65,17 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
             " scripts/classify_content_type.py first to populate."
         ),
     )
+    parser.add_argument(
+        "--commit-every",
+        type=int,
+        default=50,
+        help=(
+            "Commit the session every N successful classifications (each =="
+            " one paid LLM call). 0 disables (caller owns the transaction)."
+            " Default 50 — survives mid-batch crashes without losing paid"
+            " calls. Mirrors classify_content_type.py."
+        ),
+    )
     return parser.parse_args(argv)
 
 
@@ -112,6 +123,7 @@ def main(argv: list[str] | None = None) -> int:
                 products=products,
                 taxonomy_version=run_config.taxonomy_version,
                 exclude_content_types=exclude_content_types,
+                commit_every=args.commit_every,
             )
     else:
         with OllamaClient(host=settings.ollama_host) as ollama_client:

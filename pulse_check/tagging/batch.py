@@ -55,14 +55,19 @@ def tag_corpus_aspects(
     products: Iterable[ProductContext],
     taxonomy_version: str = TAXONOMY_VERSION,
     exclude_content_types: frozenset[ContentType] | None = None,
+    commit_every: int = 0,
 ) -> BatchTagStats:
     """Tag every in-scope ``(mention, product)`` pair with aspects.
 
     Arguments
     ---------
     session:
-        Open SQLAlchemy session. This function flushes but does not commit;
-        the caller owns the transaction boundary.
+        Open SQLAlchemy session. By default flushes but does not commit
+        (caller owns the transaction boundary). If ``commit_every > 0``,
+        the function additionally commits every N successful classifications
+        and once more after the loop, so a mid-loop interruption preserves
+        the AspectTag rows (and their backing ``llm_cache`` entries) that
+        were already paid for.
     classifier:
         Configured ``AspectClassifier``. Its ``prompt_version`` + ``model`` +
         ``temperature`` are stamped onto each inserted ``AspectTag`` row and
@@ -78,6 +83,11 @@ def tag_corpus_aspects(
         ``content_type_tags.content_type`` is NOT in this set are tagged.
         Mentions without any content_type_tag are also skipped (the filter
         is opt-in; the operator must classify content type first).
+    commit_every:
+        If > 0, ``session.commit()`` fires after every N successful
+        classifications (each representing one paid LLM call) and once at
+        end-of-loop. Default 0 preserves the original caller-owns-transaction
+        contract.
     """
     product_by_id: dict[str, ProductContext] = {p.product_id: p for p in products}
     if not product_by_id:
@@ -217,7 +227,12 @@ def tag_corpus_aspects(
         # running the classifier + insert a second time in this pass.
         already_tagged.add(key)
 
+        if commit_every > 0 and classified % commit_every == 0:
+            session.commit()
+
     session.flush()
+    if commit_every > 0:
+        session.commit()
     return BatchTagStats(
         attributions_seen=seen,
         attributions_skipped_existing=skipped,
