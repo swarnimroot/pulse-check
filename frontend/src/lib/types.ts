@@ -65,6 +65,10 @@ export interface ProductDetail extends ProductSummary {
 }
 
 export interface Claim {
+  // `header` is a 2-5 word bold lead-in shown ahead of `claim_text` (added in
+  // prompt_version a1_brief_v2). Optional: older briefs in storage lack it
+  // and the UI renders without the lead-in in that case.
+  header?: string;
   claim_text: string;
   cited_mention_ids: string[];
 }
@@ -89,4 +93,90 @@ export interface BriefView {
   model: string;
   generated_at: string;
   narrative: BriefNarrative;
+}
+
+// /api/compare — cross-product heatmap payload (bite 32.a).
+export interface CompareCell {
+  aspect: string;
+  total_mentions: number;
+  net_sentiment: number;
+  mention_ids: string[];
+}
+
+export interface CompareProductRow {
+  product_id: string;
+  display_name: string;
+  brand: string;
+  cells: CompareCell[];
+}
+
+export interface CompareResponse {
+  products: CompareProductRow[];
+  aspects: string[];
+  run_id: string | null;
+  generated_at: string;
+}
+
+// /api/home — home-page summary + plain-English pipeline explainer (bite 32.b).
+export interface PipelineStageStat {
+  key: string;
+  label: string;
+  title: string;
+  description: string;
+  ai: boolean;
+  chips: { name: string; value: string | number }[];
+}
+
+export interface HomeSummary {
+  run_id: string | null;
+  products_tracked: number;
+  mentions_analyzed: number;
+  pipeline: PipelineStageStat[];
+  generated_at: string;
+}
+
+// /api/pair — head-to-head aspect scorecard (bite 32.b).
+export interface PairAspectCell {
+  total_mentions: number;
+  net_sentiment: number;
+  mention_ids: string[];
+}
+
+export interface PairAspectRow {
+  aspect: string;
+  primary: PairAspectCell | null;
+  competitor: PairAspectCell | null;
+  delta: number;
+  leader: "primary" | "competitor" | "tie";
+}
+
+export interface PairProductRef {
+  product_id: string;
+  display_name: string;
+  brand: string;
+}
+
+export interface PairResponse {
+  primary: PairProductRef;
+  competitor: PairProductRef;
+  aspects: string[];
+  rows: PairAspectRow[];
+  primary_leads_count: number;
+  competitor_leads_count: number;
+  ties_count: number;
+  run_id: string | null;
+  generated_at: string;
+}
+
+// /api/sources — operator-curated source list for the home page accordion.
+export interface SourceEntry {
+  name: string;
+  detail: string;
+}
+
+export interface SourcesResponse {
+  reddit: SourceEntry[];
+  youtube: SourceEntry[];
+  review_sites: SourceEntry[];
+  generated_at: string;
 }

@@ -22,8 +22,14 @@ class Claim(BaseModel):
     §6). Empty list is permitted ONLY for the §6.3 "A1 brief layout"
     placeholder claim (empty section 2 — operator-locked, session 11). The
     validator is aware of this exemption.
+
+    `header` is a 2-5 word bold lead-in shown ahead of `claim_text` in the
+    UI bullet (added in prompt_version `a1_brief_v2`). Stored briefs written
+    before v2 do not carry this field; the frontend renders gracefully
+    when it's absent.
     """
 
+    header: str = Field(..., min_length=1, max_length=80)
     claim_text: str = Field(..., min_length=1)
     cited_mention_ids: list[str] = Field(..., min_length=0)
 

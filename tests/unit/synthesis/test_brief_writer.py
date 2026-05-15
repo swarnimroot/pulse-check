@@ -153,12 +153,10 @@ def test_high_confidence_strengths_routed_to_quadrant_one(session: Session) -> N
     }
     sels = {Aspect.PERFORMANCE: _selection(Aspect.PERFORMANCE, pp=["m1", "m2", "m3"])}
     client = _mock_client(
-        claims=[{"quadrant_id": 1, "aspect": "performance", "claim_text": "Fast."}]
+        claims=[{"quadrant_id": 1, "aspect": "performance", "header": "H", "claim_text": "Fast."}]
     )
 
-    brief = write_a1_brief(
-        session, client=client, product=p, aggregates=aggs, selections=sels
-    )
+    brief = write_a1_brief(session, client=client, product=p, aggregates=aggs, selections=sels)
 
     assert brief.brief_title == "Brief"
     q1 = next(s for s in brief.sections if s.heading == SECTION_HEADINGS[1])
@@ -188,15 +186,13 @@ def test_quadrant_one_caps_at_three_aspects_ordered_by_count_desc(
     }
     client = _mock_client(
         claims=[
-            {"quadrant_id": 1, "aspect": "performance", "claim_text": "perf."},
-            {"quadrant_id": 1, "aspect": "display", "claim_text": "disp."},
-            {"quadrant_id": 1, "aspect": "battery", "claim_text": "batt."},
+            {"quadrant_id": 1, "aspect": "performance", "header": "H", "claim_text": "perf."},
+            {"quadrant_id": 1, "aspect": "display", "header": "H", "claim_text": "disp."},
+            {"quadrant_id": 1, "aspect": "battery", "header": "H", "claim_text": "batt."},
         ]
     )
 
-    brief = write_a1_brief(
-        session, client=client, product=p, aggregates=aggs, selections=sels
-    )
+    brief = write_a1_brief(session, client=client, product=p, aggregates=aggs, selections=sels)
 
     q1 = next(s for s in brief.sections if s.heading == SECTION_HEADINGS[1])
     aspects_in_order = [c.cited_mention_ids[0] for c in q1.claims]
@@ -211,17 +207,13 @@ def test_empty_quadrant_two_renders_placeholder_with_empty_citations(
     _add_mention(session, "m1", "fast")
     session.commit()
 
-    aggs = {
-        Aspect.PERFORMANCE: _agg(aspect=Aspect.PERFORMANCE, primary_pos=5, primary_ids=["m1"])
-    }
+    aggs = {Aspect.PERFORMANCE: _agg(aspect=Aspect.PERFORMANCE, primary_pos=5, primary_ids=["m1"])}
     sels = {Aspect.PERFORMANCE: _selection(Aspect.PERFORMANCE, pp=["m1"])}
     client = _mock_client(
-        claims=[{"quadrant_id": 1, "aspect": "performance", "claim_text": "Fast."}]
+        claims=[{"quadrant_id": 1, "aspect": "performance", "header": "H", "claim_text": "Fast."}]
     )
 
-    brief = write_a1_brief(
-        session, client=client, product=p, aggregates=aggs, selections=sels
-    )
+    brief = write_a1_brief(session, client=client, product=p, aggregates=aggs, selections=sels)
 
     q2 = next(s for s in brief.sections if s.heading == SECTION_HEADINGS[2])
     assert len(q2.claims) == 1
@@ -250,12 +242,10 @@ def test_quadrant_three_excludes_aspects_already_in_quadrant_one(session: Sessio
         ),
     }
     client = _mock_client(
-        claims=[{"quadrant_id": 1, "aspect": "performance", "claim_text": "Fast."}]
+        claims=[{"quadrant_id": 1, "aspect": "performance", "header": "H", "claim_text": "Fast."}]
     )
 
-    brief = write_a1_brief(
-        session, client=client, product=p, aggregates=aggs, selections=sels
-    )
+    brief = write_a1_brief(session, client=client, product=p, aggregates=aggs, selections=sels)
 
     headings = [s.heading for s in brief.sections]
     assert SECTION_HEADINGS[3] not in headings
@@ -267,18 +257,16 @@ def test_low_signal_only_aspect_routed_to_quadrant_three(session: Session) -> No
     session.commit()
 
     aggs = {
-        Aspect.AESTHETICS: _agg(
-            aspect=Aspect.AESTHETICS, secondary_pos=1, secondary_ids=["m_s1"]
-        )
+        Aspect.AESTHETICS: _agg(aspect=Aspect.AESTHETICS, secondary_pos=1, secondary_ids=["m_s1"])
     }
     sels = {Aspect.AESTHETICS: _selection(Aspect.AESTHETICS, sp=["m_s1"])}
     client = _mock_client(
-        claims=[{"quadrant_id": 3, "aspect": "aesthetics", "claim_text": "Looks good."}]
+        claims=[
+            {"quadrant_id": 3, "aspect": "aesthetics", "header": "H", "claim_text": "Looks good."}
+        ]
     )
 
-    brief = write_a1_brief(
-        session, client=client, product=p, aggregates=aggs, selections=sels
-    )
+    brief = write_a1_brief(session, client=client, product=p, aggregates=aggs, selections=sels)
 
     q3 = next(s for s in brief.sections if s.heading == SECTION_HEADINGS[3])
     assert q3.claims[0].cited_mention_ids == ["m_s1"]
@@ -294,20 +282,14 @@ def test_second_call_with_same_inputs_hits_cache(session: Session) -> None:
     _add_mention(session, "m1", "fast")
     session.commit()
 
-    aggs = {
-        Aspect.PERFORMANCE: _agg(aspect=Aspect.PERFORMANCE, primary_pos=5, primary_ids=["m1"])
-    }
+    aggs = {Aspect.PERFORMANCE: _agg(aspect=Aspect.PERFORMANCE, primary_pos=5, primary_ids=["m1"])}
     sels = {Aspect.PERFORMANCE: _selection(Aspect.PERFORMANCE, pp=["m1"])}
     client = _mock_client(
-        claims=[{"quadrant_id": 1, "aspect": "performance", "claim_text": "Fast."}]
+        claims=[{"quadrant_id": 1, "aspect": "performance", "header": "H", "claim_text": "Fast."}]
     )
 
-    first = write_a1_brief(
-        session, client=client, product=p, aggregates=aggs, selections=sels
-    )
-    second = write_a1_brief(
-        session, client=client, product=p, aggregates=aggs, selections=sels
-    )
+    first = write_a1_brief(session, client=client, product=p, aggregates=aggs, selections=sels)
+    second = write_a1_brief(session, client=client, product=p, aggregates=aggs, selections=sels)
 
     assert first == second
     assert client.generate_json.call_count == 1
@@ -318,16 +300,12 @@ def test_missing_claim_text_for_quadrant_aspect_raises(session: Session) -> None
     _add_mention(session, "m1", "fast")
     session.commit()
 
-    aggs = {
-        Aspect.PERFORMANCE: _agg(aspect=Aspect.PERFORMANCE, primary_pos=5, primary_ids=["m1"])
-    }
+    aggs = {Aspect.PERFORMANCE: _agg(aspect=Aspect.PERFORMANCE, primary_pos=5, primary_ids=["m1"])}
     sels = {Aspect.PERFORMANCE: _selection(Aspect.PERFORMANCE, pp=["m1"])}
     client = _mock_client(claims=[])  # Sonnet omitted the perf claim
 
-    with pytest.raises(LlmResponseError, match="omitted claim_text"):
-        write_a1_brief(
-            session, client=client, product=p, aggregates=aggs, selections=sels
-        )
+    with pytest.raises(LlmResponseError, match="omitted header/claim_text"):
+        write_a1_brief(session, client=client, product=p, aggregates=aggs, selections=sels)
 
 
 def test_empty_brief_title_raises(session: Session) -> None:
@@ -335,19 +313,15 @@ def test_empty_brief_title_raises(session: Session) -> None:
     _add_mention(session, "m1", "fast")
     session.commit()
 
-    aggs = {
-        Aspect.PERFORMANCE: _agg(aspect=Aspect.PERFORMANCE, primary_pos=5, primary_ids=["m1"])
-    }
+    aggs = {Aspect.PERFORMANCE: _agg(aspect=Aspect.PERFORMANCE, primary_pos=5, primary_ids=["m1"])}
     sels = {Aspect.PERFORMANCE: _selection(Aspect.PERFORMANCE, pp=["m1"])}
     client = _mock_client(
-        claims=[{"quadrant_id": 1, "aspect": "performance", "claim_text": "Fast."}],
+        claims=[{"quadrant_id": 1, "aspect": "performance", "header": "H", "claim_text": "Fast."}],
         brief_title="",
     )
 
     with pytest.raises(LlmResponseError, match="no brief_title"):
-        write_a1_brief(
-            session, client=client, product=p, aggregates=aggs, selections=sels
-        )
+        write_a1_brief(session, client=client, product=p, aggregates=aggs, selections=sels)
 
 
 def test_no_qualifying_aspects_short_circuits_sonnet_with_placeholder_only(
@@ -357,9 +331,7 @@ def test_no_qualifying_aspects_short_circuits_sonnet_with_placeholder_only(
     session.commit()
     client = _mock_client(claims=[])
 
-    brief = write_a1_brief(
-        session, client=client, product=p, aggregates={}, selections={}
-    )
+    brief = write_a1_brief(session, client=client, product=p, aggregates={}, selections={})
 
     assert len(brief.sections) == 1
     assert brief.sections[0].heading == SECTION_HEADINGS[2]

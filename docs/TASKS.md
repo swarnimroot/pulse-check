@@ -2,9 +2,9 @@
 
 Wave-by-wave forward plan. Each wave is a flat checklist of high-level deliverables. Sub-bite breakdowns + per-bite breadcrumbs live in [`SESSION_LOG.md`](SESSION_LOG.md) (the historical record).
 
-**Status:** Wave 2 ✅ substantively ships (Haiku F1=0.5998 on Opus-scrubbed v2 gold; formal ≥80% NOT met but operator-accepted ship-with-caveat — 8/11 aspects ≥0.85 individually; brief quality is the real exit). Wave 5 Stage A complete: 3-product subset (Alienware 16 Aurora, ROG Strix Scar 16, HP Omen Max 16) tagged + aggregated + briefed under `run_wave5_v1`; 0 fabricated / 0 drift / 0 empty. Wave 5 Stage B (remaining 56 products) pending. Wave 3 A2 path (deliberation full-corpus + pair aggregator + pair briefs) pending. ARCH §6.6 Opus carve-out documented: Opus admissible only for one-off gold-quality adjudication, never production routing. Waves 4–6 ahead.
-**Active:** Next pre-bite forks — Stage B full A1 corpus (~$10.80 + ~90 min) · Wave 3 A2 path · Sonnet aspect-labeler prompt iteration (if pursued for Wave 4 polish) · README/operator runbook. **619/619 unit tests · mypy clean (124 src) · ruff clean.**
-**Last reconciled:** 2026-05-13
+**Status:** Wave 2 ✅ substantively ships. Wave 5 Stage A + B complete: all 53 in-corpus products tagged + aggregated + briefed under `run_wave5_v1` (6/59 products skipped — zero qualifying mentions). Brief schema bumped to `a1_brief_v2` with per-claim `header` field for bold lead-ins (ARCH §6.3 updated). UI shipped: 3-card home page (Standalone voice · Head-to-head · Cross-product heatmap) with collapsible "Under the hood" pipeline explainer + sources accordion; Standalone Company/Product picker; Head-to-head Pair page (A1-based, 3-bucket leader layout); Cross-product heatmap with Company column + multi-select filters (company / screen-size / product). Public deployment live via Tailscale Funnel: uvicorn :8765 → `/pulse-check`. Wave 3 A2 path still pending (deliberation corpus thin). Waves 4–6 ahead.
+**Active:** Next pre-bite forks — Wave 3 A2 path · Sonnet aspect-labeler iteration · README/operator runbook · Heatmap UI refinements (operator-deferred). **623/623 unit tests · mypy clean (125 src) · ruff clean.**
+**Last reconciled:** 2026-05-15
 
 **Waiting on operator action (cross-wave):**
 - Operator visual confirm against live uvicorn (Wave 2 frontend smoke completed; ~5-min browser walk; screenshots at `C:/Users/AW-testing/AppData/Local/Temp/smoke_11_3_c/`)
@@ -53,7 +53,14 @@ Wave-by-wave forward plan. Each wave is a flat checklist of high-level deliverab
 - [x] Frontend selectors + live API wiring (dropdowns, BriefPanel keyword routing)
 - [x] Headless visual smoke (Playwright, 13/13 functional checks, all routes)
 - [x] Aspect-tagging eval runner (`scripts/run_eval.py`; F1=0.5998 on v2 gold post-Opus-scrub; formal ≥80% NOT met but operator-accepted ship-with-caveat)
-- [ ] Operator visual confirm against live uvicorn *(operator-side, ~5 min)*
+- [x] Home page: 3-card surface (Standalone / Head-to-head / Heatmap) + collapsible "Under the hood" plain-English pipeline explainer + sources accordion
+- [x] Standalone page Company/Product picker (port from About picker; routes via `useNavigate`)
+- [x] Head-to-head Pair page (`/pair`) — A1-based aspect scorecard, 3-bucket leader layout, no default selection
+- [x] Cross-product heatmap (`/compare`) — Company column, multi-select filters (company / screen-size / product), Alienware-pinned + accent border
+- [x] Brief schema v2 (`Claim.header`, prompt_version `a1_brief_v2` + `_strict`); 53 briefs regenerated under `run_wave5_v1`
+- [x] Backend API surface for new pages: `/api/home` (run + pipeline stats), `/api/pair` (head-to-head), `/api/compare` (heatmap), `/api/sources` (operator-curated source list)
+- [x] Public deployment via Tailscale Funnel (`/pulse-check` → uvicorn :8765, same-origin SPA from `frontend/dist`)
+- [ ] Operator visual confirm against live uvicorn *(operator-side; broader review of all three pages pending)*
 - [ ] BestBuy + Amazon retailer-reviews path *(deferred — 3 plumbing items)*
 - [ ] Iterate aspect classifier prompt *(deferred to Wave 4 polish; Sonnet labeler over-labeling on Verdict excerpts is the primary remaining gap)*
 - [ ] Full brief-generation integration test on fixture corpus *(deferred to Wave 4)*
@@ -122,11 +129,12 @@ Wave-by-wave forward plan. Each wave is a flat checklist of high-level deliverab
 - [ ] (Optional) JS-rendered external-URL Playwright path — Notebookcheck spec/aggregation pages embed external review URLs via JavaScript
 - [ ] Article RSS-path strategy decision — superseded by catalog_discovery as primary; broad RSS feeds kept as opportunistic supplement
 - [x] Full Wave 5 scrape on all 59 products (`reddit.enabled: true`, `rss.backfill_months: 6`, `discovered_urls_sources` in `run_wave5_v1.yaml`)
-- [ ] Full aspect tagging overnight (Stage A done on 3-product subset; Stage B for remaining 56 pending)
+- [x] Full aspect tagging — Stage A (3 anchor products, session 31) + Stage B (remaining 56, session 32; 4,813 aspect_tag rows · 53/59 products tagged · 6 had zero qualifying mentions after DEAL filter)
 - [ ] Full deliberation/reason tagging overnight (Wave 3 A2 path)
 - [x] Aspect-tagging gold-set rebuild on filtered corpus at target N=150 (carries Wave 2 formal ≥80% closure)
 - [x] Deliberation + reason gold-set rebuild on expanded corpus (Wave 3 carry-over: v1 corpus had zero resolved-to-tracked-product threads)
-- [ ] Aggregation + synthesis for all pairs + all products (Stage A done for 3 anchor products: Alienware 16 Aurora, ROG Strix Scar 16, HP Omen Max 16 — under `run_wave5_v1`)
+- [x] Aggregation + synthesis for all A1 products (Stage A + Stage B under `run_wave5_v1` — 489 aggregate rows · 53 briefs · 44/50 Stage B briefs pristine · 6 with one numerical-drift each · 0 fabricated across all 50). A2 pair briefs deferred to Wave 3.
+- [x] Brief regeneration at `a1_brief_v2` prompt (header field; 53 briefs re-written via `scripts/run_stage_b.py --skip-tagging --skip-aggregation --include-stage-a-briefs`)
 - [ ] Manual review of every brief + aggregate + verbatim attribution
 - [ ] Bug-fix round from review findings
 - [ ] Reproducibility test (re-run, verify cache hits + byte-identical outputs)

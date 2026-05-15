@@ -8,9 +8,59 @@ Running one-page chronicle. Updated **at session close**, when the operator says
 
 Paste at the start of your next session:
 
-> Resume pulse-check session 32. Audit per `docs/SESSION_LOG.md` "Audit checklist (session 31 → 32)" first. Wave 2 substantively shipped at F1=0.5998 (formal ≥80% NOT met but operator-accepted ship-with-caveat after Opus-scrubbed gold + brief-quality verdict on Stage A). ARCH §6.6 Opus carve-out documented — Opus 4.7 admissible only for one-off gold-quality adjudication, never production routing. Stage A pilot artifact validated: 3 briefs (Alienware 16 Aurora, ROG Strix Scar 16, HP Omen Max 16) under run_id `run_wave5_v1`, 0 fabricated / 0 drift. Four pre-bite forks at open: Stage B full A1 corpus (~$10.80 + ~90 min) · Wave 3 A2 path (deliberation full-corpus + pair aggregator + pair briefs) · Sonnet aspect-labeler prompt iteration · README/operator runbook. Per cost-estimate memory: per-phase estimate before any LLM batch + wait for explicit go. Be very concise. Ultrathink. Use agents to save context.
+> Resume pulse-check session 33. Audit per `docs/SESSION_LOG.md` "Audit checklist (session 32 → 33)" first. Session 32 shipped the executive-facing UI surface: 3-card home page (Standalone voice · Head-to-head · Cross-product heatmap) with collapsible "Under the hood" pipeline explainer + sources accordion; Standalone Company/Product picker; Head-to-head Pair page (A1-based, 3-bucket leader layout, no default selection); Cross-product heatmap (multi-select company/screen-size/product filters + Company column + Alienware-pinned accent). Brief schema bumped to `a1_brief_v2` with per-claim `header` field; 53 briefs regenerated under `run_wave5_v1`. Wave 5 Stage B complete (53/59 products briefed; 6 had zero qualifying mentions). Public deployment live via Tailscale Funnel: `/pulse-check` → uvicorn :8765, same-origin SPA from `frontend/dist`. Pre-bite forks at open: Wave 3 A2 path · Sonnet aspect-labeler iteration · README/operator runbook · Heatmap UI refinements (operator-deferred). Per cost-estimate memory: per-phase estimate before any LLM batch + explicit go. Be very concise. Ultrathink. Use subagents to save context.
 
-### Audit checklist (session 31 → 32)
+### Audit checklist (session 32 → 33)
+
+- Use `.venv/Scripts/python.exe` for backend tooling.
+- `pytest tests/unit/` → **623 pass** (was 619; +4 `/api/compare` tests in `tests/unit/api/test_app.py`).
+- `mypy pulse_check/ tests/ scripts/` → expected clean, **125 source files** (was 124; +1 `scripts/run_stage_b.py`).
+- `ruff check pulse_check/ tests/ scripts/` → expected clean.
+- **TASKS.md drift check:**
+  - `Status` line reflects: Wave 5 Stage A + B complete (all 53 in-corpus products briefed); brief schema v2 with `Claim.header`; UI shipped (3-card home + Standalone picker + Pair page + heatmap with filters + Company column); public deployment via Tailscale Funnel on uvicorn :8765.
+  - `Active` line: Wave 3 A2 path · Sonnet labeler iteration · README/runbook · heatmap UI refinements.
+  - `Last reconciled = 2026-05-15`.
+  - **CLAUDE.md flat-checklist rule is enforced.** Re-audit at session-33 open: `grep -i "session[- ]?\d+" docs/TASKS.md` → expect zero matches in wave items.
+- **ARCH §6.3 drift check:** **Changed this session** — JSON schema example gained `header` field; `prompt_version` references bumped `a1_brief_v1` → `a1_brief_v2` (+ `_strict` variant); placeholder rule notes `header = "No criticism noted"`.
+- **Migration head:** `eb05da255474` (unchanged from session 29). No schema changes.
+- **Config artifacts on disk:**
+  - `data/pulse_check.db` mention count: **5061** (unchanged).
+  - `aspect_tags` rows: **4,813** (53 distinct products tagged; full Stage B done).
+  - `aggregates_aspect_sku` rows for `run_wave5_v1`: **489** (53 products × ~9 aspects each).
+  - `briefs` rows for `run_wave5_v1`: **53** at `prompt_version=a1_brief_v2` (3 Stage A regen + 50 Stage B). 44 pristine + 6 with one numerical-drift each. 0 fabricated / 0 out-of-context / 0 empty across all 50 Stage B briefs.
+  - 6 products skipped at brief synthesis (zero aggregates after DEAL filter): `hp_omen_slim_16`, `hp_omen_transcend_16`, `acer_predator_helios_neo_18`, `msi_crosshair_17`, `msi_cyborg_14`, `msi_cyborg_17`.
+  - `data/eval_results/stage_b_run.log` (Stage B tagging+aggregation; complete) + `brief_regen_v2.log` (brief regen at v2 prompt; complete).
+  - `frontend/dist/` rebuilt — bundle `index-Be8FJ5j3.js` (or later if rebuilt again).
+- **Code structure shipped (session 32):**
+  - **Backend routes (`pulse_check/api/main.py`)** — 4 new: `/api/home` (HomeSummary with pipeline stats), `/api/compare` (CompareResponse, cross-product heatmap), `/api/pair` (PairResponse, head-to-head A1 scorecard), `/api/sources` (operator-curated source list from YAML configs at request time). `_latest_run_id_overall()` helper added.
+  - **Backend schemas (`pulse_check/api/schemas.py`)** — new `HomeSummary`, `PipelineStageStat`, `CompareCell`, `CompareProductRow`, `CompareResponse`, `PairAspectCell`, `PairAspectRow`, `PairProductRef`, `PairResponse`, `SourceEntry`, `SourcesResponse`.
+  - **Brief schema v2 (`pulse_check/synthesis/contracts.py`)** — `Claim` gained required `header: str` field (min_length=1, max_length=80). Frontend type marks header as optional for backward compat with older briefs.
+  - **Brief writer (`pulse_check/synthesis/brief_writer.py`)** — `BRIEF_PROMPT_VERSION = "a1_brief_v2"` (and `_strict` variant); `_SONNET_PROMPT` updated to instruct Sonnet to emit a 2-5 word `header` per claim ("Examples: 'Keyboard feels premium', 'Thermals run hot under load'"); parser extracts both header + claim_text; `PLACEHOLDER_CLAIM_HEADER = "No criticism noted"`; placeholder construction at 3 sites updated.
+  - **Frontend pages** — `pages/About.tsx` (full rewrite: 3-card home + RunStrip + collapsible UnderTheHood + Sources accordion-in-accordion with 3-col table); **NEW `pages/Pair.tsx`** (Company/Product pickers per side, no default selection, 3-bucket BucketColumn layout — Primary leads / Ties / Competitor leads — each with [P1 score | Aspect | P2 score] columns); `pages/Standalone.tsx` (added Company/Product picker at top, navigates via `useNavigate` on change); `pages/Compare.tsx` (FilterPanel with Company chip row + Screen-size chip row + collapsible Product chip grid; new 130px Company column on left with brand banners on first-row-of-each-brand; `deriveScreenSize` regex helper).
+  - **Frontend types + api client** — `lib/types.ts` extended with all new payloads (`HomeSummary`, `CompareResponse`, `PairResponse`, `SourcesResponse`, etc.); `lib/api.ts` added `home()`, `compare()`, `pair()`, `sources()` methods.
+  - **Frontend BriefPanel (`components/BriefPanel.tsx`)** — renders `<strong>{header}</strong> — {claim_text}` per bullet; graceful fallback when header missing (old briefs).
+  - **Frontend App.tsx** — new `/pair` route.
+- **Operator-confirmed locks from session 32 (do not re-debate without flag):**
+  - **A2 deliberation page deferred; head-to-head is A1-based.** Per `feedback_pilot_focus` memory + `project_reddit_deliberation_exploratory` memory, the deliberation corpus is too thin to drive an A2-as-mocked win-rate page (0/50 resolved-to-tracked in v2 sample). Pivoted card #2 from "A2 Comparative deliberation" label to "Head-to-head comparison" — same operator question ("good vs bad for two products, quantified"), powered by A1 aggregates instead. A2 page stays deferred to Wave 3 if/when corpus accumulates.
+  - **`a1_brief_v2` is the canonical schema.** Older briefs at `a1_brief_v1` are still in DB (audit trail); frontend renders them gracefully without bold header. Any future schema bump follows the same pattern (Pydantic required + frontend optional + run_stage_b regen).
+  - **Public deployment uses uvicorn :8765, not Vite :5173.** Tailscale Funnel maps `/pulse-check` to `localhost:8765`. Same-origin: SPA served from `frontend/dist/`, API calls resolve to `./api` relative. Avoids Vite's `allowedHosts` block and the localhost-in-browser problem for remote viewers. **Rebuild required** (`cd frontend && npm run build`) after frontend changes; **uvicorn restart required** after backend changes (`--reload` flag picks up future edits automatically).
+  - **No default product selection on the Pair page.** Visitor explicitly picks both sides — manufacturer-POV bias would have read as "we're already comparing against Razer" on first load.
+  - **Heatmap UI refinements deferred.** Operator noted aesthetics/layout polish ("UI refinements we can do later"). Multi-select filters + Company column shipped; further polish (column sorting, hover affordances, color scale legend) deferred to a future bite.
+- **Live findings from session 32 (operator visibility):**
+  - **Stage B wall-clock = 1h 21min** (was estimated ~2 hr) for full A1 corpus run on 56 remaining products. 3,585 HTTP 200 LLM calls, 0 errors. Cache hit pattern: anchor products (Stage A) had already exercised the most popular shared mentions, so Stage B fresh-call count was lower than linear extrapolation suggested.
+  - **Stage B spend ~$10.75**, on the session-log $10.80 ceiling.
+  - **Brief regen at v2 prompt: 53/59 attempted, 53 succeeded, 6 skipped** (zero aggregates). ~$2.65 spend. Headers reading cleanly — sample: "Aggressive pricing wins buyers", "OLED panel impresses for gaming", "Lid flex and weight disappoint", "CPU runs dangerously hot under load".
+  - **Sonnet API restart loop.** Operator-side uvicorn restart was the recurring blocker — new routes don't surface until restart. `--reload` flag avoids this. Documented in operator-confirmed locks above.
+  - **Vite `allowedHosts` blocks Tailscale Funnel by default.** Vite 5 anti-DNS-rebinding protection rejects non-localhost Host headers. Pinned: use uvicorn-serves-dist deployment pattern instead of exposing Vite dev server (matches `main.py` design intent).
+  - **`tests/unit/synthesis/` reformatted by `ruff format`.** Required after the Claim header field forced wider dict literals over the 100-col rule. 4 test files reformatted, no functional change.
+  - **Session 32 spend: ~$13.40.** Stage B ~$10.75 + brief regen ~$2.65. Cumulative ~$19.70 across sessions.
+- **Pre-bite forks for session 33 — settle BEFORE moving forward:**
+  1. **Wave 3 A2 path.** Deliberation full-corpus tag on 610-post reddit corpus + new pair_win_rates aggregator + pair brief writer. Per memory: corpus thin (0/50 resolved-to-tracked in v2 sample); A2 will be sparse. ~$5-10 + meaningful new code.
+  2. **Sonnet aspect-labeler prompt iteration.** Tighten labeler to avoid NotebookCheck Verdict-paragraph over-labeling; rebuild aspect_tagging_v3 gold; re-eval. Could hit formal ≥0.80. ~$2-5 + iteration cycles. Wave 4 polish.
+  3. **README + operator runbook.** Setup, run-a-pilot, monthly refresh procedure. $0 LLM. Lowest risk; completes the handover surface.
+  4. **Heatmap UI refinements.** Sortable columns, color-scale legend, hover affordances on the company banner column, screen-size badge inline with product name. ~1-2 hr frontend only, $0.
+
+### Audit checklist (session 31 → 32) — archived, completed in session 32
 
 - Use `.venv/Scripts/python.exe` for backend tooling.
 - `pytest tests/unit/` → **619 pass** (was 618; +1 `tests/unit/tagging/test_batch.py::test_commit_every_fires_periodic_commits` mirroring session-30's content_type pattern. 1 modified: `tests/unit/eval/test_run_eval_cli.py::TestParseArgs::test_defaults` re-anchored from v1 to v2 gold-set default).
@@ -506,6 +556,56 @@ Added in session 23:
 ---
 
 ## Session history (newest first)
+
+### 2026-05-15 — session 32: bite 30.f.b (Stage B full A1 corpus — tag + aggregate + brief on 56 remaining products under `run_wave5_v1`; 1h 21min, 3,585 LLM calls, ~$10.75) + bite 32.a (Cross-product heatmap `/api/compare` + `pages/Compare.tsx`) + bite 32.b (Home page redesign `pages/About.tsx` 3-card layout + collapsible "Under the hood" pipeline explainer + `/api/home`; Head-to-head Pair page `pages/Pair.tsx` + `/api/pair`; brief schema v2 with per-claim `header` field, prompt_version `a1_brief_v2`; full brief regen) + bite 32.c (operator iteration round: sources accordion + `/api/sources`; Standalone Company/Product picker; Pair restructure into 3-bucket leader layout with no default selection; Heatmap multi-select filters + Company column with brand banners; Tailscale Funnel public deployment via uvicorn :8765).
+
+**Context entering.** Session 31 closed with Wave 2 substantively shipped (F1=0.5998 brief-quality verdict) and Stage A pilot artifact validated. Four pre-bite forks queued: Stage B full corpus · Wave 3 A2 path · Sonnet labeler iteration · README/runbook. Operator chose Stage B first to complete the pilot artifact, then pivoted to a UI build-out triggered by "I can't see anything on Standalone" (which turned out to be the alphabetical-picker landing on an empty product) and "the comparative view is the next big thing." 32.b mid-session pivoted from "build an A2 deliberation page literally as mocked" to "build A1-based head-to-head" once the deliberation-corpus thinness was re-surfaced from memory.
+
+**Audit pass (session 31 → 32).** GREEN. 619/619 pytest / mypy 124 src clean / ruff clean / migration head `eb05da255474` / 5061 mentions verified / 115 aspect-gold (89 accept + 2 flag + 24 corrected) + 32 delib-gold + 0 reason-gold / 3 Stage A briefs at `run_wave5_v1` / ARCH §6.6 Opus carve-out present. Audit by general-purpose subagent + manual regex check for `session[- ]?\d+` in TASKS.md (per `feedback_audit_subagent_verify` memory) — zero hits, flat-checklist rule holding.
+
+**Decisions (product-level) reached this session.**
+- **D1 — Stage B greenlight at ~$10.80.** Operator approved fork 1 with explicit cost ceiling. Refined estimate ($13-16) surfaced before firing; operator's prior approval stood. Actual spend $10.75, basically on the ceiling.
+- **D2 — Background execution over concurrent-thread refactor.** "Can we use Anthropic to speed up?" — three levers presented (background-as-is / concurrent threading / Batch API). Operator picked background (Option A) over the refactor for a one-off ship. Stage B finished in 1h 21min, faster than the 2-hour refined estimate (anchor products had already cached the popular shared mentions).
+- **D3 — Card #2 framing pivoted from "A2 Comparative deliberation" to "Head-to-head comparison."** When operator described the A2-style mockup as the "comparative view," surfaced the data reality: 0/50 resolved-to-tracked threads in v2 deliberation sample (per `project_reddit_deliberation_exploratory` memory). Win-rate page would render demo-empty. Pivoted to A1-based head-to-head (same operator question — "where do we lead, where do we lag" — sourced from aspect aggregates instead of deliberation threads). A2 stays Wave 3 deferred.
+- **D4 — Three-card home over two-card.** Operator added the cross-product heatmap as the third card. Pivots Compare from a Wave-3 placeholder to the canonical "overview before drill" surface. Home becomes the executive entry point; non-technical "Under the hood" explains the data pipeline in one read.
+- **D5 — Brief schema regenerated, not heuristically post-processed.** Operator picked Option B (regen with explicit `header` prompt) over Option A (render-time first-clause heuristic). Reasoning: cleaner semantic headers; one-time cost ~$2.65. Result: pristine 2-5 word headers reading well ("Aggressive pricing wins buyers", "Lid flex and weight disappoint", "CPU runs dangerously hot under load").
+- **D6 — Three multi-select filters on the heatmap (company / screen-size / product).** Operator-requested. Implementation: chip-toggle rows (no popover) for company + screen-size; collapsible chip grid for the 59-product list (browsable but not visually overwhelming by default). Screen size derived from display_name regex (no schema change).
+- **D7 — No default product selection on Pair.** Operator-confirmed. Visitor explicitly picks both sides — avoids the implicit "we're already comparing against Razer" bias on first paint.
+- **D8 — Heatmap UI refinements deferred.** Operator explicitly said "we can do later." Multi-select filters + Company column shipped; further polish (sortable columns, color-scale legend, hover affordances) parked as a Wave-4-polish-style bite.
+
+**Technical housekeeping (operator does not engage).**
+- **TH1 — `scripts/run_stage_b.py` new (~200 lines).** Mirrors `run_stage_a.py` structure for the full 59-product corpus. CLI flags: `--product-set`, `--commit-every` (default 50), `--skip-tagging`, `--skip-aggregation`, `--skip-briefs`, `--include-stage-a-briefs` (default off — Sonnet brief synthesis is non-idempotent so the 3 Stage A anchors are skipped at brief step by default). Reusable for any subsequent product-set scale-out.
+- **TH2 — `_attach_frontend` SPA fallback now matters in dev.** Earlier sessions tested with no `frontend/dist/`. Now `frontend/dist/` exists — uvicorn serves the SPA + an `@app.get("/{full_path:path}")` catches unknown routes. **Failure mode surfaced this session:** a newly-added `/api/<route>` returns HTML (index.html) when uvicorn is stale, because the SPA fallback wins. Symptom: `Unexpected token '<', "<!doctype "... is not valid JSON` in the browser. Fix: restart uvicorn. Documented in operator-confirmed locks.
+- **TH3 — Vite `allowedHosts` rejects Tailscale Funnel by default.** Vite 5 anti-DNS-rebinding protection. Pinned: route the Funnel at uvicorn :8765 (serves `frontend/dist/`) instead of Vite :5173. Matches `pulse_check/api/main.py` docstring intent ("path-prefix the SPA lives at on the public URL ... is stripped by the reverse proxy before requests reach this app").
+- **TH4 — `ruff format` reformatted 4 test files** under `tests/unit/synthesis/` after the `Claim.header` addition forced wider dict literals over the 100-col rule. No functional change; one-line dicts redistributed across multi-line.
+- **TH5 — Prompt-version bump as the schema-evolution lever.** `BRIEF_PROMPT_VERSION` bumped `a1_brief_v1` → `a1_brief_v2` (and `_strict` variant); cache misses cleanly; v1 briefs stay in DB as audit trail. Pattern documented for future schema changes: Pydantic-required field + frontend-optional type + `run_stage_b.py --skip-tagging --skip-aggregation --include-stage-a-briefs` for regen.
+- **TH6 — 4 new tests + 26→30 API test count.** `test_compare_empty_db_returns_empty_products_and_full_aspect_list` + `test_compare_pins_alienware_first_and_returns_cells` + `test_compare_caps_mention_ids_at_50_per_cell` + `test_compare_respects_explicit_run_id_query_param`.
+
+**Live findings (operator visibility).**
+- **Stage B brief-validation breakdown.** 50 Stage B briefs total: **44 pristine** (`is_valid=True`, all four channels clean), **6 with one numerical-drift each** (alienware_18_area_51, rog_zephyrus_g16, lenovo_legion_9, msi_katana_17, msi_raider_18, msi_titan_18), **0 fabricated / 0 out-of-context / 0 empty**.
+- **6 products skipped at brief synthesis** (zero aggregates after DEAL filter): hp_omen_slim_16, hp_omen_transcend_16, acer_predator_helios_neo_18, msi_crosshair_17, msi_cyborg_14, msi_cyborg_17. Not bugs — corpus gaps. Render as empty rows in the heatmap.
+- **First Standalone-empty incident.** Operator opened localhost:5173 and reported "no data on Standalone." Root cause: About picker auto-selected `acer_nitro_14` (alphabetical first), which has no aggregates. The 3 Stage A products were data-populated as designed; the picker was the issue. Surfaced the need for a smarter default (now handled by the home-page card linking directly to `alienware_16_aurora`).
+- **Tailscale Funnel switch to uvicorn :8765** delivered same-origin SPA + API, no `allowedHosts`, no localhost-in-remote-browser problem. Now the canonical public deployment.
+- **Session 32 spend: ~$13.40.** Stage B $10.75 + brief regen $2.65. Cumulative ~$19.70 across sessions.
+
+**Code structure shipped (session 32).**
+- **NEW `scripts/run_stage_b.py`** — Stage B orchestrator (tag → aggregate → brief loop over full product set; skips Stage A anchors at brief step by default).
+- **`pulse_check/api/main.py`** — 4 new routes (`/api/home`, `/api/compare`, `/api/pair`, `/api/sources`) + `_latest_run_id_overall` helper. ~250 lines added.
+- **`pulse_check/api/schemas.py`** — 12 new Pydantic models for the 4 new routes.
+- **`pulse_check/synthesis/contracts.py`** — `Claim.header` required field.
+- **`pulse_check/synthesis/brief_writer.py`** — prompt_version bumped + `_SONNET_PROMPT` rewritten to instruct Sonnet on the header field + parser extracts header + `PLACEHOLDER_CLAIM_HEADER` constant + 3 placeholder construction sites updated.
+- **`docs/ARCHITECTURE.md`** — §6.3 JSON schema example gained `header`; v1 references bumped to v2; placeholder rule references new header value.
+- **NEW `frontend/src/pages/Pair.tsx`** (~360 lines after restructure) — Pair page with 3-bucket BucketColumn layout, EvidenceDrawer reuse.
+- **`frontend/src/pages/About.tsx`** — rewritten as 3-card home + RunStrip + UnderTheHood + SourcesPanel.
+- **`frontend/src/pages/Compare.tsx`** — FilterPanel + Company column + brand banners.
+- **`frontend/src/pages/Standalone.tsx`** — Company/Product picker section + `useNavigate` on change.
+- **`frontend/src/components/BriefPanel.tsx`** — renders header in bold + claim_text body per bullet.
+- **`frontend/src/App.tsx`** — `/pair` route registered.
+- **`frontend/src/lib/{types,api}.ts`** — new types + api methods for `home`, `compare`, `pair`, `sources`.
+
+**623/623 unit tests · mypy clean (125 src; +1 for `scripts/run_stage_b.py`) · ruff clean.** Migration head unchanged: `eb05da255474`.
+
+---
 
 ### 2026-05-13 — session 31: bite 30.d (aspect-tagging Haiku eval against v2 gold — F1=0.5839 pre-scrub → 0.5998 post-scrub after Opus carve-out adjudication; Wave 2 ≥80% formally NOT met but operator-accepted ship-with-caveat) + bite 30.f.0 (`commit_every` pattern extended to aspect-tagging batch, mirroring session-30's content_type fix) + bite 30.f.a (Stage A end-to-end pilot demo: tag → aggregate → 3 briefs for Alienware 16 Aurora, ROG Strix Scar 16, HP Omen Max 16 under `run_wave5_v1`; all validated 0 fabricated / 0 drift / 0 empty) + ARCH §6.6 Opus carve-out documented + AnthropicClient model-aware Opus temperature omit
 

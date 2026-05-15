@@ -1,12 +1,18 @@
-import { useCallback, useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { AspectColumn } from "@/components/AspectColumn";
 import { BriefPanel } from "@/components/BriefPanel";
 import { CitationPanel } from "@/components/CitationPanel";
 import { EvidenceDrawer } from "@/components/EvidenceDrawer";
 import { RunMetaStrip } from "@/components/RunMetaStrip";
+import { Select, type SelectOption } from "@/components/atoms";
 import { ApiError, api } from "@/lib/api";
-import type { BriefView, MentionView, ProductDetail } from "@/lib/types";
+import type {
+  BriefView,
+  MentionView,
+  ProductDetail,
+  ProductSummary,
+} from "@/lib/types";
 
 /**
  * Standalone — A1 single-product voice page (bite 11.3.c live-wired).
@@ -69,6 +75,7 @@ function describeError(err: unknown): string {
 
 export function Standalone(): JSX.Element {
   const { productId } = useParams<{ productId: string }>();
+  const navigate = useNavigate();
 
   // All hooks declared above any early return so rules-of-hooks holds even
   // through the not-found branch.
@@ -77,6 +84,34 @@ export function Standalone(): JSX.Element {
   const [productReloadKey, setProductReloadKey] = useState(0);
   const [drawer, setDrawer] = useState<DrawerState>(INITIAL_DRAWER);
   const [panel, setPanel] = useState<PanelState>(INITIAL_PANEL);
+  const [allProducts, setAllProducts] = useState<ProductSummary[]>([]);
+  const [pickerCompany, setPickerCompany] = useState<string>("");
+
+  // Load the full product list once for the company/product pickers.
+  useEffect(() => {
+    let cancelled = false;
+    api
+      .products()
+      .then((res) => {
+        if (cancelled) return;
+        setAllProducts(res.products);
+      })
+      .catch(() => {
+        // Picker is non-essential; fall back to no picker if products fetch
+        // fails. The main product detail fetch already surfaces its own error.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Sync the picker's company state to the currently-viewed product's brand
+  // whenever the URL product or the product list changes.
+  useEffect(() => {
+    if (!productId || allProducts.length === 0) return;
+    const current = allProducts.find((p) => p.product_id === productId);
+    if (current) setPickerCompany(current.brand);
+  }, [productId, allProducts]);
 
   // Product fetch. Resets on productId change or manual retry.
   useEffect(() => {
@@ -156,6 +191,39 @@ export function Standalone(): JSX.Element {
         );
       });
   }, []);
+
+  const companyOptions = useMemo<SelectOption[]>(() => {
+    const seen = new Set<string>();
+    const out: SelectOption[] = [];
+    for (const p of allProducts) {
+      if (!seen.has(p.brand)) {
+        seen.add(p.brand);
+        out.push({ value: p.brand, label: p.brand });
+      }
+    }
+    return out;
+  }, [allProducts]);
+
+  const productOptions = useMemo<SelectOption[]>(() => {
+    if (!pickerCompany) return [];
+    return allProducts
+      .filter((p) => p.brand === pickerCompany)
+      .map((p) => ({ value: p.product_id, label: p.display_name }));
+  }, [allProducts, pickerCompany]);
+
+  const handlePickerCompanyChange = (next: string): void => {
+    setPickerCompany(next);
+    // Auto-jump to the first product under the new company (navigation
+    // re-fetches the product detail). Empty selection is rejected so the
+    // page never sits in an unloaded state.
+    const first = allProducts.find((p) => p.brand === next);
+    if (first) navigate(`/standalone/${first.product_id}`);
+  };
+
+  const handlePickerProductChange = (nextId: string): void => {
+    if (!nextId || nextId === productId) return;
+    navigate(`/standalone/${nextId}`);
+  };
 
   const openCitation = useCallback(
     (claimText: string, citedMentionIds: string[]): void => {
@@ -274,6 +342,29 @@ export function Standalone(): JSX.Element {
           </span>
           <h1 className="text-xl font-semibold text-fg">{product.display_name}</h1>
         </header>
+
+        {allProducts.length > 0 && (
+          <section className="flex flex-col gap-3 rounded-md border border-border bg-surface p-4 shadow-card">
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-fg-muted">
+              Pick a different product
+            </span>
+            <div className="grid grid-cols-2 gap-3">
+              <Select
+                label="Company"
+                value={pickerCompany}
+                options={companyOptions}
+                onChange={handlePickerCompanyChange}
+              />
+              <Select
+                label="Product"
+                value={productId ?? ""}
+                options={productOptions}
+                onChange={handlePickerProductChange}
+                disabled={productOptions.length === 0}
+              />
+            </div>
+          </section>
+        )}
 
         <section className="flex flex-col gap-3">
           <h2 className="text-md text-fg">{product.display_name} — aspect summary</h2>

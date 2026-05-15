@@ -75,13 +75,17 @@ def test_three_distinct_mentions_get_three_clusters(session: Session) -> None:
         _make_mention("m2", "Battery lasts 8 hours"),
         _make_mention("m3", "Display is bright"),
     ]
-    client = _make_client(json.dumps({
-        "assignments": [
-            {"mention_id": "m1", "cluster_id": "X"},
-            {"mention_id": "m2", "cluster_id": "Y"},
-            {"mention_id": "m3", "cluster_id": "Z"},
-        ]
-    }))
+    client = _make_client(
+        json.dumps(
+            {
+                "assignments": [
+                    {"mention_id": "m1", "cluster_id": "X"},
+                    {"mention_id": "m2", "cluster_id": "Y"},
+                    {"mention_id": "m3", "cluster_id": "Z"},
+                ]
+            }
+        )
+    )
 
     result = cluster_near_duplicates(session, mentions, client=client)
 
@@ -95,13 +99,17 @@ def test_paraphrases_share_cluster_distinct_stands_alone(session: Session) -> No
         _make_mention("m2", "Fans are loud"),
         _make_mention("m3", "Battery dies in 2 hours"),
     ]
-    client = _make_client(json.dumps({
-        "assignments": [
-            {"mention_id": "m1", "cluster_id": "LOUD"},
-            {"mention_id": "m2", "cluster_id": "LOUD"},
-            {"mention_id": "m3", "cluster_id": "BATTERY"},
-        ]
-    }))
+    client = _make_client(
+        json.dumps(
+            {
+                "assignments": [
+                    {"mention_id": "m1", "cluster_id": "LOUD"},
+                    {"mention_id": "m2", "cluster_id": "LOUD"},
+                    {"mention_id": "m3", "cluster_id": "BATTERY"},
+                ]
+            }
+        )
+    )
 
     result = cluster_near_duplicates(session, mentions, client=client)
 
@@ -114,12 +122,16 @@ def test_second_call_with_same_input_hits_cache(session: Session) -> None:
         _make_mention("m1", "The fans are loud"),
         _make_mention("m2", "Battery lasts 8 hours"),
     ]
-    client = _make_client(json.dumps({
-        "assignments": [
-            {"mention_id": "m1", "cluster_id": "A"},
-            {"mention_id": "m2", "cluster_id": "B"},
-        ]
-    }))
+    client = _make_client(
+        json.dumps(
+            {
+                "assignments": [
+                    {"mention_id": "m1", "cluster_id": "A"},
+                    {"mention_id": "m2", "cluster_id": "B"},
+                ]
+            }
+        )
+    )
 
     first = cluster_near_duplicates(session, mentions, client=client)
     second = cluster_near_duplicates(session, mentions, client=client)
@@ -138,9 +150,7 @@ def test_missing_mention_id_in_response_raises(session: Session) -> None:
         _make_mention("m1", "The fans are loud"),
         _make_mention("m2", "Battery lasts 8 hours"),
     ]
-    client = _make_client(json.dumps({
-        "assignments": [{"mention_id": "m1", "cluster_id": "A"}]
-    }))
+    client = _make_client(json.dumps({"assignments": [{"mention_id": "m1", "cluster_id": "A"}]}))
 
     with pytest.raises(LlmResponseError, match="missing mention_ids"):
         cluster_near_duplicates(session, mentions, client=client)
@@ -151,13 +161,17 @@ def test_extra_mention_id_in_response_raises(session: Session) -> None:
         _make_mention("m1", "The fans are loud"),
         _make_mention("m2", "Battery lasts 8 hours"),
     ]
-    client = _make_client(json.dumps({
-        "assignments": [
-            {"mention_id": "m1", "cluster_id": "A"},
-            {"mention_id": "m2", "cluster_id": "A"},
-            {"mention_id": "m_ghost", "cluster_id": "B"},
-        ]
-    }))
+    client = _make_client(
+        json.dumps(
+            {
+                "assignments": [
+                    {"mention_id": "m1", "cluster_id": "A"},
+                    {"mention_id": "m2", "cluster_id": "A"},
+                    {"mention_id": "m_ghost", "cluster_id": "B"},
+                ]
+            }
+        )
+    )
 
     with pytest.raises(LlmResponseError, match="extra mention_ids"):
         cluster_near_duplicates(session, mentions, client=client)

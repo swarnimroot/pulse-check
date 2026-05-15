@@ -115,9 +115,7 @@ def _stub_dedup(monkeypatch: pytest.MonkeyPatch, mapping: dict[str, str]) -> Non
     monkeypatch.setattr(orch, "cluster_near_duplicates", _fake)
 
 
-def _stub_validator(
-    monkeypatch: pytest.MonkeyPatch, results: list[ValidationResult]
-) -> list[int]:
+def _stub_validator(monkeypatch: pytest.MonkeyPatch, results: list[ValidationResult]) -> list[int]:
     """Patch `validate_citations` to return `results` in order. Returns a
     counter list (length = number of calls made) for assertions."""
     calls: list[int] = []
@@ -138,9 +136,7 @@ def _mock_brief_client(claims: list[dict[str, Any]], brief_title: str = "Test") 
     return client
 
 
-def _mock_brief_client_two_responses(
-    first: dict[str, Any], second: dict[str, Any]
-) -> Any:
+def _mock_brief_client_two_responses(first: dict[str, Any], second: dict[str, Any]) -> Any:
     client = MagicMock()
     client.generate_json.side_effect = [
         LlmResponse(raw_output=json.dumps(first), parsed_output=first),
@@ -154,21 +150,22 @@ def _mock_brief_client_two_responses(
 # ---------------------------------------------------------------------------
 
 
-def test_orchestrator_persists_brief_row(
-    session: Session, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_orchestrator_persists_brief_row(session: Session, monkeypatch: pytest.MonkeyPatch) -> None:
     _setup_corpus(session)
     _stub_dedup(monkeypatch, {})
 
     client = _mock_brief_client(
         claims=[
-            {"quadrant_id": 1, "aspect": "performance", "claim_text": "Owners praise it."}
+            {
+                "quadrant_id": 1,
+                "aspect": "performance",
+                "header": "H",
+                "claim_text": "Owners praise it.",
+            }
         ]
     )
 
-    brief = synthesize_a1(
-        session, client=client, run_id=_RUN_ID, product_id=_PRODUCT_ID
-    )
+    brief = synthesize_a1(session, client=client, run_id=_RUN_ID, product_id=_PRODUCT_ID)
 
     assert brief.brief_id is not None
     assert brief.run_id == _RUN_ID
@@ -192,13 +189,16 @@ def test_orchestrator_includes_flagged_citation_issues(
 
     client = _mock_brief_client(
         claims=[
-            {"quadrant_id": 1, "aspect": "performance", "claim_text": "Owners praise it."}
+            {
+                "quadrant_id": 1,
+                "aspect": "performance",
+                "header": "H",
+                "claim_text": "Owners praise it.",
+            }
         ]
     )
 
-    brief = synthesize_a1(
-        session, client=client, run_id=_RUN_ID, product_id=_PRODUCT_ID
-    )
+    brief = synthesize_a1(session, client=client, run_id=_RUN_ID, product_id=_PRODUCT_ID)
 
     assert "flagged_citation_issues" in brief.narrative
     flags = brief.narrative["flagged_citation_issues"]
@@ -232,20 +232,28 @@ def test_orchestrator_retries_on_fabricated_ids(
         first={
             "brief_title": "First",
             "claims": [
-                {"quadrant_id": 1, "aspect": "performance", "claim_text": "First take."}
+                {
+                    "quadrant_id": 1,
+                    "aspect": "performance",
+                    "header": "H",
+                    "claim_text": "First take.",
+                }
             ],
         },
         second={
             "brief_title": "Strict",
             "claims": [
-                {"quadrant_id": 1, "aspect": "performance", "claim_text": "Strict take."}
+                {
+                    "quadrant_id": 1,
+                    "aspect": "performance",
+                    "header": "H",
+                    "claim_text": "Strict take.",
+                }
             ],
         },
     )
 
-    brief = synthesize_a1(
-        session, client=client, run_id=_RUN_ID, product_id=_PRODUCT_ID
-    )
+    brief = synthesize_a1(session, client=client, run_id=_RUN_ID, product_id=_PRODUCT_ID)
 
     assert client.generate_json.call_count == 2
     assert brief.prompt_version == BRIEF_PROMPT_VERSION_STRICT
@@ -269,13 +277,11 @@ def test_orchestrator_does_not_retry_on_other_warnings(
 
     client = _mock_brief_client(
         claims=[
-            {"quadrant_id": 1, "aspect": "performance", "claim_text": "Some take."}
+            {"quadrant_id": 1, "aspect": "performance", "header": "H", "claim_text": "Some take."}
         ]
     )
 
-    brief = synthesize_a1(
-        session, client=client, run_id=_RUN_ID, product_id=_PRODUCT_ID
-    )
+    brief = synthesize_a1(session, client=client, run_id=_RUN_ID, product_id=_PRODUCT_ID)
 
     assert client.generate_json.call_count == 1
     assert len(calls) == 1
@@ -297,9 +303,7 @@ def test_orchestrator_raises_when_product_missing(
     client = _mock_brief_client(claims=[])
 
     with pytest.raises(ValueError, match="product not found"):
-        synthesize_a1(
-            session, client=client, run_id=_RUN_ID, product_id="ghost_product"
-        )
+        synthesize_a1(session, client=client, run_id=_RUN_ID, product_id="ghost_product")
 
 
 def test_orchestrator_raises_when_no_aggregates(
@@ -313,18 +317,14 @@ def test_orchestrator_raises_when_no_aggregates(
             prompt_versions={},
         )
     )
-    session.add(
-        Product(product_id=_PRODUCT_ID, display_name="Alienware 16", brand="dell")
-    )
+    session.add(Product(product_id=_PRODUCT_ID, display_name="Alienware 16", brand="dell"))
     session.flush()
 
     _stub_dedup(monkeypatch, {})
     client = _mock_brief_client(claims=[])
 
     with pytest.raises(ValueError, match="no aggregates_aspect_sku rows"):
-        synthesize_a1(
-            session, client=client, run_id=_RUN_ID, product_id=_PRODUCT_ID
-        )
+        synthesize_a1(session, client=client, run_id=_RUN_ID, product_id=_PRODUCT_ID)
 
 
 # ---------------------------------------------------------------------------
@@ -348,9 +348,7 @@ def test_orchestrator_handles_aggregates_with_no_mention_ids(
             prompt_versions={},
         )
     )
-    session.add(
-        Product(product_id=_PRODUCT_ID, display_name="Alienware 16", brand="dell")
-    )
+    session.add(Product(product_id=_PRODUCT_ID, display_name="Alienware 16", brand="dell"))
     session.add(
         AggregateAspectSku(
             run_id=_RUN_ID,
@@ -379,9 +377,7 @@ def test_orchestrator_handles_aggregates_with_no_mention_ids(
     _stub_dedup(monkeypatch, {})
     client = MagicMock()  # should never be called
 
-    brief = synthesize_a1(
-        session, client=client, run_id=_RUN_ID, product_id=_PRODUCT_ID
-    )
+    brief = synthesize_a1(session, client=client, run_id=_RUN_ID, product_id=_PRODUCT_ID)
 
     assert client.generate_json.call_count == 0
     assert brief.prompt_version == BRIEF_PROMPT_VERSION

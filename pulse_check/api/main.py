@@ -44,7 +44,7 @@ from fastapi import APIRouter, Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from pulse_check import __version__
@@ -52,22 +52,51 @@ from pulse_check.api.deps import get_session
 from pulse_check.api.schemas import (
     AspectRow,
     BriefView,
+    CompareCell,
+    CompareProductRow,
+    CompareResponse,
+    HomeSummary,
     MentionsResponse,
     MentionView,
+    PairAspectCell,
+    PairAspectRow,
+    PairProductRef,
+    PairResponse,
+    PipelineStageStat,
     ProductDetail,
     ProductsResponse,
     ProductSummary,
     RunMeta,
+    SourceEntry,
+    SourcesResponse,
 )
+from pulse_check.config.loader import ConfigError, load_rss_sources, load_run_config
 from pulse_check.settings import get_settings
-from pulse_check.storage.enums import ScopeType
+from pulse_check.storage.enums import Aspect, ContentType, ScopeType
 from pulse_check.storage.models import (
     AggregateAspectSku,
     AspectTag,
     Brief,
+    ContentTypeTag,
     Mention,
     Product,
 )
+
+# Source-config paths read by `/api/sources`. Operator-curated YAMLs in
+# `configs/`; resolved relative to the repo root (the parent of `pulse_check/`).
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+_RUN_CONFIG_PATH = _REPO_ROOT / "configs" / "run_wave5_v1.yaml"
+_RSS_SOURCES_PATH = _REPO_ROOT / "configs" / "wave5_rss_sources.yaml"
+
+# Net-sentiment delta below this threshold (in absolute value) is treated as a
+# tie in the head-to-head view rather than a lead. 0.10 maps to ~5 % of the
+# full [-1, +1] range — meaningful gap, not noise.
+_PAIR_LEAD_THRESHOLD = 0.10
+
+# Max mention_ids returned per heatmap cell. The EvidenceDrawer only needs
+# enough to populate the drill; the full list is on /api/product/:id if a
+# caller wants everything.
+_COMPARE_MENTION_CAP = 50
 
 # FastAPI dependency-injection alias — used in handler signatures so ruff B008
 # (no function calls in argument defaults) doesn't trip on `Depends(...)` while
@@ -111,6 +140,21 @@ def _aggregate_to_row(agg: AggregateAspectSku) -> AspectRow:
         sources_secondary=list(by_source_secondary.keys()),
         mention_ids_secondary=list(agg.mention_ids_secondary or []),
     )
+
+
+def _latest_run_id_overall(session: Session) -> str | None:
+    """Most-recent run_id across all products by aggregate `computed_at`.
+
+    Used by `/api/compare` when the caller doesn't specify `?run_id=`. Mirrors
+    the picking strategy of `_latest_run_id_for_product` so the two endpoints
+    stay consistent.
+    """
+    stmt = (
+        select(AggregateAspectSku.run_id)
+        .order_by(AggregateAspectSku.computed_at.desc())
+        .limit(1)
+    )
+    return session.execute(stmt).scalar_one_or_none()
 
 
 def _latest_run_id_for_product(session: Session, product_id: str) -> str | None:
@@ -329,6 +373,394 @@ def _build_api_router() -> APIRouter:
             model=brief.model,
             generated_at=brief.generated_at,
             narrative=dict(brief.narrative or {}),
+        )
+
+    @router.get("/compare", response_model=CompareResponse)
+    def get_compare(
+        session: SessionDep,
+        run_id: Annotated[
+            str | None,
+            Query(description="Run to render. Defaults to the latest run with any data."),
+        ] = None,
+    ) -> CompareResponse:
+        """Cross-product heatmap payload (all 59 products × ≤11 aspects).
+
+        Sparse: cells with zero mentions are omitted (frontend renders an
+        empty cell against the canonical aspect column order). Alienware
+        products are sorted first per manufacturer POV; remaining brands
+        alphabetical by brand then display name.
+        """
+        chosen_run_id = run_id or _latest_run_id_overall(session)
+
+        aggregates: list[AggregateAspectSku] = []
+        if chosen_run_id is not None:
+            aggregates = list(
+                session.execute(
+                    select(AggregateAspectSku).where(
+                        AggregateAspectSku.run_id == chosen_run_id
+                    )
+                ).scalars()
+            )
+
+        by_product: dict[str, list[AggregateAspectSku]] = {}
+        for agg in aggregates:
+            by_product.setdefault(agg.product_id, []).append(agg)
+
+        products = list(
+            session.execute(select(Product)).scalars()
+        )
+        # Alienware first (any brand whose name starts with "Alienware"), then
+        # brands alphabetically, then display name within brand.
+        def _sort_key(p: Product) -> tuple[int, str, str]:
+            is_alienware = 0 if p.brand.lower().startswith("alienware") else 1
+            return (is_alienware, p.brand.lower(), p.display_name.lower())
+
+        products.sort(key=_sort_key)
+
+        rows: list[CompareProductRow] = []
+        for p in products:
+            cells: list[CompareCell] = []
+            for agg in by_product.get(p.product_id, []):
+                if agg.total_mentions <= 0:
+                    continue
+                ids = list(agg.mention_ids or [])[:_COMPARE_MENTION_CAP]
+                cells.append(
+                    CompareCell(
+                        aspect=agg.aspect.value,
+                        total_mentions=agg.total_mentions,
+                        net_sentiment=agg.net_sentiment,
+                        mention_ids=ids,
+                    )
+                )
+            rows.append(
+                CompareProductRow(
+                    product_id=p.product_id,
+                    display_name=p.display_name,
+                    brand=p.brand,
+                    cells=cells,
+                )
+            )
+
+        return CompareResponse(
+            products=rows,
+            aspects=[a.value for a in Aspect],
+            run_id=chosen_run_id,
+            generated_at=datetime.now(UTC),
+        )
+
+    @router.get("/home", response_model=HomeSummary)
+    def get_home(session: SessionDep) -> HomeSummary:
+        """Home page summary + plain-English pipeline explainer (bite 32.b).
+
+        Returns the run identifier, headline metrics for the metadata strip,
+        and a sequence of pipeline stage cards with live counts. Numbers
+        reflect the chosen run (the latest run with any aggregate rows).
+        """
+        run_id = _latest_run_id_overall(session)
+
+        total_mentions = session.execute(
+            select(func.count(Mention.mention_id))
+        ).scalar_one()
+        source_count = session.execute(
+            select(func.count(func.distinct(Mention.source_type)))
+        ).scalar_one()
+        deal_count = session.execute(
+            select(func.count(ContentTypeTag.mention_id)).where(
+                ContentTypeTag.content_type == ContentType.DEAL
+            )
+        ).scalar_one()
+        eligible_count = max(total_mentions - deal_count, 0)
+
+        aspect_tag_count = session.execute(
+            select(func.count(AspectTag.tag_id))
+        ).scalar_one()
+        tagged_distinct_mentions = session.execute(
+            select(func.count(func.distinct(AspectTag.mention_id)))
+        ).scalar_one()
+        coverage_pct = (
+            round(100.0 * tagged_distinct_mentions / eligible_count, 1)
+            if eligible_count
+            else 0.0
+        )
+
+        products_tracked = 0
+        agg_count = 0
+        brief_count = 0
+        if run_id is not None:
+            products_tracked = (
+                session.execute(
+                    select(
+                        func.count(func.distinct(AggregateAspectSku.product_id))
+                    ).where(AggregateAspectSku.run_id == run_id)
+                ).scalar_one()
+            )
+            agg_count = session.execute(
+                select(func.count(AggregateAspectSku.aggregate_id)).where(
+                    AggregateAspectSku.run_id == run_id
+                )
+            ).scalar_one()
+            brief_count = session.execute(
+                select(func.count(Brief.brief_id)).where(Brief.run_id == run_id)
+            ).scalar_one()
+
+        pipeline: list[PipelineStageStat] = [
+            PipelineStageStat(
+                key="pull",
+                label="PULL",
+                title="Gather mentions",
+                description=(
+                    "Pulls every public mention of the tracked products — Reddit "
+                    "threads, editorial articles, and other public sources — "
+                    "looking back six months."
+                ),
+                chips=[
+                    {"name": "mentions", "value": total_mentions},
+                    {"name": "sources", "value": source_count},
+                ],
+            ),
+            PipelineStageStat(
+                key="narrow",
+                label="NARROW",
+                title="Filter out the noise",
+                description=(
+                    "Drops obvious price-and-deal chatter so the rest is genuine "
+                    "opinion, not coupon traffic."
+                ),
+                chips=[
+                    {"name": "in", "value": total_mentions},
+                    {"name": "kept", "value": eligible_count},
+                ],
+            ),
+            PipelineStageStat(
+                key="tag",
+                label="TAG",
+                title="Read each mention",
+                description=(
+                    "An AI reader skims every mention and tags what it's about "
+                    "(thermals, keyboard, battery, …) and how strongly the person "
+                    "feels."
+                ),
+                ai=True,
+                chips=[
+                    {"name": "tags", "value": aspect_tag_count},
+                    {"name": "coverage", "value": f"{coverage_pct}%"},
+                ],
+            ),
+            PipelineStageStat(
+                key="score",
+                label="SCORE",
+                title="Roll up by product",
+                description=(
+                    "Counts the tags per product and per aspect, so every product "
+                    "gets an at-a-glance scorecard."
+                ),
+                chips=[
+                    {"name": "scorecards", "value": agg_count},
+                    {"name": "products", "value": products_tracked},
+                ],
+            ),
+            PipelineStageStat(
+                key="narrate",
+                label="NARRATE",
+                title="Write the brief",
+                description=(
+                    "A second AI summarizes the scorecard into plain-English bullets, "
+                    "citing the original quotes so every claim is traceable."
+                ),
+                ai=True,
+                chips=[
+                    {"name": "briefs", "value": brief_count},
+                ],
+            ),
+        ]
+
+        return HomeSummary(
+            run_id=run_id,
+            products_tracked=products_tracked,
+            mentions_analyzed=total_mentions,
+            pipeline=pipeline,
+            generated_at=datetime.now(UTC),
+        )
+
+    @router.get("/pair", response_model=PairResponse)
+    def get_pair(
+        session: SessionDep,
+        primary: Annotated[str, Query(description="Primary product_id.")],
+        competitor: Annotated[str, Query(description="Competitor product_id.")],
+        run_id: Annotated[
+            str | None,
+            Query(description="Run to render. Defaults to the latest run."),
+        ] = None,
+    ) -> PairResponse:
+        """Head-to-head aspect scorecard for two products under one run.
+
+        Returns 11 aspect rows in canonical order. Each row carries both
+        products' cells (or `None` if either product had zero qualifying
+        mentions for that aspect), plus the net-sentiment delta and a stable
+        `leader` string. Summary counts at the top let the frontend render
+        the "leads on N of 11" headline without re-deriving the comparison.
+        """
+        if primary == competitor:
+            raise HTTPException(
+                status_code=400,
+                detail="primary and competitor must differ",
+            )
+        prim_p = session.get(Product, primary)
+        comp_p = session.get(Product, competitor)
+        if prim_p is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"unknown product_id: {primary}",
+            )
+        if comp_p is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"unknown product_id: {competitor}",
+            )
+
+        chosen_run_id = run_id or _latest_run_id_overall(session)
+
+        aggregates: list[AggregateAspectSku] = []
+        if chosen_run_id is not None:
+            aggregates = list(
+                session.execute(
+                    select(AggregateAspectSku).where(
+                        AggregateAspectSku.run_id == chosen_run_id,
+                        AggregateAspectSku.product_id.in_(
+                            [primary, competitor]
+                        ),
+                    )
+                ).scalars()
+            )
+
+        by_key: dict[tuple[str, str], AggregateAspectSku] = {
+            (agg.product_id, agg.aspect.value): agg for agg in aggregates
+        }
+
+        def _cell(agg: AggregateAspectSku | None) -> PairAspectCell | None:
+            if agg is None or agg.total_mentions <= 0:
+                return None
+            return PairAspectCell(
+                total_mentions=agg.total_mentions,
+                net_sentiment=agg.net_sentiment,
+                mention_ids=list(agg.mention_ids or [])[:_COMPARE_MENTION_CAP],
+            )
+
+        rows: list[PairAspectRow] = []
+        primary_leads = 0
+        competitor_leads = 0
+        ties = 0
+        for aspect in Aspect:
+            p_cell = _cell(by_key.get((primary, aspect.value)))
+            c_cell = _cell(by_key.get((competitor, aspect.value)))
+
+            if p_cell is None and c_cell is None:
+                delta = 0.0
+                leader = "tie"
+                ties += 1
+            elif p_cell is None:
+                # Only competitor has data — count as a competitor lead.
+                delta = -1.0
+                leader = "competitor"
+                competitor_leads += 1
+            elif c_cell is None:
+                delta = 1.0
+                leader = "primary"
+                primary_leads += 1
+            else:
+                delta = p_cell.net_sentiment - c_cell.net_sentiment
+                if delta > _PAIR_LEAD_THRESHOLD:
+                    leader = "primary"
+                    primary_leads += 1
+                elif delta < -_PAIR_LEAD_THRESHOLD:
+                    leader = "competitor"
+                    competitor_leads += 1
+                else:
+                    leader = "tie"
+                    ties += 1
+
+            rows.append(
+                PairAspectRow(
+                    aspect=aspect.value,
+                    primary=p_cell,
+                    competitor=c_cell,
+                    delta=delta,
+                    leader=leader,
+                )
+            )
+
+        return PairResponse(
+            primary=PairProductRef(
+                product_id=prim_p.product_id,
+                display_name=prim_p.display_name,
+                brand=prim_p.brand,
+            ),
+            competitor=PairProductRef(
+                product_id=comp_p.product_id,
+                display_name=comp_p.display_name,
+                brand=comp_p.brand,
+            ),
+            aspects=[a.value for a in Aspect],
+            rows=rows,
+            primary_leads_count=primary_leads,
+            competitor_leads_count=competitor_leads,
+            ties_count=ties,
+            run_id=chosen_run_id,
+            generated_at=datetime.now(UTC),
+        )
+
+    @router.get("/sources", response_model=SourcesResponse)
+    def get_sources() -> SourcesResponse:
+        """Operator-curated source list for the active run (bite 32.c).
+
+        Reads `configs/run_wave5_v1.yaml` for the Reddit subreddit set and
+        `configs/wave5_rss_sources.yaml` for YouTube channels + article RSS
+        feeds at request time. Returns a structured payload the home page
+        renders as a three-column table inside the "Under the hood"
+        accordion. Disabled article feeds (`enabled: false` in YAML) are
+        filtered out.
+        """
+        reddit: list[SourceEntry] = []
+        youtube: list[SourceEntry] = []
+        review_sites: list[SourceEntry] = []
+
+        try:
+            run = load_run_config(_RUN_CONFIG_PATH)
+        except ConfigError as exc:
+            raise HTTPException(
+                status_code=500, detail=f"could not load run config: {exc}"
+            ) from exc
+
+        reddit_window = run.source_windows.reddit
+        if reddit_window is not None:
+            for sub in reddit_window.subreddits:
+                reddit.append(
+                    SourceEntry(name=f"r/{sub}", detail=f"reddit.com/r/{sub}")
+                )
+
+        try:
+            rss = load_rss_sources(_RSS_SOURCES_PATH)
+        except ConfigError as exc:
+            raise HTTPException(
+                status_code=500, detail=f"could not load rss sources: {exc}"
+            ) from exc
+
+        for ch in rss.youtube_channels:
+            youtube.append(
+                SourceEntry(name=ch.display_name, detail=ch.handle)
+            )
+        for feed in rss.article_rss_feeds:
+            if not feed.enabled:
+                continue
+            review_sites.append(
+                SourceEntry(name=feed.site, detail=feed.rss_url)
+            )
+
+        return SourcesResponse(
+            reddit=reddit,
+            youtube=youtube,
+            review_sites=review_sites,
+            generated_at=datetime.now(UTC),
         )
 
     @router.get("/pairs")

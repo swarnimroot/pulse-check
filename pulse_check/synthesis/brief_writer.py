@@ -35,8 +35,8 @@ from pulse_check.synthesis.selector import AspectSelection, SelectedVerbatim
 
 log = logging.getLogger(__name__)
 
-BRIEF_PROMPT_VERSION = "a1_brief_v1"
-BRIEF_PROMPT_VERSION_STRICT = "a1_brief_v1_strict"
+BRIEF_PROMPT_VERSION = "a1_brief_v2"
+BRIEF_PROMPT_VERSION_STRICT = "a1_brief_v2_strict"
 BRIEF_MODEL = "claude-sonnet-4-6"
 _SONNET_MODEL = BRIEF_MODEL  # internal alias preserved for grep stability
 _TEMPERATURE = 0.0
@@ -54,6 +54,7 @@ SECTION_HEADINGS: dict[int, str] = {
 }
 
 PLACEHOLDER_CLAIM_TEXT = "No top-of-mind criticism in PRIMARY chatter — see §4 below"
+PLACEHOLDER_CLAIM_HEADER = "No criticism noted"
 
 
 @dataclass(frozen=True)
@@ -221,6 +222,7 @@ Your task -- return a JSON object with this exact shape:
   "brief_title": "<one-line title naming the product>",
   "claims": [
     {{"quadrant_id": <int 1..4>, "aspect": "<aspect_id>", \
+"header": "<2-5 word headline>", \
 "claim_text": "<1-2 sentences>"}}
   ]
 }}
@@ -228,10 +230,16 @@ Your task -- return a JSON object with this exact shape:
 Rules:
 - Write ONE entry in `claims` per (quadrant_id, aspect) pair present in the \
 input. Do NOT invent aspects or quadrants.
+- `header` is a 2-5 word headline naming THE SPECIFIC THING the bullet is \
+about, in plain English an executive could scan in one glance. Examples: \
+"Keyboard feels premium", "Thermals run hot under load", "Display brightness \
+underwhelms", "Build quality reassures". Do NOT just echo the aspect name; \
+say what about it.
 - `claim_text` is 1-2 sentences summarizing what the verbatims for that \
-aspect actually say. Cite specific points, not generalities.
-- Do NOT include mention IDs or quote raw verbatim text inside `claim_text`. \
-The orchestrator wires citations from the input pool.
+aspect actually say. Cite specific points, not generalities. Do NOT repeat \
+the header verbatim; expand on it.
+- Do NOT include mention IDs or quote raw verbatim text inside `claim_text` \
+or `header`. The orchestrator wires citations from the input pool.
 - If a quadrant in the input has zero aspects, skip it -- do not emit a \
 claim for it.
 - Return ONLY valid JSON, no prose.
@@ -284,7 +292,13 @@ def write_a1_brief(
             sections=[
                 BriefSection(
                     heading=SECTION_HEADINGS[2],
-                    claims=[Claim(claim_text=PLACEHOLDER_CLAIM_TEXT, cited_mention_ids=[])],
+                    claims=[
+                        Claim(
+                            header=PLACEHOLDER_CLAIM_HEADER,
+                            claim_text=PLACEHOLDER_CLAIM_TEXT,
+                            cited_mention_ids=[],
+                        )
+                    ],
                 )
             ],
         )
@@ -345,20 +359,23 @@ def write_a1_brief(
         msg = f"expected 'claims' to be a list, got {type(claims_raw).__name__}"
         raise LlmResponseError(msg)
 
-    claim_text_by_key: dict[tuple[int, str], str] = {}
+    claim_by_key: dict[tuple[int, str], tuple[str, str]] = {}
     for item in claims_raw:
         if not isinstance(item, dict):
             continue
         qid = item.get("quadrant_id")
         aspect_id = item.get("aspect")
         text = item.get("claim_text")
+        header = item.get("header")
         if (
             isinstance(qid, int)
             and isinstance(aspect_id, str)
             and isinstance(text, str)
             and text.strip()
+            and isinstance(header, str)
+            and header.strip()
         ):
-            claim_text_by_key[(qid, aspect_id)] = text.strip()
+            claim_by_key[(qid, aspect_id)] = (header.strip(), text.strip())
 
     sections: list[BriefSection] = []
     for plan in plans:
@@ -366,7 +383,13 @@ def write_a1_brief(
             sections.append(
                 BriefSection(
                     heading=plan.heading,
-                    claims=[Claim(claim_text=PLACEHOLDER_CLAIM_TEXT, cited_mention_ids=[])],
+                    claims=[
+                        Claim(
+                            header=PLACEHOLDER_CLAIM_HEADER,
+                            claim_text=PLACEHOLDER_CLAIM_TEXT,
+                            cited_mention_ids=[],
+                        )
+                    ],
                 )
             )
             continue
@@ -375,16 +398,18 @@ def write_a1_brief(
 
         section_claims: list[Claim] = []
         for entry in plan.aspect_entries:
-            text = claim_text_by_key.get((plan.quadrant_id, entry.aspect.value))
-            if text is None:
+            pair = claim_by_key.get((plan.quadrant_id, entry.aspect.value))
+            if pair is None:
                 msg = (
-                    f"brief writer LLM omitted claim_text for quadrant={plan.quadrant_id} "
-                    f"aspect={entry.aspect.value}"
+                    "brief writer LLM omitted header/claim_text for "
+                    f"quadrant={plan.quadrant_id} aspect={entry.aspect.value}"
                 )
                 raise LlmResponseError(msg)
+            header_text, claim_text = pair
             section_claims.append(
                 Claim(
-                    claim_text=text,
+                    header=header_text,
+                    claim_text=claim_text,
                     cited_mention_ids=[v.mention_id for v in entry.selected],
                 )
             )

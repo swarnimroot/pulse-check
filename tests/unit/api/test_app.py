@@ -264,6 +264,122 @@ def test_pairs_stub_shape() -> None:
 
 
 # ---------------------------------------------------------------------------
+# /api/compare (cross-product heatmap)
+# ---------------------------------------------------------------------------
+
+
+def test_compare_empty_db_returns_empty_products_and_full_aspect_list(
+    app_with_session: FastAPI,
+) -> None:
+    client = TestClient(app_with_session)
+    response = client.get("/api/compare")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["run_id"] is None
+    assert body["products"] == []
+    # The canonical aspect column order is always returned so the frontend can
+    # render the header row even before any aggregates exist.
+    assert body["aspects"] == [a.value for a in Aspect]
+
+
+def test_compare_pins_alienware_first_and_returns_cells(
+    app_with_session: FastAPI, seed_session: Session
+) -> None:
+    # Alienware + ASUS competitor; aggregates for both under the same run.
+    _seed_product(
+        seed_session, product_id="alienware_16_aurora", display_name="Alienware 16 Aurora"
+    )
+    _seed_product(
+        seed_session,
+        product_id="rog_strix_g16",
+        display_name="ROG Strix G16",
+        brand="ASUS",
+    )
+    _seed_aggregate(
+        seed_session,
+        product_id="alienware_16_aurora",
+        aspect=Aspect.THERMALS,
+        total_mentions=10,
+        net_sentiment=-0.3,
+        mention_ids=[f"m{i:03d}" for i in range(10)],
+    )
+    _seed_aggregate(
+        seed_session,
+        product_id="rog_strix_g16",
+        aspect=Aspect.BATTERY,
+        total_mentions=4,
+        net_sentiment=0.5,
+        mention_ids=[f"r{i:03d}" for i in range(4)],
+    )
+    seed_session.commit()
+
+    client = TestClient(app_with_session)
+    body = client.get("/api/compare").json()
+
+    assert body["run_id"] == "smoke_test"
+    # Alienware pinned ahead of ASUS regardless of alphabetical brand order.
+    assert [p["product_id"] for p in body["products"]] == [
+        "alienware_16_aurora",
+        "rog_strix_g16",
+    ]
+    aurora = body["products"][0]
+    assert len(aurora["cells"]) == 1
+    cell = aurora["cells"][0]
+    assert cell["aspect"] == "thermals"
+    assert cell["total_mentions"] == 10
+    assert cell["net_sentiment"] == pytest.approx(-0.3)
+    assert len(cell["mention_ids"]) == 10
+
+
+def test_compare_caps_mention_ids_at_50_per_cell(
+    app_with_session: FastAPI, seed_session: Session
+) -> None:
+    _seed_product(seed_session)
+    _seed_aggregate(
+        seed_session,
+        aspect=Aspect.PERFORMANCE,
+        total_mentions=120,
+        mention_ids=[f"m{i:04d}" for i in range(120)],
+    )
+    seed_session.commit()
+
+    client = TestClient(app_with_session)
+    body = client.get("/api/compare").json()
+    cell = body["products"][0]["cells"][0]
+    # total_mentions reflects the underlying count; mention_ids is capped to
+    # keep the bulk payload bounded (drill-into endpoint owns the full list).
+    assert cell["total_mentions"] == 120
+    assert len(cell["mention_ids"]) == 50
+    assert cell["mention_ids"][0] == "m0000"
+    assert cell["mention_ids"][49] == "m0049"
+
+
+def test_compare_respects_explicit_run_id_query_param(
+    app_with_session: FastAPI, seed_session: Session
+) -> None:
+    _seed_product(seed_session)
+    _seed_aggregate(
+        seed_session,
+        run_id="smoke_test",
+        aspect=Aspect.THERMALS,
+        total_mentions=5,
+    )
+    _seed_aggregate(
+        seed_session,
+        run_id="run_wave5_v1",
+        aspect=Aspect.DISPLAY,
+        total_mentions=8,
+    )
+    seed_session.commit()
+
+    client = TestClient(app_with_session)
+    body = client.get("/api/compare?run_id=run_wave5_v1").json()
+    assert body["run_id"] == "run_wave5_v1"
+    aurora = body["products"][0]
+    assert [c["aspect"] for c in aurora["cells"]] == ["display"]
+
+
+# ---------------------------------------------------------------------------
 # /api/products
 # ---------------------------------------------------------------------------
 

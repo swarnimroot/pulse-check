@@ -82,9 +82,7 @@ def _agg(
     )
 
 
-def _narrative(
-    *, heading: str = SECTION_HEADINGS[1], claims: list[Claim]
-) -> BriefNarrative:
+def _narrative(*, heading: str = SECTION_HEADINGS[1], claims: list[Claim]) -> BriefNarrative:
     return BriefNarrative(
         brief_title="Test brief",
         sections=[BriefSection(heading=heading, claims=claims)],
@@ -106,7 +104,11 @@ def test_clean_brief_passes_all_four_checks(session: Session) -> None:
 
     narrative = _narrative(
         claims=[
-            Claim(claim_text="Owners praise the performance.", cited_mention_ids=["m1", "m2"]),
+            Claim(
+                header="H",
+                claim_text="Owners praise the performance.",
+                cited_mention_ids=["m1", "m2"],
+            ),
         ]
     )
 
@@ -138,6 +140,7 @@ def test_fabricated_id_caught(session: Session) -> None:
     narrative = _narrative(
         claims=[
             Claim(
+                header="H",
                 claim_text="Owners praise the performance.",
                 cited_mention_ids=["m1", "fake_id_999"],
             ),
@@ -171,6 +174,7 @@ def test_out_of_context_id_caught(session: Session) -> None:
     narrative = _narrative(
         claims=[
             Claim(
+                header="H",
                 claim_text="Owners praise the performance.",
                 cited_mention_ids=["m1", "stray_mention"],
             ),
@@ -203,14 +207,12 @@ def test_empty_claim_with_placeholder_text_allowed(session: Session) -> None:
         sections=[
             BriefSection(
                 heading=SECTION_HEADINGS[2],
-                claims=[Claim(claim_text=PLACEHOLDER_CLAIM_TEXT, cited_mention_ids=[])],
+                claims=[Claim(header="H", claim_text=PLACEHOLDER_CLAIM_TEXT, cited_mention_ids=[])],
             ),
         ],
     )
 
-    result = validate_citations(
-        session, narrative=narrative, aggregates={}, allowed_pool=set()
-    )
+    result = validate_citations(session, narrative=narrative, aggregates={}, allowed_pool=set())
 
     assert result.is_valid is True
     assert result.empty_claims == []
@@ -225,14 +227,14 @@ def test_empty_claim_with_non_placeholder_text_flagged(session: Session) -> None
         sections=[
             BriefSection(
                 heading=SECTION_HEADINGS[1],
-                claims=[Claim(claim_text="Owners are mostly happy.", cited_mention_ids=[])],
+                claims=[
+                    Claim(header="H", claim_text="Owners are mostly happy.", cited_mention_ids=[])
+                ],
             ),
         ],
     )
 
-    result = validate_citations(
-        session, narrative=narrative, aggregates={}, allowed_pool=set()
-    )
+    result = validate_citations(session, narrative=narrative, aggregates={}, allowed_pool=set())
 
     assert result.is_valid is False
     assert result.empty_claims == ["Owners are mostly happy."]
@@ -253,6 +255,7 @@ def test_numerical_drift_flagged_on_count_noun(session: Session) -> None:
     narrative = _narrative(
         claims=[
             Claim(
+                header="H",
                 claim_text="60 users praised the performance.",
                 cited_mention_ids=["m1", "m2"],
             ),
@@ -283,6 +286,7 @@ def test_numerical_drift_within_tolerance_passes(session: Session) -> None:
     narrative = _narrative(
         claims=[
             Claim(
+                header="H",
                 claim_text="3 users praised the performance.",
                 cited_mention_ids=["m1", "m2"],
             ),
@@ -310,6 +314,7 @@ def test_numerical_drift_ignores_non_count_integers(session: Session) -> None:
     narrative = _narrative(
         claims=[
             Claim(
+                header="H",
                 claim_text="The 1080p display is well regarded.",
                 cited_mention_ids=["m1"],
             ),
@@ -338,6 +343,7 @@ def test_drift_falls_back_to_citation_count_when_aggregate_unknown(
     narrative = _narrative(
         claims=[
             Claim(
+                header="H",
                 claim_text="50 users praised the performance.",
                 cited_mention_ids=["m1", "m2"],
             ),
@@ -376,6 +382,7 @@ def test_drift_uses_secondary_aggregate_when_cited_set_matches_secondary(
                 heading=SECTION_HEADINGS[4],
                 claims=[
                     Claim(
+                        header="H",
                         claim_text="11 reviewers raised concerns.",
                         cited_mention_ids=["s1", "s2"],
                     ),
@@ -406,14 +413,12 @@ def test_validator_handles_brief_with_no_citations(session: Session) -> None:
         sections=[
             BriefSection(
                 heading=SECTION_HEADINGS[2],
-                claims=[Claim(claim_text=PLACEHOLDER_CLAIM_TEXT, cited_mention_ids=[])],
+                claims=[Claim(header="H", claim_text=PLACEHOLDER_CLAIM_TEXT, cited_mention_ids=[])],
             ),
         ],
     )
 
-    result = validate_citations(
-        session, narrative=narrative, aggregates={}, allowed_pool=set()
-    )
+    result = validate_citations(session, narrative=narrative, aggregates={}, allowed_pool=set())
 
     assert result.is_valid is True
     assert result.fabricated_ids == []

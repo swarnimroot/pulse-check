@@ -456,6 +456,7 @@ Briefs must cite evidence for every claim. Sonnet is prompted to return a struct
       "heading": "Top losing reasons",
       "claims": [
         {
+          "header": "Thermals leads the deliberation",
           "claim_text": "Thermals is the top-cited reason deliberators chose the Strix G16 over the Area-51 18, appearing in 60 resolved threads.",
           "cited_mention_ids": ["m_abc123", "m_def456", "m_ghi789"]
         }
@@ -465,15 +466,17 @@ Briefs must cite evidence for every claim. Sonnet is prompted to return a struct
 }
 ```
 
+`header` (2–5 words) is the bold lead-in the UI surfaces ahead of the claim sentence so a non-technical reader can scan a brief by headlines. `claim_text` (1–2 sentences) expands on it without restating. Added in `prompt_version a1_brief_v2` (session 32). Older briefs in storage may lack `header`; the frontend renders gracefully without it.
+
 Post-generation validation (soft-warn, operator-locked session 12 — see "Validation output" below):
-1. Every `cited_mention_ids` entry must resolve to a real `mentions.mention_id`. **Retry policy:** on `fabricated_ids` only, the orchestrator re-calls the brief writer once with `prompt_version = a1_brief_v1_strict` (a stricter preamble emphasizing fidelity to provided verbatims) and re-validates. Other warning channels do not retry. An empty `cited_mention_ids` list is permitted only for the explicit placeholder claim defined under "A1 brief layout" below.
+1. Every `cited_mention_ids` entry must resolve to a real `mentions.mention_id`. **Retry policy:** on `fabricated_ids` only, the orchestrator re-calls the brief writer once with `prompt_version = a1_brief_v2_strict` (a stricter preamble emphasizing fidelity to provided verbatims) and re-validates. Other warning channels do not retry. An empty `cited_mention_ids` list is permitted only for the explicit placeholder claim defined under "A1 brief layout" below.
 2. The cited mentions must actually be in the input pool the selector was given (`allowed_pool` = PRIMARY ∪ SECONDARY mention IDs across all aspects of the product) — no cross-product / cross-run leakage.
 3. If a claim carries a specific count paired with a count-noun ("60 threads", "10 users"), the citation validator regex-extracts the integer and compares it to the matched aggregate's mention count for the appropriate bucket (PRIMARY for §1/§2 claims, SECONDARY for §3/§4). Drift > ±5% is flagged as a soft-warn — not blocking. Pattern: `\d+\s+(user|mention|thread|reviewer|comment|post|review|owner|customer|complaint|complain|praise|report)s?` (case-insensitive).
 4. Empty claims (cited_mention_ids = []) outside the §6.3 placeholder are flagged.
 
 This structure renders naturally in the UI: each `claim_text` is one sentence or paragraph; hovering or clicking it opens a panel with the cited mentions as drillable cards.
 
-**A1 brief layout (operator-locked, session 11).** The contract above is generic; the A1 brief uses four sections in fixed order, prompt_version `a1_brief_v1`:
+**A1 brief layout (operator-locked, session 11).** The contract above is generic; the A1 brief uses four sections in fixed order, prompt_version `a1_brief_v2` (bumped session 32 to add the per-claim `header` field; v1 still readable from storage):
 
 | # | Heading | Inclusion rule | Cap |
 |---|---|---|---|
@@ -482,9 +485,9 @@ This structure renders naturally in the UI: each `claim_text` is one sentence or
 | 3 | Low-signal strengths (public chatter) | aspects with SECONDARY positive ≥ 1 not in §1, ranked by count desc | up to 3 aspects |
 | 4 | Low-signal weaknesses (public chatter) | aspects with SECONDARY negative ≥ 1 not in §2, ranked by count desc | up to 3 aspects |
 
-One claim per aspect per section. Each claim cites up to 3 mentions for that aspect — PRIMARY for sections 1–2, SECONDARY for sections 3–4 — selected by the deterministic verbatim selector (`pulse_check.synthesis.selector`), which ranks `aspect_tags.intensity` desc (high > medium > low) and dedups by cluster (see §6.4). The brief writer assembles `cited_mention_ids` from the selector's output and never receives mention IDs from Sonnet — Sonnet writes only `brief_title` and per-`(quadrant, aspect)` `claim_text`. No padding: sections render with fewer than the cap when the data doesn't support more.
+One claim per aspect per section. Each claim cites up to 3 mentions for that aspect — PRIMARY for sections 1–2, SECONDARY for sections 3–4 — selected by the deterministic verbatim selector (`pulse_check.synthesis.selector`), which ranks `aspect_tags.intensity` desc (high > medium > low) and dedups by cluster (see §6.4). The brief writer assembles `cited_mention_ids` from the selector's output and never receives mention IDs from Sonnet — Sonnet writes only `brief_title`, per-`(quadrant, aspect)` `header`, and per-`(quadrant, aspect)` `claim_text`. No padding: sections render with fewer than the cap when the data doesn't support more.
 
-**Empty section 2 — placeholder rule.** When zero aspects qualify for high-confidence weaknesses, section 2 still renders with one placeholder claim: `claim_text = "No top-of-mind criticism in PRIMARY chatter — see §4 below"`, `cited_mention_ids = []`. This is the sole case where an empty citation list is contractually permitted (see validation rule 1).
+**Empty section 2 — placeholder rule.** When zero aspects qualify for high-confidence weaknesses, section 2 still renders with one placeholder claim: `header = "No criticism noted"`, `claim_text = "No top-of-mind criticism in PRIMARY chatter — see §4 below"`, `cited_mention_ids = []`. This is the sole case where an empty citation list is contractually permitted (see validation rule 1).
 
 **Validation output (operator-locked, session 12).** The four citation-integrity checks (above) run post-generation as a soft-warn — the brief is persisted whether or not warnings fire. The final `ValidationResult` is persisted as a top-level `flagged_citation_issues` key on `briefs.narrative` JSON; downstream UI reads this to badge briefs that have warnings. All-quadrants-empty short-circuits Sonnet entirely (brief title `"{display_name} — A1 voice"` + Q2 placeholder section only; no LLM call).
 

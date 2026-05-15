@@ -128,3 +128,160 @@ class BriefView(BaseModel):
     model: str
     generated_at: datetime
     narrative: dict[str, Any]
+
+
+# ---------------------------------------------------------------------------
+# Compare (cross-product heatmap) — bite 32.a
+# ---------------------------------------------------------------------------
+
+
+class CompareCell(BaseModel):
+    """One cell of the cross-product heatmap.
+
+    `mention_ids` is capped server-side so the bulk response stays bounded;
+    the EvidenceDrawer fetches verbatim text via `/api/mentions` from this
+    same list.
+    """
+
+    aspect: str
+    total_mentions: int
+    net_sentiment: float
+    mention_ids: list[str]
+
+
+class CompareProductRow(BaseModel):
+    """One row in the heatmap. `cells` is sparse — only aspects with at
+    least one tagged mention are present; the frontend renders empty
+    cells for missing aspects against the canonical column order.
+    """
+
+    product_id: str
+    display_name: str
+    brand: str
+    cells: list[CompareCell]
+
+
+class CompareResponse(BaseModel):
+    """Payload behind `/api/compare`.
+
+    `aspects` is the canonical column order (Aspect enum declaration order).
+    `run_id` is the run picked to populate the grid; `None` only when zero
+    runs have any aggregate rows yet.
+    """
+
+    products: list[CompareProductRow]
+    aspects: list[str]
+    run_id: str | None
+    generated_at: datetime
+
+
+# ---------------------------------------------------------------------------
+# Home page summary + pair comparison — bite 32.b
+# ---------------------------------------------------------------------------
+
+
+class PipelineStageStat(BaseModel):
+    """One stage in the plain-English "Under the hood" pipeline explainer.
+
+    `chips` are name/value pairs surfaced as small metric pills on the stage
+    card. Order is preserved and rendered left-to-right.
+    """
+
+    key: str  # stable id used by the frontend for keys + iconography
+    label: str  # short uppercase tag (PULL / NARROW / TAG / SCORE / ...)
+    title: str  # human-readable stage title
+    description: str  # plain-English sentence shown beneath the title
+    ai: bool = False  # whether this stage involves an LLM call (badge on the card)
+    chips: list[dict[str, str | int | float]] = Field(default_factory=list)
+
+
+class HomeSummary(BaseModel):
+    """Payload behind `/api/home`.
+
+    Drives the top-of-page summary strip plus the "Under the hood" panel.
+    `products_tracked` is the count of products with at least one aggregate
+    row in the chosen run. `mentions_analyzed` is the total distinct
+    mentions in the corpus (across all sources).
+    """
+
+    run_id: str | None
+    products_tracked: int
+    mentions_analyzed: int
+    pipeline: list[PipelineStageStat]
+    generated_at: datetime
+
+
+class PairAspectCell(BaseModel):
+    """One product's data for one aspect, in the head-to-head context."""
+
+    total_mentions: int
+    net_sentiment: float
+    mention_ids: list[str]
+
+
+class PairAspectRow(BaseModel):
+    """One side-by-side row in the head-to-head scorecard.
+
+    `delta` = primary.net_sentiment - competitor.net_sentiment. Positive
+    means the primary leads on this aspect; negative means the competitor
+    leads. `leader` is a stable string (`"primary"` / `"competitor"` /
+    `"tie"`) so the frontend doesn't have to re-derive the same comparison.
+    """
+
+    aspect: str
+    primary: PairAspectCell | None
+    competitor: PairAspectCell | None
+    delta: float
+    leader: str  # "primary" | "competitor" | "tie"
+
+
+class PairProductRef(BaseModel):
+    product_id: str
+    display_name: str
+    brand: str
+
+
+class PairResponse(BaseModel):
+    """Payload behind `/api/pair`.
+
+    Returns a paired aspect-by-aspect comparison plus a small summary
+    (aspects each side leads on). `aspects` carries the canonical column
+    order so the frontend renders consistently with the heatmap.
+    """
+
+    primary: PairProductRef
+    competitor: PairProductRef
+    aspects: list[str]
+    rows: list[PairAspectRow]
+    primary_leads_count: int  # aspects where primary > competitor net sentiment
+    competitor_leads_count: int
+    ties_count: int  # both sides equal or both sides missing data
+    run_id: str | None
+    generated_at: datetime
+
+
+# ---------------------------------------------------------------------------
+# /api/sources — operator-curated source list shown in the home page
+# "Under the hood" accordion.
+# ---------------------------------------------------------------------------
+
+
+class SourceEntry(BaseModel):
+    """One source surface (a subreddit, a YouTube channel, an article feed)."""
+
+    name: str  # display label — e.g. "r/GamingLaptops" or "Tom's Hardware"
+    detail: str  # secondary line — URL, handle, or note
+
+
+class SourcesResponse(BaseModel):
+    """Payload behind `/api/sources`.
+
+    Surfaces the operator-curated source set for the active run by reading
+    the YAML configs at request time. `review_sites` is the article-RSS
+    list filtered to `enabled` entries.
+    """
+
+    reddit: list[SourceEntry]
+    youtube: list[SourceEntry]
+    review_sites: list[SourceEntry]
+    generated_at: datetime

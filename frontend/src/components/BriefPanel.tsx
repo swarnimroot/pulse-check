@@ -64,12 +64,20 @@ function BriefBlock({ heading, claims, onCite }: BriefBlockProps): JSX.Element {
       {claims.length === 0 ? (
         <p className="text-sm italic text-fg-muted">No claims surfaced for this bucket.</p>
       ) : (
-        <ul className="flex flex-col gap-2">
+        <ul className="flex list-disc flex-col gap-3 pl-5">
           {claims.map((claim, idx) => (
             <li
               key={`${heading}-${idx}`}
               className="text-sm leading-[1.5] text-fg-secondary"
             >
+              {claim.header && (
+                <>
+                  <strong className="font-semibold text-fg">
+                    {claim.header}
+                  </strong>
+                  {" — "}
+                </>
+              )}
               {claim.claim_text}
               {claim.cited_mention_ids.length > 0 && (
                 <CiteChip

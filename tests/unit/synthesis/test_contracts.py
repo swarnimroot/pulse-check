@@ -30,6 +30,7 @@ def _sample_narrative() -> BriefNarrative:
                 heading="Thermals",
                 claims=[
                     Claim(
+                        header="H",
                         claim_text="Reviewers consistently flag elevated fan noise.",
                         cited_mention_ids=["m_1", "m_2"],
                     )
@@ -72,13 +73,13 @@ def test_claim_allows_empty_citation_list_for_placeholder() -> None:
     """Operator-locked, session 11: empty `cited_mention_ids` is permitted
     so the §6.3 A1 brief can render its empty-section-2 placeholder claim
     (`"No top-of-mind criticism in PRIMARY chatter — see §4 below"`)."""
-    claim = Claim(claim_text="A placeholder.", cited_mention_ids=[])
+    claim = Claim(header="H", claim_text="A placeholder.", cited_mention_ids=[])
     assert claim.cited_mention_ids == []
 
 
 def test_claim_rejects_empty_text() -> None:
     with pytest.raises(ValidationError):
-        Claim(claim_text="", cited_mention_ids=["m_1"])
+        Claim(header="H", claim_text="", cited_mention_ids=["m_1"])
 
 
 def test_brief_section_rejects_empty_claims() -> None:

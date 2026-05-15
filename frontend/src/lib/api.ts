@@ -12,9 +12,13 @@
 
 import type {
   BriefView,
+  CompareResponse,
+  HomeSummary,
   MentionView,
+  PairResponse,
   ProductDetail,
   ProductSummary,
+  SourcesResponse,
 } from "@/lib/types";
 
 // Default to a relative URL so the API resolves against the document base URL
@@ -96,6 +100,20 @@ export const api = {
     if (ids.length === 0) return Promise.resolve({ mentions: [] });
     const csv = ids.map(encodeURIComponent).join(",");
     return apiFetch<MentionsResponse>(`/mentions?ids=${csv}`);
+  },
+  compare: (runId?: string): Promise<CompareResponse> => {
+    const qs = runId !== undefined ? `?run_id=${encodeURIComponent(runId)}` : "";
+    return apiFetch<CompareResponse>(`/compare${qs}`);
+  },
+  home: (): Promise<HomeSummary> => apiFetch<HomeSummary>("/home"),
+  sources: (): Promise<SourcesResponse> => apiFetch<SourcesResponse>("/sources"),
+  pair: (primary: string, competitor: string, runId?: string): Promise<PairResponse> => {
+    const parts = [
+      `primary=${encodeURIComponent(primary)}`,
+      `competitor=${encodeURIComponent(competitor)}`,
+    ];
+    if (runId !== undefined) parts.push(`run_id=${encodeURIComponent(runId)}`);
+    return apiFetch<PairResponse>(`/pair?${parts.join("&")}`);
   },
 } as const;
 
