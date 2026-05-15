@@ -179,22 +179,14 @@ export function Pair(): JSX.Element {
 
   const handlePrimaryCompanyChange = (next: string): void => {
     setPrimaryCompany(next);
-    if (productsState.kind === "ready") {
-      const first = productsState.products.find((p) => p.brand === next);
-      setPrimaryId(first?.product_id ?? "");
-    } else {
-      setPrimaryId("");
-    }
+    // No auto-pick — the visitor explicitly chooses the product. Clear any
+    // stale product id from a different brand so the dropdown reads empty.
+    setPrimaryId("");
   };
 
   const handleCompetitorCompanyChange = (next: string): void => {
     setCompetitorCompany(next);
-    if (productsState.kind === "ready") {
-      const first = productsState.products.find((p) => p.brand === next);
-      setCompetitorId(first?.product_id ?? "");
-    } else {
-      setCompetitorId("");
-    }
+    setCompetitorId("");
   };
 
   const openCellDrawer = useCallback(
@@ -265,7 +257,6 @@ export function Pair(): JSX.Element {
 
         <section className="grid grid-cols-[1fr_auto_1fr] items-end gap-6 rounded-md border border-border bg-surface p-5 shadow-card">
           <PickerColumn
-            label="PRIMARY"
             company={primaryCompany}
             companyOptions={companyOptions}
             onCompanyChange={handlePrimaryCompanyChange}
@@ -279,7 +270,6 @@ export function Pair(): JSX.Element {
             className="self-stretch border-l border-border"
           />
           <PickerColumn
-            label="COMPETITOR"
             company={competitorCompany}
             companyOptions={companyOptions}
             onCompanyChange={handleCompetitorCompanyChange}
@@ -310,7 +300,6 @@ export function Pair(): JSX.Element {
 }
 
 interface PickerColumnProps {
-  label: string;
   company: string;
   companyOptions: SelectOption[];
   onCompanyChange: (v: string) => void;
@@ -321,7 +310,6 @@ interface PickerColumnProps {
 }
 
 function PickerColumn({
-  label,
   company,
   companyOptions,
   onCompanyChange,
@@ -331,26 +319,23 @@ function PickerColumn({
   disabled,
 }: PickerColumnProps): JSX.Element {
   return (
-    <div className="flex flex-col gap-3">
-      <span className="text-[11px] font-semibold uppercase tracking-wide text-fg-muted">
-        {label}
-      </span>
-      <div className="grid grid-cols-2 gap-3">
-        <Select
-          label="Company"
-          value={company}
-          options={companyOptions}
-          onChange={onCompanyChange}
-          disabled={disabled}
-        />
-        <Select
-          label="Product"
-          value={productId}
-          options={productOptions}
-          onChange={onProductChange}
-          disabled={disabled || productOptions.length === 0}
-        />
-      </div>
+    <div className="grid grid-cols-2 gap-3">
+      <Select
+        label="Company"
+        value={company}
+        options={companyOptions}
+        onChange={onCompanyChange}
+        disabled={disabled}
+        placeholder="Select a company"
+      />
+      <Select
+        label="Product"
+        value={productId}
+        options={productOptions}
+        onChange={onProductChange}
+        disabled={disabled || productOptions.length === 0}
+        placeholder={company ? "Select a product" : "Pick a company first"}
+      />
     </div>
   );
 }
@@ -390,52 +375,64 @@ interface PairScorecardProps {
   ) => void;
 }
 
+function totalMentions(row: PairAspectRow): number {
+  return (
+    (row.primary?.total_mentions ?? 0) +
+    (row.competitor?.total_mentions ?? 0)
+  );
+}
+
 function PairScorecard({ pair, onCellClick }: PairScorecardProps): JSX.Element {
   const totalAspects = pair.rows.length;
-  const primaryRows = pair.rows.filter((r) => r.leader === "primary");
-  const tieRows = pair.rows.filter((r) => r.leader === "tie");
-  const competitorRows = pair.rows.filter((r) => r.leader === "competitor");
+  // Sort by what gets talked about most across the two products combined —
+  // operator-anchored signal of "which aspects actually matter for this
+  // pairing". Tiebreaker: canonical aspect order from the backend response.
+  const aspectOrder = new Map(pair.aspects.map((a, i) => [a, i]));
+  const sortedRows = [...pair.rows].sort((a, b) => {
+    const totalDelta = totalMentions(b) - totalMentions(a);
+    if (totalDelta !== 0) return totalDelta;
+    return (aspectOrder.get(a.aspect) ?? 0) - (aspectOrder.get(b.aspect) ?? 0);
+  });
 
   return (
-    <section className="flex flex-col gap-4">
+    <section className="flex flex-col gap-5">
       <div className="grid grid-cols-3 items-stretch gap-4">
-        <BucketColumn
+        <CountTile
+          label="LEADS"
           headline={pair.primary.display_name}
           sub={pair.primary.brand}
           count={pair.primary_leads_count}
           total={totalAspects}
-          rows={primaryRows}
-          primaryName={pair.primary.display_name}
-          competitorName={pair.competitor.display_name}
-          onCellClick={onCellClick}
         />
-        <BucketColumn
+        <CountTile
+          label="TIES"
           headline="Ties"
           sub="net sentiment within ±0.10"
           count={pair.ties_count}
           total={totalAspects}
-          rows={tieRows}
-          primaryName={pair.primary.display_name}
-          competitorName={pair.competitor.display_name}
-          onCellClick={onCellClick}
           neutral
         />
-        <BucketColumn
+        <CountTile
+          label="LEADS"
           headline={pair.competitor.display_name}
           sub={pair.competitor.brand}
           count={pair.competitor_leads_count}
           total={totalAspects}
-          rows={competitorRows}
-          primaryName={pair.primary.display_name}
-          competitorName={pair.competitor.display_name}
-          onCellClick={onCellClick}
         />
       </div>
 
+      <PairTable
+        rows={sortedRows}
+        primaryName={pair.primary.display_name}
+        competitorName={pair.competitor.display_name}
+        onCellClick={onCellClick}
+      />
+
       <p className="text-xs text-fg-muted">
-        Each column shows the aspects that side leads on (net sentiment higher
-        by more than 0.10). Smaller gaps land in <strong>Ties</strong>. Net
-        sentiment is the share of positive minus the share of negative
+        Rows are sorted by how often the aspect is mentioned across both
+        products combined. The highlighted side on each row is the one that
+        leads (net sentiment higher by more than 0.10); ties are unhighlighted.
+        Net sentiment is the share of positive minus the share of negative
         mentions, on a –1 to +1 scale. Click any cell to read the verbatim
         quotes for that side and aspect.
       </p>
@@ -443,11 +440,43 @@ function PairScorecard({ pair, onCellClick }: PairScorecardProps): JSX.Element {
   );
 }
 
-interface BucketColumnProps {
+interface CountTileProps {
+  label: string;
   headline: string;
   sub: string;
   count: number;
   total: number;
+  neutral?: boolean;
+}
+
+function CountTile({
+  label,
+  headline,
+  sub,
+  count,
+  total,
+  neutral = false,
+}: CountTileProps): JSX.Element {
+  const numberClass = neutral ? "text-fg-muted" : "text-accent";
+  return (
+    <div className="flex flex-col items-center gap-1 rounded-md border border-border bg-surface p-5 text-center shadow-card">
+      <span className="text-[11px] font-semibold uppercase tracking-wide text-fg-muted">
+        {label}
+      </span>
+      <span className="text-sm font-medium text-fg">{headline}</span>
+      <span className={`mt-1 text-3xl font-semibold tabular ${numberClass}`}>
+        {count}
+        <span className="text-base font-normal text-fg-muted">
+          {" "}
+          / {total}
+        </span>
+      </span>
+      <span className="text-[11px] text-fg-muted">{sub}</span>
+    </div>
+  );
+}
+
+interface PairTableProps {
   rows: PairAspectRow[];
   primaryName: string;
   competitorName: string;
@@ -456,65 +485,41 @@ interface BucketColumnProps {
     aspect: string,
     mentionIds: string[],
   ) => void;
-  neutral?: boolean;
 }
 
-function BucketColumn({
-  headline,
-  sub,
-  count,
-  total,
+function PairTable({
   rows,
   primaryName,
   competitorName,
   onCellClick,
-  neutral = false,
-}: BucketColumnProps): JSX.Element {
-  const numberClass = neutral ? "text-fg-muted" : "text-accent";
+}: PairTableProps): JSX.Element {
   return (
-    <div className="flex flex-col gap-3 rounded-md border border-border bg-surface p-5 shadow-card">
-      <div className="flex flex-col items-center gap-1 text-center">
-        <span className="text-[11px] font-semibold uppercase tracking-wide text-fg-muted">
-          {neutral ? "TIES" : "LEADS"}
-        </span>
-        <span className="text-sm font-medium text-fg">{headline}</span>
-        <span className={`mt-1 text-3xl font-semibold tabular ${numberClass}`}>
-          {count}
-          <span className="text-base font-normal text-fg-muted">
-            {" "}
-            / {total}
-          </span>
-        </span>
-        <span className="text-[11px] text-fg-muted">{sub}</span>
+    <div className="overflow-hidden rounded-md border border-border bg-surface shadow-card">
+      <div className="grid grid-cols-[1fr_220px_1fr] items-center border-b border-border bg-surface-alt px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-fg-secondary">
+        <div className="text-center">{primaryName}</div>
+        <div className="text-center">Aspect</div>
+        <div className="text-center">{competitorName}</div>
       </div>
-
-      <div className="overflow-hidden rounded-sm border border-border">
-        <div className="grid grid-cols-[1fr_1.4fr_1fr] items-center border-b border-border bg-surface-alt px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-fg-muted">
-          <div className="text-center">{primaryName}</div>
-          <div className="text-center">Aspect</div>
-          <div className="text-center">{competitorName}</div>
-        </div>
-        {rows.length === 0 ? (
-          <p className="px-3 py-3 text-center text-xs italic text-fg-muted">
-            None
-          </p>
-        ) : (
-          rows.map((row) => (
-            <BucketRow
-              key={row.aspect}
-              row={row}
-              primaryName={primaryName}
-              competitorName={competitorName}
-              onCellClick={onCellClick}
-            />
-          ))
-        )}
-      </div>
+      {rows.length === 0 ? (
+        <p className="px-4 py-6 text-center text-sm italic text-fg-muted">
+          No aspects to compare.
+        </p>
+      ) : (
+        rows.map((row) => (
+          <PairTableRow
+            key={row.aspect}
+            row={row}
+            primaryName={primaryName}
+            competitorName={competitorName}
+            onCellClick={onCellClick}
+          />
+        ))
+      )}
     </div>
   );
 }
 
-interface BucketRowProps {
+interface PairTableRowProps {
   row: PairAspectRow;
   primaryName: string;
   competitorName: string;
@@ -525,23 +530,24 @@ interface BucketRowProps {
   ) => void;
 }
 
-function BucketRow({
+function PairTableRow({
   row,
   primaryName,
   competitorName,
   onCellClick,
-}: BucketRowProps): JSX.Element {
+}: PairTableRowProps): JSX.Element {
   return (
-    <div className="grid grid-cols-[1fr_1.4fr_1fr] items-center gap-1 border-b border-border px-2 py-2 last:border-b-0">
+    <div className="grid grid-cols-[1fr_220px_1fr] items-center gap-3 border-b border-border px-4 py-2.5 last:border-b-0">
       <div className="flex justify-center">
         <PairCellChip
           cell={row.primary}
           label={primaryName}
           aspect={row.aspect}
+          leads={row.leader === "primary"}
           onClick={onCellClick}
         />
       </div>
-      <div className="text-center text-xs font-medium text-fg">
+      <div className="text-center text-sm font-medium text-fg">
         {aspectLabel(row.aspect)}
       </div>
       <div className="flex justify-center">
@@ -549,6 +555,7 @@ function BucketRow({
           cell={row.competitor}
           label={competitorName}
           aspect={row.aspect}
+          leads={row.leader === "competitor"}
           onClick={onCellClick}
         />
       </div>
@@ -562,6 +569,7 @@ interface PairCellChipProps {
     | null;
   label: string;
   aspect: string;
+  leads: boolean;
   onClick: (productName: string, aspect: string, mentionIds: string[]) => void;
 }
 
@@ -569,13 +577,19 @@ function PairCellChip({
   cell,
   label,
   aspect,
+  leads,
   onClick,
 }: PairCellChipProps): JSX.Element {
+  // Leader-side gets a 2px accent ring so the eye lands on it without
+  // changing the polarity tint that conveys sentiment.
+  const leaderHighlight = leads
+    ? "ring-2 ring-accent ring-offset-1 ring-offset-surface"
+    : "";
   if (cell === null) {
     return (
       <span
         title="no mentions yet"
-        className="inline-flex items-center gap-1 rounded-sm border border-dashed border-border bg-surface-alt px-2 py-1 text-[11px] text-fg-muted"
+        className={`inline-flex items-center gap-1 rounded-sm border border-dashed border-border bg-surface-alt px-2 py-1 text-[11px] text-fg-muted ${leaderHighlight}`}
       >
         no data
       </span>
@@ -590,7 +604,7 @@ function PairCellChip({
       title={`Click to read the ${cell.total_mentions} quote${
         cell.total_mentions === 1 ? "" : "s"
       } behind this score`}
-      className={`inline-flex cursor-zoom-in items-center gap-2 rounded-sm border border-border px-2 py-1 text-xs transition-colors duration-1 ease-aw hover:brightness-95 ${netSentBg(tone)}`}
+      className={`inline-flex cursor-zoom-in items-center gap-2 rounded-sm border border-border px-2 py-1 text-xs transition-colors duration-1 ease-aw hover:brightness-95 ${netSentBg(tone)} ${leaderHighlight}`}
     >
       <span className="tabular font-medium">
         {sign}

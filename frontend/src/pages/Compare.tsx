@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { EvidenceDrawer } from "@/components/EvidenceDrawer";
 import { ApiError, api } from "@/lib/api";
@@ -105,15 +105,16 @@ function deriveScreenSize(displayName: string): string | null {
 
 interface HeatCellProps {
   cell: CompareCell | undefined;
+  topBorder: string;
   onClick: () => void;
 }
 
-function HeatCell({ cell, onClick }: HeatCellProps): JSX.Element {
+function HeatCell({ cell, topBorder, onClick }: HeatCellProps): JSX.Element {
   if (!cell || cell.total_mentions === 0) {
     return (
       <div
         aria-hidden="true"
-        className="flex h-9 items-center justify-center border-r border-b border-border bg-surface-alt"
+        className={`flex h-9 w-full items-center justify-center border-r border-b border-border bg-surface-alt ${topBorder}`}
         title="no data yet"
       >
         <span className="text-[10px] text-fg-muted">—</span>
@@ -127,7 +128,7 @@ function HeatCell({ cell, onClick }: HeatCellProps): JSX.Element {
       type="button"
       onClick={onClick}
       title={`${cell.aspect} · net ${sign}${cell.net_sentiment.toFixed(2)} · ${cell.total_mentions} mention${cell.total_mentions === 1 ? "" : "s"}`}
-      className={`flex h-9 cursor-zoom-in items-center justify-end border-r border-b border-border px-2 transition-colors duration-1 ease-aw hover:brightness-95 ${cellBgClass(tone)}`}
+      className={`flex h-9 w-full cursor-zoom-in items-center justify-center border-r border-b border-border px-2 transition-colors duration-1 ease-aw hover:brightness-95 ${cellBgClass(tone)} ${topBorder}`}
     >
       <span className="tabular text-[11px] font-medium text-fg-secondary">
         {cell.total_mentions}
@@ -143,106 +144,54 @@ interface ProductRowProps {
 }
 
 interface FilterPanelProps {
-  allCompanies: string[];
-  allSizes: string[];
-  allProducts: CompareProductRow[];
+  companyItems: MultiSelectItem[];
+  sizeItems: MultiSelectItem[];
+  productItems: MultiSelectItem[];
   selectedCompanies: Set<string>;
   selectedSizes: Set<string>;
   selectedProducts: Set<string>;
-  productPickerOpen: boolean;
-  onToggleCompany: (c: string) => void;
-  onToggleSize: (s: string) => void;
-  onToggleProduct: (p: string) => void;
-  onClearCompanies: () => void;
-  onClearSizes: () => void;
-  onClearProducts: () => void;
-  onToggleProductPicker: () => void;
+  onCompaniesChange: (next: Set<string>) => void;
+  onSizesChange: (next: Set<string>) => void;
+  onProductsChange: (next: Set<string>) => void;
   shownCount: number;
   totalCount: number;
 }
 
 function FilterPanel({
-  allCompanies,
-  allSizes,
-  allProducts,
+  companyItems,
+  sizeItems,
+  productItems,
   selectedCompanies,
   selectedSizes,
   selectedProducts,
-  productPickerOpen,
-  onToggleCompany,
-  onToggleSize,
-  onToggleProduct,
-  onClearCompanies,
-  onClearSizes,
-  onClearProducts,
-  onToggleProductPicker,
+  onCompaniesChange,
+  onSizesChange,
+  onProductsChange,
   shownCount,
   totalCount,
 }: FilterPanelProps): JSX.Element {
   return (
     <div className="flex flex-col gap-3 rounded-md border border-border bg-surface p-4 shadow-card">
-      <FilterRow
-        label="Company"
-        items={allCompanies}
-        selected={selectedCompanies}
-        onToggle={onToggleCompany}
-        onClear={onClearCompanies}
-      />
-      <FilterRow
-        label="Screen size"
-        items={allSizes.map((s) => `${s}"`)}
-        rawItems={allSizes}
-        selected={selectedSizes}
-        onToggle={onToggleSize}
-        onClear={onClearSizes}
-      />
-      <div className="flex flex-col gap-2">
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={onToggleProductPicker}
-            className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-fg-secondary hover:text-accent"
-          >
-            <span
-              aria-hidden="true"
-              className="inline-block text-[10px]"
-              style={{
-                transform: productPickerOpen
-                  ? "rotate(90deg)"
-                  : "rotate(0deg)",
-              }}
-            >
-              ▶
-            </span>
-            Product
-          </button>
-          <span className="text-xs text-fg-muted">
-            {selectedProducts.size > 0
-              ? `${selectedProducts.size} selected`
-              : "(all)"}
-          </span>
-          {selectedProducts.size > 0 && (
-            <button
-              type="button"
-              onClick={onClearProducts}
-              className="text-xs font-medium text-accent hover:text-accent-hover"
-            >
-              clear
-            </button>
-          )}
-        </div>
-        {productPickerOpen && (
-          <div className="flex flex-wrap gap-1.5">
-            {allProducts.map((p) => (
-              <FilterChip
-                key={p.product_id}
-                label={p.display_name}
-                selected={selectedProducts.has(p.product_id)}
-                onClick={() => onToggleProduct(p.product_id)}
-              />
-            ))}
-          </div>
-        )}
+      <div className="grid grid-cols-3 gap-3">
+        <MultiSelectPopover
+          label="Company"
+          items={companyItems}
+          selected={selectedCompanies}
+          onChange={onCompaniesChange}
+        />
+        <MultiSelectPopover
+          label="Screen size"
+          items={sizeItems}
+          selected={selectedSizes}
+          onChange={onSizesChange}
+        />
+        <MultiSelectPopover
+          label="Product"
+          items={productItems}
+          selected={selectedProducts}
+          onChange={onProductsChange}
+          searchable
+        />
       </div>
       <p className="text-xs text-fg-muted">
         Showing <span className="font-medium text-fg">{shownCount}</span> of{" "}
@@ -252,72 +201,140 @@ function FilterPanel({
   );
 }
 
-interface FilterRowProps {
+interface MultiSelectItem {
+  value: string;
   label: string;
-  items: string[];
-  rawItems?: string[]; // when display label differs from the toggle key
-  selected: Set<string>;
-  onToggle: (key: string) => void;
-  onClear: () => void;
 }
 
-function FilterRow({
+interface MultiSelectPopoverProps {
+  label: string;
+  items: MultiSelectItem[];
+  selected: Set<string>;
+  onChange: (next: Set<string>) => void;
+  searchable?: boolean;
+}
+
+function MultiSelectPopover({
   label,
   items,
-  rawItems,
   selected,
-  onToggle,
-  onClear,
-}: FilterRowProps): JSX.Element {
+  onChange,
+  searchable = false,
+}: MultiSelectPopoverProps): JSX.Element {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Outside click → close. Bound only while open to avoid a global listener.
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent): void => {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(e.target as Node)
+      ) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  const allSelected = selected.size === items.length;
+  const triggerSummary = allSelected
+    ? `all ${items.length}`
+    : `${selected.size} of ${items.length}`;
+
+  const toggleOne = (value: string): void => {
+    const next = new Set(selected);
+    if (next.has(value)) next.delete(value);
+    else next.add(value);
+    onChange(next);
+  };
+
+  const selectAll = (): void => onChange(new Set(items.map((i) => i.value)));
+  const clearAll = (): void => onChange(new Set());
+
+  const filteredItems = useMemo(() => {
+    if (!searchable || !query.trim()) return items;
+    const q = query.trim().toLowerCase();
+    return items.filter((i) => i.label.toLowerCase().includes(q));
+  }, [items, searchable, query]);
+
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div ref={containerRef} className="relative flex flex-col gap-1">
       <span className="text-[11px] font-semibold uppercase tracking-wide text-fg-secondary">
         {label}
       </span>
-      {items.map((display, i) => {
-        const key = rawItems ? rawItems[i] : display;
-        return (
-          <FilterChip
-            key={key}
-            label={display}
-            selected={selected.has(key)}
-            onClick={() => onToggle(key)}
-          />
-        );
-      })}
-      {selected.size > 0 && (
-        <button
-          type="button"
-          onClick={onClear}
-          className="ml-1 text-xs font-medium text-accent hover:text-accent-hover"
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="flex h-8 items-center justify-between rounded-sm border border-border bg-surface px-3 text-sm text-fg transition-colors duration-1 ease-aw hover:border-accent"
+      >
+        <span className="truncate text-fg-secondary">{triggerSummary}</span>
+        <span
+          aria-hidden="true"
+          className="ml-2 inline-block text-xs text-fg-muted"
+          style={{ transform: open ? "rotate(180deg)" : "rotate(0deg)" }}
         >
-          clear
-        </button>
+          ▾
+        </span>
+      </button>
+      {open && (
+        <div className="absolute left-0 top-[58px] z-40 w-full min-w-[220px] rounded-md border border-border bg-surface p-2 shadow-card">
+          <div className="flex items-center justify-between gap-2 border-b border-border pb-2">
+            <button
+              type="button"
+              onClick={selectAll}
+              className="text-xs font-medium text-accent hover:text-accent-hover"
+            >
+              Select all
+            </button>
+            <button
+              type="button"
+              onClick={clearAll}
+              className="text-xs font-medium text-fg-muted hover:text-accent"
+            >
+              Clear
+            </button>
+          </div>
+          {searchable && (
+            <input
+              type="text"
+              placeholder="Search…"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              className="mt-2 h-7 w-full rounded-sm border border-border bg-surface px-2 text-xs text-fg focus:border-accent focus:outline-none"
+            />
+          )}
+          <ul className="mt-2 max-h-[260px] overflow-y-auto">
+            {filteredItems.length === 0 ? (
+              <li className="px-2 py-1.5 text-xs italic text-fg-muted">
+                No matches.
+              </li>
+            ) : (
+              filteredItems.map((item) => {
+                const checked = selected.has(item.value);
+                return (
+                  <li key={item.value}>
+                    <label className="flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1 text-xs text-fg-secondary hover:bg-surface-alt">
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => toggleOne(item.value)}
+                        className="accent-accent"
+                      />
+                      <span className="truncate">{item.label}</span>
+                    </label>
+                  </li>
+                );
+              })
+            )}
+          </ul>
+        </div>
       )}
     </div>
-  );
-}
-
-interface FilterChipProps {
-  label: string;
-  selected: boolean;
-  onClick: () => void;
-}
-
-function FilterChip({ label, selected, onClick }: FilterChipProps): JSX.Element {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={selected}
-      className={`rounded-sm border px-2 py-0.5 text-xs transition-colors duration-1 ease-aw ${
-        selected
-          ? "border-accent bg-accent-soft font-medium text-accent-hover"
-          : "border-border bg-surface text-fg-secondary hover:border-accent hover:text-accent"
-      }`}
-    >
-      {label}
-    </button>
   );
 }
 
@@ -363,15 +380,15 @@ function ProductRow({
         </span>
       </Link>
       {aspects.map((aspect) => (
-        <div key={aspect} className={topBorder}>
-          <HeatCell
-            cell={cellByAspect.get(aspect)}
-            onClick={() => {
-              const c = cellByAspect.get(aspect);
-              if (c) onCellClick(row, c);
-            }}
-          />
-        </div>
+        <HeatCell
+          key={aspect}
+          cell={cellByAspect.get(aspect)}
+          topBorder={topBorder}
+          onClick={() => {
+            const c = cellByAspect.get(aspect);
+            if (c) onCellClick(row, c);
+          }}
+        />
       ))}
     </>
   );
@@ -381,25 +398,15 @@ export function Compare(): JSX.Element {
   const [state, setState] = useState<LoadState>({ kind: "loading" });
   const [reloadKey, setReloadKey] = useState(0);
   const [drawer, setDrawer] = useState<DrawerState>(INITIAL_DRAWER);
-  const [selectedCompanies, setSelectedCompanies] = useState<Set<string>>(
-    new Set(),
+  // Multi-select sets default to "all items selected". `null` is the
+  // "not initialized yet" sentinel — populated once the heatmap data loads.
+  const [selectedCompanies, setSelectedCompanies] = useState<Set<string> | null>(
+    null,
   );
-  const [selectedSizes, setSelectedSizes] = useState<Set<string>>(new Set());
-  const [selectedProducts, setSelectedProducts] = useState<Set<string>>(
-    new Set(),
+  const [selectedSizes, setSelectedSizes] = useState<Set<string> | null>(null);
+  const [selectedProducts, setSelectedProducts] = useState<Set<string> | null>(
+    null,
   );
-  const [productPickerOpen, setProductPickerOpen] = useState(false);
-
-  const toggleInSet = <T,>(
-    setter: (next: Set<T>) => void,
-    current: Set<T>,
-    key: T,
-  ): void => {
-    const next = new Set(current);
-    if (next.has(key)) next.delete(key);
-    else next.add(key);
-    setter(next);
-  };
 
   useEffect(() => {
     let cancelled = false;
@@ -442,16 +449,54 @@ export function Compare(): JSX.Element {
     return [...seen].sort();
   }, [state]);
 
+  // Seed each filter set with all items once data lands so the heatmap
+  // starts in the "show everything" state and the popovers render with
+  // every checkbox ticked.
+  useEffect(() => {
+    if (state.kind !== "ready") return;
+    if (selectedCompanies === null) {
+      setSelectedCompanies(new Set(allCompanies));
+    }
+    if (selectedSizes === null) {
+      setSelectedSizes(new Set(allSizes));
+    }
+    if (selectedProducts === null) {
+      setSelectedProducts(
+        new Set(state.data.products.map((p) => p.product_id)),
+      );
+    }
+  }, [state, allCompanies, allSizes, selectedCompanies, selectedSizes, selectedProducts]);
+
+  const companyItems = useMemo<MultiSelectItem[]>(
+    () => allCompanies.map((c) => ({ value: c, label: c })),
+    [allCompanies],
+  );
+
+  const sizeItems = useMemo<MultiSelectItem[]>(
+    () => allSizes.map((s) => ({ value: s, label: `${s}"` })),
+    [allSizes],
+  );
+
+  const productItems = useMemo<MultiSelectItem[]>(() => {
+    if (state.kind !== "ready") return [];
+    return state.data.products.map((p) => ({
+      value: p.product_id,
+      label: p.display_name,
+    }));
+  }, [state]);
+
   const filteredProducts = useMemo<CompareProductRow[]>(() => {
     if (state.kind !== "ready") return [];
+    // Before the seeding effect lands, treat sets as "show everything".
+    const companies = selectedCompanies;
+    const sizes = selectedSizes;
+    const products = selectedProducts;
     return state.data.products.filter((p) => {
-      if (selectedCompanies.size > 0 && !selectedCompanies.has(p.brand))
-        return false;
-      if (selectedProducts.size > 0 && !selectedProducts.has(p.product_id))
-        return false;
-      if (selectedSizes.size > 0) {
+      if (companies && !companies.has(p.brand)) return false;
+      if (products && !products.has(p.product_id)) return false;
+      if (sizes) {
         const s = deriveScreenSize(p.display_name);
-        if (!s || !selectedSizes.has(s)) return false;
+        if (s === null || !sizes.has(s)) return false;
       }
       return true;
     });
@@ -544,28 +589,18 @@ export function Compare(): JSX.Element {
         {state.kind === "ready" && state.data.products.length > 0 && (
           <section className="flex flex-col gap-3">
             <FilterPanel
-              allCompanies={allCompanies}
-              allSizes={allSizes}
-              allProducts={state.data.products}
-              selectedCompanies={selectedCompanies}
-              selectedSizes={selectedSizes}
-              selectedProducts={selectedProducts}
-              productPickerOpen={productPickerOpen}
-              onToggleCompany={(c) =>
-                toggleInSet(setSelectedCompanies, selectedCompanies, c)
+              companyItems={companyItems}
+              sizeItems={sizeItems}
+              productItems={productItems}
+              selectedCompanies={selectedCompanies ?? new Set(allCompanies)}
+              selectedSizes={selectedSizes ?? new Set(allSizes)}
+              selectedProducts={
+                selectedProducts ??
+                new Set(state.data.products.map((p) => p.product_id))
               }
-              onToggleSize={(s) =>
-                toggleInSet(setSelectedSizes, selectedSizes, s)
-              }
-              onToggleProduct={(p) =>
-                toggleInSet(setSelectedProducts, selectedProducts, p)
-              }
-              onClearCompanies={() => setSelectedCompanies(new Set())}
-              onClearSizes={() => setSelectedSizes(new Set())}
-              onClearProducts={() => setSelectedProducts(new Set())}
-              onToggleProductPicker={() =>
-                setProductPickerOpen((v) => !v)
-              }
+              onCompaniesChange={setSelectedCompanies}
+              onSizesChange={setSelectedSizes}
+              onProductsChange={setSelectedProducts}
               shownCount={filteredProducts.length}
               totalCount={state.data.products.length}
             />

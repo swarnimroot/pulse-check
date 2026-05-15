@@ -10,6 +10,7 @@ export function App(): JSX.Element {
   return (
     <Routes>
       <Route path="/" element={<About />} />
+      <Route path="/standalone" element={<Standalone />} />
       <Route path="/standalone/:productId" element={<Standalone />} />
       <Route path="/compare" element={<Compare />} />
       <Route path="/pair" element={<Pair />} />

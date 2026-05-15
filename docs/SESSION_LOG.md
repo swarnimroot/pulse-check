@@ -8,9 +8,57 @@ Running one-page chronicle. Updated **at session close**, when the operator says
 
 Paste at the start of your next session:
 
-> Resume pulse-check session 33. Audit per `docs/SESSION_LOG.md` "Audit checklist (session 32 → 33)" before any forward work; pre-bite forks listed at the end of that section. Be very concise. Ultrathink. Use subagents to save context.
+> Resume pulse-check session 34. Audit per `docs/SESSION_LOG.md` "Audit checklist (session 33 → 34)" before any forward work; pre-bite forks listed at the end of that section. Be very concise. Ultrathink. Use subagents to save context.
 
-### Audit checklist (session 32 → 33)
+### Audit checklist (session 33 → 34)
+
+- Use `.venv/Scripts/python.exe` for backend tooling.
+- `pytest tests/unit/` → **623 pass** (unchanged — session 33 was frontend + docs only, no Python touched).
+- `mypy pulse_check/ tests/ scripts/` → clean, **125 source files** (unchanged).
+- `ruff check pulse_check/ tests/ scripts/` → clean.
+- **TASKS.md drift check:**
+  - `Status` line reflects: UI iteration round shipped (card-per-claim brief render · Sources extracted out of Under-the-hood · empty-state pickers on Standalone + Pair · Pair 3-count tiles + single combined table sorted by combined `total_mentions` with leader-side accent ring · Compare multi-select popovers with all-selected default + search + cell-width fix). README rewritten as operator runbook (orchestrator path · monthly refresh · public deployment · granular controls).
+  - `Active` line: pre-bite forks for session 34 — Wave 3 A2 path · Sonnet aspect-labeler iteration · Heatmap UI further polish.
+  - `Last reconciled = 2026-05-15`.
+  - **CLAUDE.md flat-checklist rule re-enforced.** Session-N breadcrumbs were stripped from `docs/TASKS.md:132` at session-33 open. Re-audit at session-34 open: `grep -i "session[- ]?\d+" docs/TASKS.md` → expect zero matches in wave items.
+- **ARCH drift check:** **No changes this session.**
+- **DESIGN_SYSTEM drift check:** §5.2 patched — BriefPanel render shifted from bulleted list (sessions 15/17 lock) to card-per-claim with header on its own line + claim_text below. Backend `Claim` shape unchanged; pure render-layer restyle. "Visual shift, session 33" note added with rationale. §6.1 About has accumulated drift from sessions 32+33 (3-card home + Sources accordion + Under-the-hood replaced the locked single-card "Compare placeholder" spec) — **flagged for session-34 cleanup if a doc refresh becomes worth the time**; not patched this session to avoid scope creep.
+- **README drift check:** **Changed this session** — full rewrite from the April-23 baseline. CLI flags + script names verified against `--help` output before writing. PowerShell-flavored commands. orchestrator-first runbook with granular controls subsection.
+- **Migration head:** `eb05da255474` (unchanged from session 29). No schema changes.
+- **Config artifacts on disk (unchanged from session 32):**
+  - `data/pulse_check.db` mention count: **5061**.
+  - `aspect_tags` rows: **4,813**.
+  - `aggregates_aspect_sku` rows for `run_wave5_v1`: **489**.
+  - `briefs` rows for `run_wave5_v1`: **53 at `a1_brief_v2`** + 53 at `a1_brief_v1` (audit trail).
+  - 6 products skipped at brief synthesis: `hp_omen_slim_16`, `hp_omen_transcend_16`, `acer_predator_helios_neo_18`, `msi_crosshair_17`, `msi_cyborg_14`, `msi_cyborg_17`.
+  - `frontend/dist/` rebuilt — bundle `index-7Qcz5hSE.js` (replaces `index-Be8FJ5j3.js`; new hash breaks stale browser cache).
+- **Code structure shipped (session 33):**
+  - **`frontend/src/App.tsx`** — added `/standalone` route alongside `/standalone/:productId` so the home CTA can land on an empty-state picker.
+  - **`frontend/src/components/BriefPanel.tsx`** — claims now render as bordered cards (2px transparent left edge, `--aw-surface-alt` bg, 12/8 padding, 12px gap) with `header` (14px, `--aw-fg`, semibold) on its own line and `claim_text` (13px, `--aw-fg-secondary`) below; `CiteChip` inline on the claim line. Older `a1_brief_v1` briefs (no `header`) render claim_text only. Section visual unchanged (h4 + polarity dot).
+  - **`frontend/src/pages/About.tsx`** — `Sources` accordion extracted out of `UnderTheHood` into a sibling section with `--aw-accent-soft/40` background. New order: 3 cards → RunStrip → Sources → Under the hood. `STANDALONE_DEFAULT_PRODUCT_ID` removed; Standalone CTA now points at `/standalone`.
+  - **`frontend/src/pages/Standalone.tsx`** — empty `productId` no longer routes to 404; renders only the picker card (Company → Product, both with explicit placeholders). `handlePickerCompanyChange` no longer auto-jumps to the first product on the new brand; visitor explicitly picks the product. In-product picker behaves the same way.
+  - **`frontend/src/pages/Pair.tsx`** — `PRIMARY` / `COMPETITOR` labels removed from `PickerColumn`. `handlePrimaryCompanyChange` / `handleCompetitorCompanyChange` no longer auto-pick the first product; they clear the product id instead. `PairScorecard` restructured: 3 `CountTile`s at top (LEADS · TIES · LEADS) + single combined `PairTable` below sorted by combined `total_mentions` (tiebreaker = canonical aspect order). `PairCellChip` gains a `leads: boolean` prop; leader-side gets a 2px accent ring (`ring-2 ring-accent ring-offset-1 ring-offset-surface`). `BucketColumn` / `BucketRow` removed.
+  - **`frontend/src/pages/Compare.tsx`** — `FilterPanel` rewritten as 3 horizontal `MultiSelectPopover`s (Company / Screen size / Product). `MultiSelectPopover` is a new inline component: trigger button shows `all N` / `N of M`, opens a popover with Select all / Clear links + checkbox list + optional search input (active on the 59-product picker), outside-click closes. Selected sets default to **all-selected** (seeded on data load via a `useEffect`; `null` sentinel until then). `FilterChip` / `FilterRow` removed. `HeatCell` wrapper `<div>` dropped — cell `<button>` now applies `topBorder` directly + adds `w-full` to override the `<button>` UA quirk that left it content-sized under `display: flex` in a grid cell. Empty-cell `<div>` likewise gets `w-full`.
+  - **`README.md`** — full rewrite (~145 lines). orchestrator-first runbook; monthly refresh procedure; public deployment via Tailscale Funnel + `serve_public.py`; granular per-stage scripts subsection; CLI flags verified against `--help`.
+  - **`docs/TASKS.md`** — `[x] Full aspect tagging` row stripped of `(session 31)` / `(session 32)` breadcrumbs (audit-checklist drift fixed). Wave-6 "README refresh" item toggled `[x]`. Status/Active lines reconciled.
+  - **`docs/DESIGN_SYSTEM.md`** — §5.2 BriefPanel updated; "Visual shift, session 33" note added.
+- **Operator-confirmed locks from session 33 (do not re-debate without flag):**
+  - **Pair single-table sort = combined total_mentions** (the "talked-about" signal). Tiebreaker: canonical aspect order from the backend response.
+  - **Compare multi-select default = all-selected.** Custom popover with checkboxes + Select all / Clear + search (search active on the 59-product picker only). Native `<select multiple>` rejected on UX grounds.
+  - **No default product on Standalone or Pair landing.** Visitor explicitly picks Company → Product before any content renders.
+  - **Brief render = card-per-claim, not bulleted list.** Sessions 15/17 visual lock superseded. Header on its own line so a non-technical reader can scan a brief by headlines.
+  - **Sources accordion sits outside Under-the-hood.** Order: cards → run strip → Sources (accent-soft tinted) → Under the hood (surface-alt).
+- **Live findings from session 33 (operator visibility):**
+  - **"Headers not rendering" was a stale browser bundle, not a code regression.** The prior `index-Be8FJ5j3.js` already had the BriefPanel header rendering compiled in (verified by reading the minified bundle for the `.header&&` pattern + em-dash separator + manual context inspection). Operator's browser was holding an older cached bundle. New bundle hash forces re-download; new card-per-claim visual is also much more prominent.
+  - **Heatmap cell-width bug = `<button>` UA quirk under `display: flex` inside a grid cell.** Wrapper `<div>` filled the grid cell at `1fr` width, but the inner `<button class="flex">` shrunk to content because UA button styling overrides flex's usual block-level fill. Fixed structurally: wrapper `<div>` removed (`topBorder` moves to `HeatCell` directly); `w-full` added to both the empty-cell `<div>` and the data-cell `<button>` for defensive parity.
+  - **Session 33 spend: $0 LLM** (frontend + docs only).
+- **Pre-bite forks for session 34 — settle BEFORE moving forward:**
+  1. **Wave 3 A2 path.** Deliberation full-corpus tag on the 610-post reddit corpus + new pair_win_rates aggregator + new pair brief writer. Per `project_reddit_deliberation_exploratory` memory: corpus thin (0/50 resolved-to-tracked in v2 sample); A2 will be sparse. ~$5–10 + meaningful new code.
+  2. **Sonnet aspect-labeler prompt iteration.** Tighten labeler to avoid NotebookCheck Verdict-paragraph over-labeling; rebuild aspect_tagging_v3 gold; re-eval Haiku. Could close the formal ≥0.80 gate. ~$2–5 + iteration cycles.
+  3. **Heatmap UI further polish.** Sortable columns, color-scale legend, hover affordances on the company banner column, screen-size badge inline with product name. ~1–2 hr frontend only, $0.
+  4. **Operator visual confirm against the new bundle.** 5-min browser walk after hard-refresh (Ctrl+Shift+R) to validate card-per-claim brief render, Sources extraction, empty-state pickers, single-table Pair, and multi-select Compare all read true. Lightweight; can be folded into the start of session 34.
+
+### Audit checklist (session 32 → 33) — archived, completed in session 33
 
 - Use `.venv/Scripts/python.exe` for backend tooling.
 - `pytest tests/unit/` → **623 pass** (was 619; +4 `/api/compare` tests in `tests/unit/api/test_app.py`).
@@ -556,6 +604,42 @@ Added in session 23:
 ---
 
 ## Session history (newest first)
+
+### 2026-05-15 — session 33: UI iteration round (6 frontend polish edits — `/standalone` empty-state landing · `BriefPanel` card-per-claim render · `Sources` accordion extracted out of `Under the hood` · `Standalone` + `Pair` no-auto-pick-on-company-change · `Pair` 3-count tiles + single combined table sorted by combined `total_mentions` with leader-side accent ring · `Compare` 3 horizontal `MultiSelectPopover`s defaulted to all-selected + `HeatCell` cell-width fix) + bite 33.a (`README.md` full rewrite as operator runbook · `docs/TASKS.md:132` session-N drift cleanup · `docs/DESIGN_SYSTEM.md` §5.2 card-per-claim patch).
+
+**Context entering.** Session 32 closed with Wave 5 Stage A + B complete (53/59 products briefed at `a1_brief_v2`) and the public deployment locked on uvicorn :8765 via Tailscale Funnel. Four pre-bite forks queued (Wave 3 A2 · Sonnet labeler iteration · README/runbook · heatmap polish). Operator opened session 33 with a 4-page UI feedback batch surfaced from the live walkthrough against the previous bundle: Home page Sources placement / color · Standalone default-product still showing · Pair primary/competitor labels + 3-table split / auto-pick · Compare filter chips + cell widths weird. After settling those, operator picked **README + operator runbook (fork 3)** as the forward-work bite — the path with the highest manufacturer-readiness leverage at $0 LLM.
+
+**Audit pass (session 32 → 33).** GREEN except one drift. 623/623 pytest · mypy 125 src clean · ruff clean · migration head `eb05da255474` · DB counts unchanged (5061 mentions / 4,813 aspect_tags / 489 aggregates / 53 v2 briefs) · ARCH §6.3 header field present · frontend bundle `index-Be8FJ5j3.js` shipped. **Drift flagged at session-33 open:** `docs/TASKS.md:132` carried `(3 anchor products, session 31) + Stage B (remaining 56, session 32; …)` parenthetical session refs — first re-violation of the CLAUDE.md flat-checklist rule since session 29 cleaned it. Stripped in-session before forward work.
+
+**Decisions (product-level) reached this session.**
+- **D1 — Pair single-table sort = combined `total_mentions`** (what gets talked about most from the sources we pull data from). Tiebreaker: canonical aspect order from the backend response. Chosen over "biggest gap first" / "canonical only" / "group by leader" — surfaces aspect-importance signal alongside the win/loss.
+- **D2 — Compare multi-select default = all-selected.** Custom popover with checkboxes (Select all / Clear / search), all three filter sets seeded with every item on data load via the `null` sentinel pattern. Native `<select multiple>` rejected on UX grounds.
+- **D3 — No auto-pick on Standalone or Pair landing.** Operator-explicit on both pages: visitor must pick Company → Product before any content renders. Manufacturer-POV bias would have read as "we're already comparing against Razer" on first load.
+- **D4 — Brief render = card-per-claim, not bulleted list.** Sessions 15/17 visual lock (`<strong>header</strong> — claim_text` inline on each `<li>`) superseded after operator feedback "long text death." Card-per-claim with header on its own line + claim_text below. Backend `Claim` shape unchanged; pure render-layer change in `BriefPanel.tsx`. `DESIGN_SYSTEM` §5.2 patched with the new spec + "Visual shift, session 33" note.
+- **D5 — Sources accordion sits outside Under-the-hood.** New order: 3 cards → RunStrip → Sources (accent-soft tint, distinct color) → Under the hood (surface-alt). Operator: sources is a top-level concern, not nested inside the pipeline explainer.
+
+**Technical housekeeping (not operator decisions).**
+- **`<button>` UA quirk under `display: flex` inside a grid cell** was the heatmap cell-width bug. Wrapper `<div>` filled the grid cell at `1fr` width, but the inner `<button class="flex">` shrunk to content because UA button styling overrides flex's usual block-level fill. Fixed structurally: wrapper `<div>` removed (`topBorder` moves to `HeatCell` directly); `w-full` added to both the empty-cell `<div>` and the data-cell `<button>` for parity.
+- **"Headers not rendering" was a stale browser cache, not a code regression.** The prior `index-Be8FJ5j3.js` already had the BriefPanel header rendering compiled in (verified by grep-search of the minified bundle for `.header&&` + em-dash separator + manual context inspection of the surrounding JSX). The user's browser was holding an earlier cached bundle. New bundle hash + more prominent card-per-claim visual both fix it.
+- **`/standalone` route added in `App.tsx`** alongside `/standalone/:productId` so the home CTA can land on an empty-state picker without a 404.
+- **`MultiSelectPopover` is a new inline component in `Compare.tsx`** — not yet promoted to `atoms/`. Trigger button, popover with checkboxes, outside-click close, optional search input. Promote to `components/atoms/` if a second consumer lands.
+- **No backend / schema / LLM changes this session.** 0 LLM spend; session 33 cumulative spend across sessions remains ~$19.70.
+
+**Architecture / docs changes shipped.**
+- **`README.md`** — full rewrite from the April-23 baseline (~145 lines). Major drifts repaired: Status (planning → v1 substantively complete); "What it does" (A2 deliberation → 3 actual UI surfaces with A2 flagged deferred); "Run a pilot" (orchestrator-first with verified CLI flags; granular per-stage scripts in their own subsection); new "View the results" + "Public deployment via Tailscale Funnel" + "Monthly refresh procedure" sections; Evaluation section script names fixed (`build-gold-set.py` → `build_gold_set.py` etc.) + v2 gold path; `pnpm` → `npm`; PowerShell-flavored commands throughout. CLI flags verified against each script's `--help` output before writing.
+- **`docs/TASKS.md`** — `[x] Full aspect tagging` row stripped of session breadcrumbs (flat-checklist rule re-enforced). Wave-6 "README refresh" item toggled `[x]`. Status/Active lines reconciled to reflect UI polish round + README ship + remaining forks.
+- **`docs/DESIGN_SYSTEM.md`** — §5.2 BriefPanel updated to describe the card-per-claim render; "Visual shift, session 33" note added with rationale + reference to the sessions 15/17 lock that was superseded. §6.1 About has accumulated drift from sessions 32+33 (3-card home + Sources + Under the Hood replaced the locked single-card "Compare placeholder" spec) — flagged in the session-34 audit checklist; not patched this session to avoid scope creep.
+
+**Open items deferred to session 34.**
+- **Operator visual confirm against new bundle** (`index-7Qcz5hSE.js`). 5-min browser walk after hard-refresh (Ctrl+Shift+R). Validates card-per-claim brief render, Sources extraction, empty-state pickers, single-table Pair, multi-select Compare all read true.
+- **Wave 3 A2 path** (fork 1) — deliberation full-corpus tag + pair_win_rates + pair brief writer. Corpus thin per `project_reddit_deliberation_exploratory` memory.
+- **Sonnet aspect-labeler iteration** (fork 2) — could close the formal F1 ≥0.80 gate.
+- **Heatmap UI further polish** (fork 4 partial) — multi-selects + cell-width landed; sortable columns / color-scale legend / hover affordances still pending.
+- **`DESIGN_SYSTEM` §6.1 About drift refresh** — flagged but deferred; do only if a broader DESIGN_SYSTEM pass becomes worthwhile pre-Wave-3.
+
+**Memory updates.** None this session.
+
+---
 
 ### 2026-05-15 — session 32: bite 30.f.b (Stage B full A1 corpus — tag + aggregate + brief on 56 remaining products under `run_wave5_v1`; 1h 21min, 3,585 LLM calls, ~$10.75) + bite 32.a (Cross-product heatmap `/api/compare` + `pages/Compare.tsx`) + bite 32.b (Home page redesign `pages/About.tsx` 3-card layout + collapsible "Under the hood" pipeline explainer + `/api/home`; Head-to-head Pair page `pages/Pair.tsx` + `/api/pair`; brief schema v2 with per-claim `header` field, prompt_version `a1_brief_v2`; full brief regen) + bite 32.c (operator iteration round: sources accordion + `/api/sources`; Standalone Company/Product picker; Pair restructure into 3-bucket leader layout with no default selection; Heatmap multi-select filters + Company column with brand banners; Tailscale Funnel public deployment via uvicorn :8765).
 

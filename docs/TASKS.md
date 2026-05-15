@@ -2,8 +2,8 @@
 
 Wave-by-wave forward plan. Each wave is a flat checklist of high-level deliverables. Sub-bite breakdowns + per-bite breadcrumbs live in [`SESSION_LOG.md`](SESSION_LOG.md) (the historical record).
 
-**Status:** Wave 2 ✅ substantively ships. Wave 5 Stage A + B complete: all 53 in-corpus products tagged + aggregated + briefed under `run_wave5_v1` (6/59 products skipped — zero qualifying mentions). Brief schema bumped to `a1_brief_v2` with per-claim `header` field for bold lead-ins (ARCH §6.3 updated). UI shipped: 3-card home page (Standalone voice · Head-to-head · Cross-product heatmap) with collapsible "Under the hood" pipeline explainer + sources accordion; Standalone Company/Product picker; Head-to-head Pair page (A1-based, 3-bucket leader layout); Cross-product heatmap with Company column + multi-select filters (company / screen-size / product). Public deployment live via Tailscale Funnel: uvicorn :8765 → `/pulse-check`. Wave 3 A2 path still pending (deliberation corpus thin). Waves 4–6 ahead.
-**Active:** Next pre-bite forks — Wave 3 A2 path · Sonnet aspect-labeler iteration · README/operator runbook · Heatmap UI refinements (operator-deferred). **623/623 unit tests · mypy clean (125 src) · ruff clean.**
+**Status:** Wave 2 ✅ substantively ships. Wave 5 Stage A + B complete: all 53 in-corpus products tagged + aggregated + briefed under `run_wave5_v1` (6/59 products skipped — zero qualifying mentions). Brief schema bumped to `a1_brief_v2` with per-claim `header` field rendered as card-per-claim (DESIGN_SYSTEM §5.2 patched session 33). UI shipped: 3-card home page (Standalone voice · Head-to-head · Cross-product heatmap) with separate Sources accordion + collapsible "Under the hood" pipeline explainer (Sources extracted out of Under-the-hood session 33); Standalone empty-state Company/Product picker (no default product); Head-to-head Pair page (A1-based, 3-count tiles + single combined table sorted by combined mention count, leader-side accent ring); Cross-product heatmap with multi-select popovers (Company / Screen size / Product, defaulted to all-selected, search on the 59-product picker) + Company column + cell-width fix. Public deployment live via Tailscale Funnel: uvicorn :8765 → `/pulse-check`. README rewritten as operator runbook (orchestrator path · monthly refresh · public deployment · granular controls). Wave 3 A2 path still pending (deliberation corpus thin). Waves 4–6 ahead.
+**Active:** Next pre-bite forks — Wave 3 A2 path · Sonnet aspect-labeler iteration · Heatmap UI further polish (sortable columns / color-scale legend / hover affordances). **623/623 unit tests · mypy clean (125 src) · ruff clean.**
 **Last reconciled:** 2026-05-15
 
 **Waiting on operator action (cross-wave):**
@@ -129,7 +129,7 @@ Wave-by-wave forward plan. Each wave is a flat checklist of high-level deliverab
 - [ ] (Optional) JS-rendered external-URL Playwright path — Notebookcheck spec/aggregation pages embed external review URLs via JavaScript
 - [ ] Article RSS-path strategy decision — superseded by catalog_discovery as primary; broad RSS feeds kept as opportunistic supplement
 - [x] Full Wave 5 scrape on all 59 products (`reddit.enabled: true`, `rss.backfill_months: 6`, `discovered_urls_sources` in `run_wave5_v1.yaml`)
-- [x] Full aspect tagging — Stage A (3 anchor products, session 31) + Stage B (remaining 56, session 32; 4,813 aspect_tag rows · 53/59 products tagged · 6 had zero qualifying mentions after DEAL filter)
+- [x] Full aspect tagging — 4,813 aspect_tag rows · 53/59 products tagged · 6 had zero qualifying mentions after DEAL filter
 - [ ] Full deliberation/reason tagging overnight (Wave 3 A2 path)
 - [x] Aspect-tagging gold-set rebuild on filtered corpus at target N=150 (carries Wave 2 formal ≥80% closure)
 - [x] Deliberation + reason gold-set rebuild on expanded corpus (Wave 3 carry-over: v1 corpus had zero resolved-to-tracked-product threads)
@@ -146,7 +146,7 @@ Wave-by-wave forward plan. Each wave is a flat checklist of high-level deliverab
 
 **Goal:** Slippage absorption; optional polish if Waves 1–5 land on time.
 
-- [ ] README refresh + SESSION_LOG finalization
+- [x] README refresh as operator runbook (orchestrator-first path · monthly refresh procedure · public deployment via Tailscale Funnel + uvicorn :8765 · granular controls subsection · fixed script names + npm)
 - [ ] Attribution regex refinement from scrape findings
 - [ ] Deferred non-blocking items from Open Questions
 - [ ] (Optional v1.5) PDF/markdown brief export, rolling-forward scheduler, tombstoning retention policy

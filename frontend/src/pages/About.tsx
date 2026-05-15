@@ -18,10 +18,6 @@ import type {
  * surfaces.
  */
 
-// Manufacturer-POV anchor product for the "Open standalone" default. If the
-// product isn't in the run, the Standalone page renders its own 404.
-const STANDALONE_DEFAULT_PRODUCT_ID = "alienware_16_aurora";
-
 type LoadState =
   | { kind: "loading" }
   | { kind: "error"; message: string }
@@ -105,7 +101,7 @@ export function About(): JSX.Element {
             title="Standalone voice"
             blurb="Single-product scorecard. What people love, what they complain about, across 11 aspects — ranked by mention count, every number drillable."
             cta="Open standalone →"
-            to={`/standalone/${STANDALONE_DEFAULT_PRODUCT_ID}`}
+            to="/standalone"
           />
           <HomeCard
             eyebrow="Two products"
@@ -125,13 +121,16 @@ export function About(): JSX.Element {
 
         <RunStrip state={state} onRetry={() => setReloadKey((k) => k + 1)} />
 
+        <SourcesSection
+          open={sourcesOpen}
+          onToggle={toggleSources}
+          state={sourcesState}
+        />
+
         <UnderTheHood
           open={hoodOpen}
           onToggle={() => setHoodOpen((v) => !v)}
           state={state}
-          sourcesOpen={sourcesOpen}
-          sourcesState={sourcesState}
-          onToggleSources={toggleSources}
         />
       </div>
     </main>
@@ -206,22 +205,57 @@ function RunStrip({ state, onRetry }: RunStripProps): JSX.Element {
   );
 }
 
+interface SourcesSectionProps {
+  open: boolean;
+  onToggle: () => void;
+  state: SourcesState;
+}
+
+function SourcesSection({
+  open,
+  onToggle,
+  state,
+}: SourcesSectionProps): JSX.Element {
+  // Slight accent tint so this accordion reads distinctly from the
+  // "Under the hood" sibling below.
+  return (
+    <section className="flex flex-col gap-3">
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={open}
+        className="flex items-center justify-between rounded-md border border-accent-soft bg-accent-soft/40 px-4 py-3 text-left transition-colors duration-1 ease-aw hover:bg-accent-soft/70"
+      >
+        <span className="flex items-center gap-3">
+          <span
+            aria-hidden="true"
+            className="inline-block text-xs text-fg-secondary"
+            style={{ transform: open ? "rotate(90deg)" : "rotate(0deg)" }}
+          >
+            ▶
+          </span>
+          <span className="text-sm font-semibold text-fg">Sources</span>
+          <span className="text-xs text-fg-muted">
+            The Reddit communities, YouTube channels, and review sites we
+            listen to
+          </span>
+        </span>
+      </button>
+      {open && <SourcesPanel state={state} />}
+    </section>
+  );
+}
+
 interface UnderTheHoodProps {
   open: boolean;
   onToggle: () => void;
   state: LoadState;
-  sourcesOpen: boolean;
-  sourcesState: SourcesState;
-  onToggleSources: () => void;
 }
 
 function UnderTheHood({
   open,
   onToggle,
   state,
-  sourcesOpen,
-  sourcesState,
-  onToggleSources,
 }: UnderTheHoodProps): JSX.Element {
   const stageCount =
     state.kind === "ready" ? state.summary.pipeline.length : null;
@@ -254,12 +288,7 @@ function UnderTheHood({
       </button>
 
       {open && state.kind === "ready" && (
-        <PipelineExplainer
-          stages={state.summary.pipeline}
-          sourcesOpen={sourcesOpen}
-          sourcesState={sourcesState}
-          onToggleSources={onToggleSources}
-        />
+        <PipelineExplainer stages={state.summary.pipeline} />
       )}
       {open && state.kind === "loading" && (
         <p className="text-sm text-fg-muted">Loading pipeline…</p>
@@ -273,16 +302,10 @@ function UnderTheHood({
 
 interface PipelineExplainerProps {
   stages: PipelineStageStat[];
-  sourcesOpen: boolean;
-  sourcesState: SourcesState;
-  onToggleSources: () => void;
 }
 
 function PipelineExplainer({
   stages,
-  sourcesOpen,
-  sourcesState,
-  onToggleSources,
 }: PipelineExplainerProps): JSX.Element {
   return (
     <div className="flex flex-col gap-4 rounded-md border border-border bg-surface p-5 shadow-card">
@@ -325,34 +348,6 @@ function PipelineExplainer({
             product's scores in one matrix.
           </li>
         </ul>
-      </div>
-      <div className="flex flex-col gap-2">
-        <button
-          type="button"
-          onClick={onToggleSources}
-          aria-expanded={sourcesOpen}
-          className="flex items-center justify-between rounded-sm border border-border bg-surface-alt px-3 py-2 text-left transition-colors duration-1 ease-aw hover:bg-surface"
-        >
-          <span className="flex items-center gap-2">
-            <span
-              aria-hidden="true"
-              className="inline-block text-xs text-fg-secondary"
-              style={{
-                transform: sourcesOpen ? "rotate(90deg)" : "rotate(0deg)",
-              }}
-            >
-              ▶
-            </span>
-            <span className="text-sm font-medium text-fg">
-              Show all sources
-            </span>
-            <span className="text-xs text-fg-muted">
-              The Reddit communities, YouTube channels, and review sites we
-              listen to
-            </span>
-          </span>
-        </button>
-        {sourcesOpen && <SourcesPanel state={sourcesState} />}
       </div>
     </div>
   );

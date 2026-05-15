@@ -281,13 +281,15 @@ The single most-rendered atom on the page. Section order, top-to-bottom:
 
 This catches both fixture headings (`"What's working (PRIMARY)"` / `"What's not working (PRIMARY)"`) and live Sonnet headings on `brief_id=1, 2` (`"High-confidence strengths"` / `"...weaknesses"` / `"Low-signal strengths..."` / `"...weaknesses..."`). Singular substrings (`strength` / `weakness`) catch plural too. Forks (a) positional and (b) prompt-version bump rejected at session 18 in favor of (c) — additive, no cache invalidation, $0 cost.
 
-Each claim: short bullet text (Sonnet-written) ending in a `CiteChip` showing mention count. `claim_text` is the only thing the LLM authors; `cited_mention_ids` come from the deterministic selector (§6.3).
+Each claim renders as a **card** (not a bullet) — `header` (bold, 14px, `--aw-fg`) on its own line, `claim_text` (13px, `--aw-fg-secondary`) below, `CiteChip` inline on the claim line. Cards have a 2px transparent left edge over `--aw-surface-alt` background, 12px horizontal / 8px vertical padding, 12px gap between cards. Older briefs at `a1_brief_v1` (pre-`header`) gracefully render claim_text only.
 
 **Header:** `Brief` eyebrow with `model · prompt_version` suffix · `brief_title` from `narrative.brief_title`.
 
-**Section visual:** h4 with 2px polarity dot prefix (`--aw-success` green for positive · `--aw-danger` red for negative), then bulleted claim list with `CiteChip` inline appended to each bullet.
+**Section visual:** h4 with 2px polarity dot prefix (`--aw-success` green for positive · `--aw-danger` red for negative), then card stack as described above.
 
 **Background:** white card with `--aw-shadow-card`, 24px padding, 20px gap between sections.
+
+> **Visual shift, session 33.** Original §5.2 spec (locked sessions 15/17) had a bulleted list with `<strong>header</strong> — claim_text` inline on each bullet. Operator feedback during the 33 visual confirm: inline header was too subtle ("long text death"). Moved to card-per-claim with header on its own line. Backend `Claim` shape unchanged; this is purely a render-layer restyle in `BriefPanel.tsx`.
 
 ### 5.3 EvidenceDrawer
 

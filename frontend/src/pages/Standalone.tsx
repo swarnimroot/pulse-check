@@ -113,10 +113,12 @@ export function Standalone(): JSX.Element {
     if (current) setPickerCompany(current.brand);
   }, [productId, allProducts]);
 
-  // Product fetch. Resets on productId change or manual retry.
+  // Product fetch. Resets on productId change or manual retry. Empty
+  // productId is the "no selection yet" landing state — render just the
+  // picker (handled below) rather than a 404.
   useEffect(() => {
     if (!productId) {
-      setProductState({ kind: "notFound" });
+      setProductState({ kind: "loading" });
       return;
     }
     let cancelled = false;
@@ -213,11 +215,9 @@ export function Standalone(): JSX.Element {
 
   const handlePickerCompanyChange = (next: string): void => {
     setPickerCompany(next);
-    // Auto-jump to the first product under the new company (navigation
-    // re-fetches the product detail). Empty selection is rejected so the
-    // page never sits in an unloaded state.
-    const first = allProducts.find((p) => p.brand === next);
-    if (first) navigate(`/standalone/${first.product_id}`);
+    // No auto-jump: the operator explicitly picks the product on the next
+    // dropdown. Keeps the URL pointing at the previous product (or empty)
+    // until the second pick lands.
   };
 
   const handlePickerProductChange = (nextId: string): void => {
@@ -253,6 +253,64 @@ export function Standalone(): JSX.Element {
     },
     [],
   );
+
+  // Empty-state landing: no productId in the URL. Show only the picker so
+  // the visitor explicitly chooses both Company and Product before any
+  // content renders.
+  if (!productId) {
+    return (
+      <main className="min-h-screen bg-surface text-fg">
+        <div className="mx-auto flex max-w-[800px] flex-col gap-8 px-8 py-14">
+          <header className="flex flex-col gap-1">
+            <Link
+              to="/"
+              className="self-start text-xs font-medium text-accent hover:text-accent-hover"
+            >
+              ← back
+            </Link>
+            <span className="mt-2 text-xs font-semibold uppercase tracking-wide text-fg-muted">
+              Standalone · A1 voice
+            </span>
+            <h1 className="text-xl font-semibold text-fg">
+              Pick a product to view
+            </h1>
+            <p className="max-w-[560px] text-sm text-fg-secondary">
+              Select a company, then a product. The scorecard and brief load
+              once both are chosen.
+            </p>
+          </header>
+          {allProducts.length > 0 ? (
+            <section className="flex flex-col gap-3 rounded-md border border-border bg-surface p-5 shadow-card">
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-fg-muted">
+                Choose a product
+              </span>
+              <div className="grid grid-cols-2 gap-3">
+                <Select
+                  label="Company"
+                  value={pickerCompany}
+                  options={companyOptions}
+                  onChange={handlePickerCompanyChange}
+                  placeholder="Select a company"
+                />
+                <Select
+                  label="Product"
+                  value=""
+                  options={productOptions}
+                  onChange={handlePickerProductChange}
+                  disabled={productOptions.length === 0}
+                  placeholder={
+                    pickerCompany ? "Select a product" : "Pick a company first"
+                  }
+                />
+              </div>
+            </section>
+          ) : (
+            <p className="text-sm text-fg-muted">Loading products…</p>
+          )}
+        </div>
+      </main>
+    );
+  }
 
   if (productState.kind === "loading") {
     return (
