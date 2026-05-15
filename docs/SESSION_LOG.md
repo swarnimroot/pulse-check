@@ -8,7 +8,7 @@ Running one-page chronicle. Updated **at session close**, when the operator says
 
 Paste at the start of your next session:
 
-> Resume pulse-check session 33. Audit per `docs/SESSION_LOG.md` "Audit checklist (session 32 → 33)" first. Session 32 shipped the executive-facing UI surface: 3-card home page (Standalone voice · Head-to-head · Cross-product heatmap) with collapsible "Under the hood" pipeline explainer + sources accordion; Standalone Company/Product picker; Head-to-head Pair page (A1-based, 3-bucket leader layout, no default selection); Cross-product heatmap (multi-select company/screen-size/product filters + Company column + Alienware-pinned accent). Brief schema bumped to `a1_brief_v2` with per-claim `header` field; 53 briefs regenerated under `run_wave5_v1`. Wave 5 Stage B complete (53/59 products briefed; 6 had zero qualifying mentions). Public deployment live via Tailscale Funnel: `/pulse-check` → uvicorn :8765, same-origin SPA from `frontend/dist`. Pre-bite forks at open: Wave 3 A2 path · Sonnet aspect-labeler iteration · README/operator runbook · Heatmap UI refinements (operator-deferred). Per cost-estimate memory: per-phase estimate before any LLM batch + explicit go. Be very concise. Ultrathink. Use subagents to save context.
+> Resume pulse-check session 33. Audit per `docs/SESSION_LOG.md` "Audit checklist (session 32 → 33)" before any forward work; pre-bite forks listed at the end of that section. Be very concise. Ultrathink. Use subagents to save context.
 
 ### Audit checklist (session 32 → 33)
 
