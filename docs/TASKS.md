@@ -55,8 +55,8 @@ Wave-by-wave forward plan. Each wave is a flat checklist of high-level deliverab
 - [x] Aspect-tagging eval runner (`scripts/run_eval.py`; F1=0.5998 on v2 gold post-Opus-scrub; formal ≥80% NOT met but operator-accepted ship-with-caveat)
 - [x] Home page: 3-card surface (Standalone / Head-to-head / Heatmap) + collapsible "Under the hood" plain-English pipeline explainer + sources accordion
 - [x] Standalone page Company/Product picker (port from About picker; routes via `useNavigate`)
-- [x] Head-to-head Pair page (`/pair`) — A1-based aspect scorecard, 3-bucket leader layout, no default selection
-- [x] Cross-product heatmap (`/compare`) — Company column, multi-select filters (company / screen-size / product), Alienware-pinned + accent border
+- [x] Head-to-head Pair page (`/pair`) — A1-based aspect scorecard with PickerColumns (no default selection), 3 CountTiles (Primary leads / Ties / Competitor leads) above a single combined PairTable sorted by combined `total_mentions` with leader-side accent ring on `PairCellChip`
+- [x] Cross-product heatmap (`/compare`) — Company column with brand banners, Alienware-pinned + 2px accent edge, 3 multi-select popovers (Company / Screen size / Product) with cascading Company → Size → Product filtering, sortable headers on Company + 11 aspects with click-cycle asc/desc/clear, color-scale legend above the grid, row-hover dim affordance via `display:contents` group, screen-size regex `(?<!\d)(13|14|15|16|17|18)(?!\d)` recovers model suffixes (16x / 16s / Z13 / X16) and size-less products always pass
 - [x] Brief schema v2 (`Claim.header`, prompt_version `a1_brief_v2` + `_strict`); 53 briefs regenerated under `run_wave5_v1`
 - [x] Backend API surface for new pages: `/api/home` (run + pipeline stats), `/api/pair` (head-to-head), `/api/compare` (heatmap), `/api/sources` (operator-curated source list)
 - [x] Public deployment via Tailscale Funnel (`/pulse-check` → uvicorn :8765, same-origin SPA from `frontend/dist`)
@@ -127,7 +127,7 @@ Wave-by-wave forward plan. Each wave is a flat checklist of high-level deliverab
 - [ ] Manufacturer-dropdown POST extension — recon Notebookcheck's form for manufacturer-ID values, extend `search_notebookcheck` payload, retest quarantined mega-product queries
 - [x] Live verification of `discovered_urls_sources` path at the full Wave 5 scrape (capability + output aha against actual corpus)
 - [ ] (Optional) JS-rendered external-URL Playwright path — Notebookcheck spec/aggregation pages embed external review URLs via JavaScript
-- [ ] Article RSS-path strategy decision — superseded by catalog_discovery as primary; broad RSS feeds kept as opportunistic supplement
+- [x] Article RSS-path strategy decision — superseded by catalog_discovery as primary; broad RSS feeds kept as opportunistic supplement
 - [x] Full Wave 5 scrape on all 59 products (`reddit.enabled: true`, `rss.backfill_months: 6`, `discovered_urls_sources` in `run_wave5_v1.yaml`)
 - [x] Full aspect tagging — 4,813 aspect_tag rows · 53/59 products tagged · 6 had zero qualifying mentions after DEAL filter
 - [ ] Full deliberation/reason tagging overnight (Wave 3 A2 path)
@@ -162,4 +162,4 @@ Operator-side setup running alongside code work; not blocking Wave 1 start.
 - [x] scrapers-lib editable install from sibling directory
 - [ ] Install Ollama + pull `qwen2.5:7b-q4_K_M` *(Wave 3 prereq)*
 - [ ] `playwright install chromium` *(for Tier 2/3 sources)*
-- [x] YouTube channel handle list (7 channels) + review-site RSS feed URLs (9 sites) — see `configs/wave5_rss_sources_draft.yaml`
+- [x] YouTube channel handle list (7 channels) + review-site RSS feed URLs (9 sites) — see `configs/wave5_rss_sources.yaml`
