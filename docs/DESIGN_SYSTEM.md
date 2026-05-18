@@ -338,29 +338,51 @@ Custom dropdown (not native `<select>`). Click-toggle list anchored to the trigg
 
 ### 6.1 About (`#/`)
 
-Default landing route.
+Default landing route. Three-card executive home, locked sessions 32–33.
 
-- RunMetaStrip
 - Title + 1-line intro: `pulse-check surfaces what owners are actually saying about your products.`
-- **Standalone selector** card: `Company` dropdown (filters product list) + `Product` dropdown + `Open standalone →` button.
-- **Compare placeholder** card: greyed-out, `Wave 3 — coming soon` badge. No selectors active.
-- **No 5-stage explainer** for v1. Add when the pilot is mature.
+- **Three product cards** in a row: `Standalone voice` (links to `/standalone` empty-state picker) · `Head-to-head` (links to `/pair`) · `Cross-product heatmap` (links to `/compare`). Each card carries one line of plain-English framing for a non-technical reader.
+- **RunMetaStrip** below the cards: run id · product count · last-refreshed timestamp (live counts from `GET /api/home`).
+- **Sources accordion** (accent-soft tinted, sits OUTSIDE the Under-the-hood block): collapsible 3-column table of subreddits + YouTube channels + review sites driven by `GET /api/sources` reading the run + RSS YAMLs at request time.
+- **Under-the-hood** collapsible (surface-alt tinted, below Sources): plain-English pipeline explainer + stage counts.
+
+> **Patch, session 34.** §6.1 rewritten to reflect the shipped 3-card home; supersedes the session-13 "Standalone selector + Compare placeholder" two-card spec.
 
 ### 6.2 Standalone (`#/standalone[/:productId]`)
 
-A1 product voice page. Locked layout per session-13:
+A1 product voice page. Locked layout per session-13, refined session 33.
 
 1. RunMetaStrip
 2. Header strip: `Home` back button · `A1 · Standalone voice` eyebrow · selector (right-aligned).
 3. Sub-header: product name h1 · `<n> mentions · <window>` (drillable count opens drawer with all mention_ids).
 4. **Two-column scroller:** §5.1 — left positive | right negative. Each column has Primary / Secondary / Long-tail sub-sections (sticky sub-headers) inside one scroll viewport per column; max-height anchors the BriefPanel below at a stable y across all products.
-5. **BriefPanel:** §5.2 — four labeled sections with citation chips.
+5. **BriefPanel:** §5.2 — card-per-claim render with header on its own line + claim_text below.
 
-Empty state when no `productId` in route: dashed empty-state card prompting selector use.
+Empty state when no `productId` in route (or `/standalone` itself): Company → Product picker card. **No default product is auto-selected** on landing or on Company-change — visitor must explicitly pick a product before any content renders (operator-locked, session 33).
 
-### 6.3 Compare (`#/compare`) — Wave 3 placeholder
+### 6.3 Compare (`#/compare`) — cross-product aspect heatmap
 
-`Wave 3 — coming soon` empty state. No selectors. Operator can point at this during demo to communicate the roadmap.
+Shipped session 32, polished sessions 33–34. Rows = products (Alienware pinned by default, 2px purple left edge as a row marker), cols = 11 aspects in canonical order + a sticky `Company` column (130px) + sticky `Product` column (200px). Cell tint per §2.5 net-sentiment polarity (`success-soft` / `warning-soft` / `danger-soft`); cell number = mention count. Click any cell to open the `EvidenceDrawer` scoped to that (product, aspect).
+
+Auto-populate semantics: `GET /api/compare` once on mount; refresh the tab to pick up new aggregates as Stage B fills in. No polling.
+
+**FilterPanel** (above the grid): three `MultiSelectPopover`s — `Company` · `Screen size` · `Product`. All default to **all-selected**.
+
+> **Cascading filters, session 34.** Downstream popovers narrow to what's reachable under upstream selections. Changing `Company` auto-rebases `Size` and `Product` to "all available under the current company set"; changing `Size` auto-rebases `Product`. Product is the leaf — narrowing it does not cascade. Trade-off: user-pinned narrowings in `Size` / `Product` are wiped when an upstream filter changes.
+
+> **Screen-size regex, session 34.** `(?<!\d)(13|14|15|16|17|18)(?!\d)` — accepts model suffixes/prefixes (`16x`, `16s`, `Z13`, `X16`) while rejecting adjacent-digit false positives (`160`, `1314`). Products with no derivable size (`Legion 7 (AMD, non-Pro)`, `Legion 7i`, `Legion 9i`) always pass the size filter rather than being silently dropped.
+
+**Legend** (between FilterPanel and the grid, session 34): three sentiment swatches (positive / mixed-neutral / negative) + Alienware purple-edge marker + inline action hints (`cell = mention count · click cell to drill into verbatims · click any column header to sort`).
+
+**Sortable columns, session 34.** Click any aspect header to sort products by that aspect's net_sentiment; click the `Company` header to sort alphabetically by brand. Click cycle: asc → desc → clear (third click restores the brand-grouped Alienware-pinned default). Cells with no mentions sentinel-park at the bottom regardless of direction. Active sort header tints `--aw-accent` and shows ▲ / ▼.
+
+**Row-hover affordance, session 34.** Each product row wraps its cells in a `display: contents` group so `:hover` on any cell dims the entire row's cells (`group-hover:brightness-[0.97]`) and underlines the product name — helps the eye read across one product's aspects on a wide grid.
+
+### 6.4 Pair (`#/pair`) — head-to-head A1 comparison
+
+Shipped session 32, redesigned session 33. Two `PickerColumn` sides — no auto-pick on landing; visitor explicitly picks Company → Product on each side.
+
+`PairScorecard` body: three `CountTile`s (`Primary leads N` / `Ties N` / `Competitor leads N`) above a single combined `PairTable` sorted by combined `total_mentions` (talked-about signal; tiebreaker = canonical aspect order). Each row: `[P1 score | Aspect | P2 score]`. `PairCellChip` on the leader column gets a 2px accent ring (`ring-2 ring-accent ring-offset-1`).
 
 ---
 

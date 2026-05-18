@@ -94,9 +94,11 @@ function cellBgClass(tone: CellTone): string {
 const GRID_TEMPLATE =
   "grid-cols-[130px_200px_repeat(11,minmax(72px,1fr))]";
 
-// Screen-size buckets the size filter offers. Derived from the digit after
-// the model name in `display_name` ("Alienware 16 Aurora" → "16").
-const SCREEN_SIZE_PATTERN = /\b(13|14|15|16|17|18)\b/;
+// Screen-size buckets the size filter offers. Match a 13–18 token not flanked
+// by other digits, so "16x Aurora", "16s", "Z13", "X16" all register as their
+// respective inch class. Letter suffixes/prefixes are allowed; adjacent
+// digits (e.g. "1314", "160") are rejected to avoid false positives.
+const SCREEN_SIZE_PATTERN = /(?<!\d)(13|14|15|16|17|18)(?!\d)/;
 
 function deriveScreenSize(displayName: string): string | null {
   const match = displayName.match(SCREEN_SIZE_PATTERN);
@@ -114,7 +116,7 @@ function HeatCell({ cell, topBorder, onClick }: HeatCellProps): JSX.Element {
     return (
       <div
         aria-hidden="true"
-        className={`flex h-9 w-full items-center justify-center border-r border-b border-border bg-surface-alt ${topBorder}`}
+        className={`flex h-9 w-full items-center justify-center border-r border-b border-border bg-surface-alt transition-[filter] duration-1 ease-aw group-hover:brightness-[0.97] ${topBorder}`}
         title="no data yet"
       >
         <span className="text-[10px] text-fg-muted">—</span>
@@ -128,7 +130,7 @@ function HeatCell({ cell, topBorder, onClick }: HeatCellProps): JSX.Element {
       type="button"
       onClick={onClick}
       title={`${cell.aspect} · net ${sign}${cell.net_sentiment.toFixed(2)} · ${cell.total_mentions} mention${cell.total_mentions === 1 ? "" : "s"}`}
-      className={`flex h-9 w-full cursor-zoom-in items-center justify-center border-r border-b border-border px-2 transition-colors duration-1 ease-aw hover:brightness-95 ${cellBgClass(tone)} ${topBorder}`}
+      className={`flex h-9 w-full cursor-zoom-in items-center justify-center border-r border-b border-border px-2 transition-[filter] duration-1 ease-aw hover:brightness-95 group-hover:brightness-[0.97] ${cellBgClass(tone)} ${topBorder}`}
     >
       <span className="tabular text-[11px] font-medium text-fg-secondary">
         {cell.total_mentions}
@@ -359,10 +361,13 @@ function ProductRow({
   // read as visually separated bands.
   const brandStart = brandLabel !== null;
   const topBorder = brandStart ? "border-t border-border" : "";
+  // `display: contents` keeps the wrapper transparent to the parent grid
+  // while still receiving :hover, so `group-hover:` on each cell dims the
+  // whole row in unison and helps the eye read across.
   return (
-    <>
+    <div className="contents group">
       <div
-        className={`sticky left-[0px] z-10 flex h-9 items-center border-r border-b border-border bg-surface-alt px-3 ${topBorder}`}
+        className={`sticky left-[0px] z-10 flex h-9 items-center border-r border-b border-border bg-surface-alt px-3 transition-colors duration-1 ease-aw group-hover:bg-surface-alt/60 ${topBorder}`}
       >
         {brandLabel && (
           <span className="truncate text-[11px] font-semibold uppercase tracking-wide text-fg-secondary">
@@ -372,10 +377,10 @@ function ProductRow({
       </div>
       <Link
         to={`/standalone/${row.product_id}`}
-        className={`sticky left-[130px] z-10 flex h-9 min-w-0 items-center gap-2 border-r border-b border-border bg-surface px-3 hover:bg-surface-alt ${productCellBorder} ${topBorder}`}
+        className={`sticky left-[130px] z-10 flex h-9 min-w-0 items-center gap-2 border-r border-b border-border bg-surface px-3 transition-colors duration-1 ease-aw group-hover:bg-surface-alt hover:bg-surface-alt ${productCellBorder} ${topBorder}`}
         title={`open ${row.display_name}`}
       >
-        <span className="truncate text-xs font-medium text-fg">
+        <span className="truncate text-xs font-medium text-fg group-hover:underline">
           {row.display_name}
         </span>
       </Link>
@@ -390,8 +395,18 @@ function ProductRow({
           }}
         />
       ))}
-    </>
+    </div>
   );
+}
+
+type SortDir = "asc" | "desc";
+type SortKey = { kind: "aspect"; aspect: string } | { kind: "company" };
+type SortState = { key: SortKey; dir: SortDir } | null;
+
+function sortKeysEqual(a: SortKey, b: SortKey): boolean {
+  if (a.kind === "company" && b.kind === "company") return true;
+  if (a.kind === "aspect" && b.kind === "aspect") return a.aspect === b.aspect;
+  return false;
 }
 
 export function Compare(): JSX.Element {
@@ -407,6 +422,21 @@ export function Compare(): JSX.Element {
   const [selectedProducts, setSelectedProducts] = useState<Set<string> | null>(
     null,
   );
+  // `null` = brand-grouped default order (Alienware pinned). When a sort is
+  // active, brand grouping is dropped and every row carries its own banner
+  // since neighbors are unlikely to share a brand under net-sentiment order.
+  const [sortBy, setSortBy] = useState<SortState>(null);
+
+  const onHeaderClick = useCallback((key: SortKey): void => {
+    setSortBy((prev) => {
+      if (prev === null || !sortKeysEqual(prev.key, key)) {
+        return { key, dir: "asc" };
+      }
+      if (prev.dir === "asc") return { key, dir: "desc" };
+      // Third click on same header clears the sort, restoring brand grouping.
+      return null;
+    });
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -439,50 +469,84 @@ export function Compare(): JSX.Element {
     return out;
   }, [state]);
 
-  const allSizes = useMemo<string[]>(() => {
+  // Size items cascade off the current Company selection: only sizes that
+  // exist among products in the selected company set are offered.
+  const sizeItems = useMemo<MultiSelectItem[]>(() => {
     if (state.kind !== "ready") return [];
-    const seen = new Set<string>();
+    const sizes = new Set<string>();
     for (const p of state.data.products) {
+      if (selectedCompanies && !selectedCompanies.has(p.brand)) continue;
       const s = deriveScreenSize(p.display_name);
-      if (s) seen.add(s);
+      if (s) sizes.add(s);
     }
-    return [...seen].sort();
-  }, [state]);
+    return [...sizes].sort().map((s) => ({ value: s, label: `${s}"` }));
+  }, [state, selectedCompanies]);
 
-  // Seed each filter set with all items once data lands so the heatmap
-  // starts in the "show everything" state and the popovers render with
-  // every checkbox ticked.
+  // Seed selectedCompanies once on first ready. Sizes and Products are
+  // populated by the cascade effects below so they start consistent with
+  // whatever company set is active.
   useEffect(() => {
     if (state.kind !== "ready") return;
     if (selectedCompanies === null) {
       setSelectedCompanies(new Set(allCompanies));
     }
-    if (selectedSizes === null) {
-      setSelectedSizes(new Set(allSizes));
+  }, [state, allCompanies, selectedCompanies]);
+
+  // Cascade: when Company filter changes, rebase the Size selection to "all
+  // sizes available under the current company set". Wipes any prior manual
+  // size narrowing — intentional per operator: filters chain top-down.
+  useEffect(() => {
+    if (state.kind !== "ready" || selectedCompanies === null) return;
+    const sizes = new Set<string>();
+    for (const p of state.data.products) {
+      if (!selectedCompanies.has(p.brand)) continue;
+      const s = deriveScreenSize(p.display_name);
+      if (s) sizes.add(s);
     }
-    if (selectedProducts === null) {
-      setSelectedProducts(
-        new Set(state.data.products.map((p) => p.product_id)),
-      );
+    setSelectedSizes(sizes);
+  }, [state, selectedCompanies]);
+
+  // Cascade: when Company OR Size changes, rebase the Product selection to
+  // "all products available under the current (company, size) intersection".
+  // Products with no derivable size always pass the size filter.
+  useEffect(() => {
+    if (
+      state.kind !== "ready" ||
+      selectedCompanies === null ||
+      selectedSizes === null
+    ) {
+      return;
     }
-  }, [state, allCompanies, allSizes, selectedCompanies, selectedSizes, selectedProducts]);
+    const ids = new Set<string>();
+    for (const p of state.data.products) {
+      if (!selectedCompanies.has(p.brand)) continue;
+      const s = deriveScreenSize(p.display_name);
+      if (s !== null && !selectedSizes.has(s)) continue;
+      ids.add(p.product_id);
+    }
+    setSelectedProducts(ids);
+  }, [state, selectedCompanies, selectedSizes]);
 
   const companyItems = useMemo<MultiSelectItem[]>(
     () => allCompanies.map((c) => ({ value: c, label: c })),
     [allCompanies],
   );
 
-  const sizeItems = useMemo<MultiSelectItem[]>(
-    () => allSizes.map((s) => ({ value: s, label: `${s}"` })),
-    [allSizes],
-  );
-
   const productItems = useMemo<MultiSelectItem[]>(() => {
     if (state.kind !== "ready") return [];
-    return state.data.products.map((p) => ({
-      value: p.product_id,
-      label: p.display_name,
-    }));
+    return state.data.products
+      .filter((p) => {
+        if (selectedCompanies && !selectedCompanies.has(p.brand)) return false;
+        if (selectedSizes) {
+          const s = deriveScreenSize(p.display_name);
+          if (s !== null && !selectedSizes.has(s)) return false;
+        }
+        return true;
+      })
+      .map((p) => ({
+        value: p.product_id,
+        label: p.display_name,
+      }));
   }, [state]);
 
   const filteredProducts = useMemo<CompareProductRow[]>(() => {
@@ -496,11 +560,41 @@ export function Compare(): JSX.Element {
       if (products && !products.has(p.product_id)) return false;
       if (sizes) {
         const s = deriveScreenSize(p.display_name);
-        if (s === null || !sizes.has(s)) return false;
+        // Products with no derivable size bucket pass through (they exist in
+        // the corpus but don't slot under any inch tile, e.g. "Legion 7 (AMD,
+        // non-Pro)"). Only drop when a size IS derived and it's deselected.
+        if (s !== null && !sizes.has(s)) return false;
       }
       return true;
     });
   }, [state, selectedCompanies, selectedProducts, selectedSizes]);
+
+  // Aspect sort key = net_sentiment of the chosen aspect cell; products with
+  // no mentions on that aspect get sentinel +/-Infinity so they cluster at
+  // the bottom regardless of direction ("no data → last"). Company sort key
+  // = brand name, alphabetic; ties keep filteredProducts order so within a
+  // brand the Alienware-pinned-then-original ordering is preserved.
+  const displayedProducts = useMemo<CompareProductRow[]>(() => {
+    if (sortBy === null) return filteredProducts;
+    const { key, dir } = sortBy;
+    if (key.kind === "company") {
+      return [...filteredProducts].sort((a, b) => {
+        const cmp = a.brand.localeCompare(b.brand);
+        return dir === "asc" ? cmp : -cmp;
+      });
+    }
+    const aspect = key.aspect;
+    const sentinel = dir === "asc" ? Infinity : -Infinity;
+    return [...filteredProducts].sort((a, b) => {
+      const aCell = a.cells.find((c) => c.aspect === aspect);
+      const bCell = b.cells.find((c) => c.aspect === aspect);
+      const aVal =
+        aCell && aCell.total_mentions > 0 ? aCell.net_sentiment : sentinel;
+      const bVal =
+        bCell && bCell.total_mentions > 0 ? bCell.net_sentiment : sentinel;
+      return dir === "asc" ? aVal - bVal : bVal - aVal;
+    });
+  }, [filteredProducts, sortBy]);
 
   const onCellClick = useCallback(
     (row: CompareProductRow, cell: CompareCell): void => {
@@ -593,10 +687,9 @@ export function Compare(): JSX.Element {
               sizeItems={sizeItems}
               productItems={productItems}
               selectedCompanies={selectedCompanies ?? new Set(allCompanies)}
-              selectedSizes={selectedSizes ?? new Set(allSizes)}
+              selectedSizes={selectedSizes ?? new Set(sizeItems.map((i) => i.value))}
               selectedProducts={
-                selectedProducts ??
-                new Set(state.data.products.map((p) => p.product_id))
+                selectedProducts ?? new Set(productItems.map((i) => i.value))
               }
               onCompaniesChange={setSelectedCompanies}
               onSizesChange={setSelectedSizes}
@@ -605,6 +698,42 @@ export function Compare(): JSX.Element {
               totalCount={state.data.products.length}
             />
 
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-fg-muted">
+              <span className="font-medium text-fg-secondary">Legend</span>
+              <span className="flex items-center gap-2">
+                <span
+                  aria-hidden="true"
+                  className="inline-block h-3.5 w-6 rounded-sm border border-border bg-success-soft"
+                />
+                <span>positive</span>
+              </span>
+              <span className="flex items-center gap-2">
+                <span
+                  aria-hidden="true"
+                  className="inline-block h-3.5 w-6 rounded-sm border border-border bg-warning-soft"
+                />
+                <span>mixed / neutral</span>
+              </span>
+              <span className="flex items-center gap-2">
+                <span
+                  aria-hidden="true"
+                  className="inline-block h-3.5 w-6 rounded-sm border border-border bg-danger-soft"
+                />
+                <span>negative</span>
+              </span>
+              <span className="flex items-center gap-2">
+                <span
+                  aria-hidden="true"
+                  className="inline-block h-3.5 w-2 rounded-sm bg-accent"
+                />
+                <span>Alienware row</span>
+              </span>
+              <span className="text-fg-muted">
+                · cell = mention count · click cell to drill into verbatims ·
+                click any column header to sort
+              </span>
+            </div>
+
             {filteredProducts.length === 0 ? (
               <p className="rounded-md border border-border bg-surface-alt p-4 text-sm italic text-fg-muted">
                 No products match the current filters.
@@ -612,28 +741,74 @@ export function Compare(): JSX.Element {
             ) : (
               <div className="overflow-x-auto rounded-md border border-border bg-surface shadow-card">
                 <div className={`grid ${GRID_TEMPLATE} min-w-[1240px]`}>
-                  {/* sticky header row */}
-                  <div className="sticky top-0 left-0 z-30 flex h-9 items-center border-r border-b border-border bg-surface-alt px-3 text-[11px] font-semibold uppercase tracking-wide text-fg-secondary">
-                    company
-                  </div>
+                  {/* sticky header row — Company header is itself a sort
+                      button (alphabetic asc/desc/clear); Product header stays
+                      a label since brand grouping carries that ordering */}
+                  {(() => {
+                    const companyActive =
+                      sortBy !== null && sortBy.key.kind === "company";
+                    const indicator = companyActive
+                      ? sortBy.dir === "asc"
+                        ? "▲"
+                        : "▼"
+                      : "";
+                    return (
+                      <button
+                        type="button"
+                        onClick={() => onHeaderClick({ kind: "company" })}
+                        title={`sort by company${companyActive ? " (click to cycle)" : ""}`}
+                        className={`sticky top-0 left-0 z-30 flex h-9 cursor-pointer items-center gap-1 border-r border-b border-border bg-surface-alt px-3 text-[11px] font-semibold uppercase tracking-wide transition-[filter] duration-1 ease-aw hover:brightness-95 ${companyActive ? "text-accent" : "text-fg-secondary"}`}
+                      >
+                        <span>company</span>
+                        {indicator && (
+                          <span aria-hidden="true" className="text-[9px]">
+                            {indicator}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })()}
                   <div className="sticky top-0 left-[130px] z-30 flex h-9 items-center border-r border-b border-border bg-surface-alt px-3 text-[11px] font-semibold uppercase tracking-wide text-fg-secondary">
                     product
                   </div>
-                  {state.data.aspects.map((a) => (
-                    <div
-                      key={a}
-                      className="sticky top-0 z-20 flex h-9 items-center justify-center border-r border-b border-border bg-surface-alt px-2 text-center text-[11px] font-semibold tracking-wide text-fg-secondary"
-                      title={a}
-                    >
-                      {aspectLabel(a)}
-                    </div>
-                  ))}
+                  {state.data.aspects.map((a) => {
+                    const active =
+                      sortBy !== null &&
+                      sortBy.key.kind === "aspect" &&
+                      sortBy.key.aspect === a;
+                    const indicator = active
+                      ? sortBy.dir === "asc"
+                        ? "▲"
+                        : "▼"
+                      : "";
+                    return (
+                      <button
+                        key={a}
+                        type="button"
+                        onClick={() =>
+                          onHeaderClick({ kind: "aspect", aspect: a })
+                        }
+                        title={`${a} — sort by sentiment${active ? " (click to cycle)" : ""}`}
+                        className={`sticky top-0 z-20 flex h-9 cursor-pointer items-center justify-center gap-1 border-r border-b border-border bg-surface-alt px-2 text-center text-[11px] font-semibold tracking-wide transition-[filter] duration-1 ease-aw hover:brightness-95 ${active ? "text-accent" : "text-fg-secondary"}`}
+                      >
+                        <span className="truncate">{aspectLabel(a)}</span>
+                        {indicator && (
+                          <span aria-hidden="true" className="text-[9px]">
+                            {indicator}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
 
-                  {/* product rows — brandLabel populated on the first row of
-                      each brand group so the company column reads as a banner */}
-                  {filteredProducts.map((row, idx) => {
+                  {/* product rows — when unsorted, brandLabel is populated on
+                      the first row of each brand group so the company column
+                      reads as a banner. When sorted, brand grouping is
+                      dropped and the brand label renders only when neighbors
+                      differ (so adjacent same-brand pairs still merge). */}
+                  {displayedProducts.map((row, idx) => {
                     const prevBrand =
-                      idx === 0 ? null : filteredProducts[idx - 1].brand;
+                      idx === 0 ? null : displayedProducts[idx - 1].brand;
                     const brandLabel =
                       row.brand !== prevBrand ? row.brand : null;
                     return (
@@ -649,13 +824,6 @@ export function Compare(): JSX.Element {
                 </div>
               </div>
             )}
-
-            <p className="text-xs text-fg-muted">
-              Green = positive sentiment, yellow = mixed/neutral, red = negative.
-              The number is the mention count for that (product, aspect). Click
-              any cell to drill into verbatims. Empty cells mean no tagged
-              mentions yet. Alienware rows are marked with a purple edge.
-            </p>
           </section>
         )}
       </main>

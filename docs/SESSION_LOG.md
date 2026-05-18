@@ -8,9 +8,50 @@ Running one-page chronicle. Updated **at session close**, when the operator says
 
 Paste at the start of your next session:
 
-> Resume pulse-check session 34. Audit per `docs/SESSION_LOG.md` "Audit checklist (session 33 → 34)" before any forward work; pre-bite forks listed at the end of that section. Be very concise. Ultrathink. Use subagents to save context.
+> Resume pulse-check session 35. Audit per `docs/SESSION_LOG.md` "Audit checklist (session 34 → 35)" before any forward work; pre-bite forks listed at the end of that section. Be very concise. Ultrathink. Use subagents to save context.
 
-### Audit checklist (session 33 → 34)
+### Audit checklist (session 34 → 35)
+
+- Use `.venv/Scripts/python.exe` for backend tooling.
+- `pytest tests/unit/` → **623 pass** (unchanged — session 34 was frontend + docs only, no Python touched).
+- `mypy pulse_check/ tests/ scripts/` → clean, **125 source files** (unchanged).
+- `ruff check pulse_check/ tests/ scripts/` → clean.
+- **TASKS.md drift check:**
+  - `Status` line reflects: heatmap polish round shipped (sortable columns on `Company` + 11 aspect headers · color-scale legend repositioned above the grid · row-hover dim affordance via `display:contents` group · cascading Company → Size → Product filters · screen-size regex loosened to recover 13 silently-filtered products including Alienware 16x Aurora).
+  - `Active` line: pre-bite forks for session 35 — Wave 3 A2 path · Sonnet aspect-labeler iteration. (Heatmap polish dropped — done.)
+  - `Last reconciled = 2026-05-18`.
+  - **CLAUDE.md flat-checklist rule still holding.** Re-audit: `grep -i "session[- ]?\d+" docs/TASKS.md` → expect zero matches in wave items.
+- **ARCH drift check:** **No changes this session.**
+- **DESIGN_SYSTEM drift check:** §6.1 / §6.3 / §6.4 **patched this session**. §6.1 rewritten to describe the shipped 3-card home (was session-13 "Standalone selector + Compare placeholder"). §6.3 Compare rewritten from "Wave 3 placeholder" stub to actual cross-product heatmap spec including cascading filters + regex + sortable columns + legend + row-hover. §6.4 Pair added (was missing). Patch notes "session 34" annotated inline.
+- **README drift check:** **No changes this session.**
+- **Migration head:** `eb05da255474` (unchanged from session 29). No schema changes.
+- **Config artifacts on disk (unchanged from session 33):**
+  - `data/pulse_check.db` mention count: **5061**.
+  - `aspect_tags` rows: **4,813**.
+  - `aggregates_aspect_sku` rows for `run_wave5_v1`: **489**.
+  - `briefs` rows for `run_wave5_v1`: **53 at `a1_brief_v2`** + 53 at `a1_brief_v1` (audit trail).
+  - 6 products skipped at brief synthesis: `hp_omen_slim_16`, `hp_omen_transcend_16`, `acer_predator_helios_neo_18`, `msi_crosshair_17`, `msi_cyborg_14`, `msi_cyborg_17`.
+  - `frontend/dist/` rebuilt — bundle `index-B7gMvLmE.js` (replaces `index-7Qcz5hSE.js`; new hash breaks stale browser cache).
+- **Code structure shipped (session 34):**
+  - **`frontend/src/pages/Compare.tsx`** — `SortState` widened to a discriminated union (`{kind:"aspect",aspect}` | `{kind:"company"}`); `onHeaderClick` cycles asc → desc → clear; clickable `Company` and 11 aspect headers with ▲/▼ chevrons + accent tint when active. `displayedProducts` memo applies the sort post-filter; cells with no data sentinel to `±Infinity` so they cluster at the bottom regardless of direction. Brand grouping is automatic for the Company-asc / unsorted views; sorted-by-aspect drops brand bands. Color-scale legend block moved from below the grid to between `FilterPanel` and the grid wrapper; copy updated. `SCREEN_SIZE_PATTERN` loosened from `\b(13|14|15|16|17|18)\b` to `(?<!\d)(13|14|15|16|17|18)(?!\d)`. `filteredProducts` size check inverted: size-null products always pass instead of being dropped. `sizeItems` / `productItems` rebuilt as cascade-aware memos (Size derives from current `selectedCompanies`; Product derives from `selectedCompanies` + `selectedSizes`). Two new effects rebase downstream selections to "all available" when upstream changes. `allSizes` memo dropped (subsumed by `sizeItems`). `ProductRow` children wrapped in `<div className="contents group">`; `HeatCell`'s `hover:brightness-95` extended with `group-hover:brightness-[0.97]` so any cell hover dims the whole row.
+  - **`docs/DESIGN_SYSTEM.md`** — §6.1 + §6.3 + §6.4 patches (see DESIGN_SYSTEM drift check above).
+  - **`docs/TASKS.md`** — Status / Active / Last reconciled lines reflect the polish ship.
+- **Operator-confirmed locks from session 34 (do not re-debate without flag):**
+  - **Sortable headers cycle asc → desc → clear.** Aspect columns sort by `net_sentiment`; `Company` column sorts alphabetically. First click is ascending ("worst on top" for sentiment, "A→Z" for company). Third click on the same header restores the brand-grouped Alienware-pinned default.
+  - **Cascading filters.** `Company` → `Size` → `Product`. Downstream popovers always reflect what's reachable under upstream selections; on upstream change, downstream selections rebase to "all available". User-pinned narrowings downstream are intentionally wiped on upstream change.
+  - **Size-less products always pass the size filter** (`Legion 7 (AMD, non-Pro)`, `Legion 7i`, `Legion 9i`). They're real products with no inch-suffix in their display_name; the size filter is informational, not gating.
+  - **Color-scale legend lives above the grid**, not below. Between `FilterPanel` and the grid wrapper.
+  - **11-aspect view is complete.** The canonical `pulse_check.storage.enums.Aspect` enum has exactly 11 values; `/api/compare` returns all of them; no taxonomy fields hidden. Richer per-cell signals (`intensity_counts`, `verified_share`, `by_source`, `by_recency`) exist in `aggregates_aspect_sku` but are intentionally drill-down-only via `/api/product/{id}` + `EvidenceDrawer` — not surfaced on the 59×11 grid (operator pilot discipline: no rare-event composites).
+- **Live findings from session 34 (operator visibility):**
+  - **"Showing 46 of 59 products" was a silent filter bug**, not a missing-row UI issue. The screen-size regex `\b(13|14|15|16|17|18)\b` required word-boundaries on both sides; "16x", "16s", "Z13", "X16" all failed it, returning `null` from `deriveScreenSize`, which the filter chain treated as "exclude" — dropping 13 products. Loosened regex + inverted null-handling recover all 13. Verified live against `/api/compare` payload post-fix.
+  - **Missing Alienware product was `Alienware 16x Aurora`** — the "16x" model suffix triggered the regex bug. After fix, Alienware row shows 4 products (16 Area-51 · 16 Aurora · 16x Aurora · 18 Area-51).
+  - **No backend / schema / LLM changes this session.** $0 LLM spend; cumulative across sessions remains ~$19.70.
+- **Pre-bite forks for session 35 — settle BEFORE moving forward:**
+  1. **Wave 3 A2 path.** Deliberation full-corpus tag on the 610-post reddit corpus + new pair_win_rates aggregator + new pair brief writer. Per `project_reddit_deliberation_exploratory` memory: corpus thin (0/50 resolved-to-tracked in v2 sample); A2 will be sparse. ~$5–10 + meaningful new code.
+  2. **Sonnet aspect-labeler prompt iteration.** Tighten labeler to avoid NotebookCheck Verdict-paragraph over-labeling; rebuild `aspect_tagging_v3` gold; re-eval Haiku. Could close the formal F1 ≥0.80 gate. ~$2–5 + iteration cycles.
+  3. **Operator visual confirm against `index-B7gMvLmE.js`.** 5-min browser walk after hard-refresh. Validate: counter reads `59 of 59`, Alienware shows 4 products including `16x Aurora`, picking a company narrows Size and Product popovers, clicking aspect headers cycles ▲/▼/clear, clicking Company header sorts alphabetically.
+
+### Audit checklist (session 33 → 34) — archived, completed in session 34
 
 - Use `.venv/Scripts/python.exe` for backend tooling.
 - `pytest tests/unit/` → **623 pass** (unchanged — session 33 was frontend + docs only, no Python touched).
@@ -604,6 +645,45 @@ Added in session 23:
 ---
 
 ## Session history (newest first)
+
+### 2026-05-18 — session 34: heatmap polish round (sortable columns on `Company` + 11 aspect headers · color-scale legend repositioned above the grid · row-hover dim affordance via `display:contents` group · cascading Company → Size → Product filters · `SCREEN_SIZE_PATTERN` regex loosened to recover 13 silently-filtered products including Alienware 16x Aurora · DESIGN_SYSTEM §6.1 / §6.3 / §6.4 alignment patch).
+
+**Context entering.** Session 33 closed with 6 frontend UI polish edits + the README runbook rewrite shipped, and 4 pre-bite forks queued: Wave 3 A2 path · Sonnet aspect-labeler iteration · Heatmap UI further polish · operator visual confirm. Operator opened session 34 with the explicit pick of the heatmap polish fork ("go"). Polish landed cleanly; mid-session operator pulled in two adjacent changes — make `Company` sortable too, and move the legend from below the grid to above. Then a screenshot surfaced a silent filter bug ("46 of 59 products" with all filters set to "all") which turned out to be the load-bearing find of the session.
+
+**Audit pass (session 33 → 34).** GREEN. 623/623 pytest · mypy 125 src clean · ruff clean · migration head `eb05da255474` · DB counts unchanged (5061 mentions / 4,813 aspect_tags / 489 aggregates / 53 v2 briefs) · ARCH §6.3 header field present · bundle `index-7Qcz5hSE.js` shipped. Drift flagged at session-33 close: §6.1 About + §6.3 Compare carried session-13 stubs not yet reconciled with the shipped reality — patched this session.
+
+**Decisions (product-level) reached this session.**
+- **D1 — Sortable headers cycle asc → desc → clear.** First click ascending (worst-sentiment / A-by-brand on top), second click descending, third click clears back to the brand-grouped Alienware-pinned default. Discriminated `SortKey` union (`{kind:"aspect",aspect}` | `{kind:"company"}`). Operator pulled in `Company` sortability mid-session; `Product` column intentionally kept non-sortable since brand grouping already carries its ordering.
+- **D2 — Cascading filters, top-down.** `Company` → `Size` → `Product`. Operator-locked: "don't make the user make selections for all 3 in a disconnected way." Implementation: downstream popover items derived from upstream selections; downstream selections auto-rebase to "all available" on upstream change. Trade-off accepted: user-pinned narrowings in `Size` / `Product` are wiped when upstream changes.
+- **D3 — Color-scale legend moves above the grid.** Between `FilterPanel` and the grid wrapper. Operator-explicit. Replaced the prose footer with 3 sentiment swatches + Alienware-edge marker + inline action hints; copy now mentions "click any column header to sort" (was "aspect column").
+- **D4 — Size-less products always pass the size filter.** "Lenovo Legion 7 (AMD, non-Pro)", "Legion 7i", "Legion 9i" have no inch-suffix in their `display_name`. They're real products; the size filter is informational, not gating. `filteredProducts` size check inverted: `if (s !== null && !sizes.has(s)) return false;` (was `s === null || !sizes.has(s)`).
+- **D5 — 11-aspect heatmap view is complete.** Operator asked: "is there any other field we are missing outside of the 11?" Subagent verified the canonical `pulse_check.storage.enums.Aspect` enum has exactly 11 values; `/api/compare` returns all of them; no taxonomy fields filtered upstream. Richer per-cell signals (intensity_counts, verified_share, by_source, by_recency) exist on `aggregates_aspect_sku` but are intentionally drill-down-only via `EvidenceDrawer` + Standalone — not surfaced on the cross-product grid (operator pilot discipline holds: no rare-event composites on the 59×11 view).
+
+**Technical housekeeping (operator does not engage).**
+- **TH1 — Row-hover affordance via `display:contents` group.** `ProductRow` children wrapped in `<div className="contents group">` so the wrapper is layout-transparent to the parent grid but still receives `:hover`. `HeatCell` and the sticky Company / Product cells take `group-hover:brightness-[0.97]`; the Product cell additionally underlines its name on row hover. Single-element strategy; no JS hover-tracking state needed.
+- **TH2 — Screen-size regex loosened from `\b(13|14|15|16|17|18)\b` to `(?<!\d)(13|14|15|16|17|18)(?!\d)`.** Word-boundary required non-word chars on both sides; "16x", "16s", "Z13", "X16" all failed. Lookbehind/lookahead "not a digit" still rejects "160", "1314" false positives. Verified live against the 59-product corpus: 1×13" / 6×14" / 7×15" / 23×16" / 9×17" / 10×18" = 56 sized + 3 size-null = 59 total.
+- **TH3 — Cascade implementation.** Two new `useEffect`s in `Compare.tsx`: one watches `selectedCompanies` and writes `selectedSizes`; another watches `selectedCompanies` + `selectedSizes` and writes `selectedProducts`. Both gated on `state.kind === "ready"` + upstream `!== null` so they don't fire pre-seed. `sizeItems` / `productItems` memos also rebuilt as cascade-aware so the popover lists narrow visually in sync with the auto-rebase. `allSizes` memo dropped (subsumed by `sizeItems`).
+- **TH4 — Aspect-sort sentinel.** Cells with no mentions or no data sort to ±Infinity based on direction so they always cluster at the bottom — "no data → last" regardless of asc/desc. Within-tie order preserved.
+- **TH5 — Company-sort tiebreaker.** `Array.prototype.sort` is stable in V8 / SpiderMonkey; equal-brand rows keep `filteredProducts` order, which itself preserves the backend's Alienware-pinned-then-original ordering.
+- **TH6 — No backend / schema / LLM changes this session.** 0 LLM spend; session 34 cumulative spend across sessions remains ~$19.70.
+
+**Live findings (operator visibility).**
+- **"Showing 46 of 59 products" was a silent filter bug, not a backend / data issue.** The screen-size regex pre-existed from session 32's heatmap ship; the bug was latent until a `16x` model landed in the corpus. The "46 of 59" line read like a UX hint but was actually exposing 13 invisible exclusions. Operator screenshot showed Alienware with 3 products visible; the missing 4th (`Alienware 16x Aurora`) was the most legible symptom.
+- **The 13 silently-filtered products** spanned 6 brands: Alienware (`16x Aurora`), ROG (`Flow Z13`, `Flow X16`, possibly others on second look), Lenovo (`Legion 7 (AMD, non-Pro)`, `Legion 7i`, `Legion 9i` — these are the 3 size-null cases), Acer (`Predator Neo 16s`). Recovery is uniform across the corpus once the regex + null-handling are fixed.
+- **Live API verification post-fix.** Hit `http://localhost:8765/api/compare`, bucketed all 59 products with the new regex: 1×13" / 6×14" / 7×15" / 23×16" / 9×17" / 10×18" + 3 size-null. Total = 59. Alienware list = `[16 Area-51, 16 Aurora, 16x Aurora, 18 Area-51]`. Confirmed before declaring done.
+
+**Architecture / docs changes shipped.**
+- **`docs/DESIGN_SYSTEM.md`** — three sections patched. §6.1 About rewritten to describe the shipped 3-card home (3 product cards + RunStrip + Sources accordion + Under-the-hood) — supersedes the session-13 "Standalone selector + Compare placeholder" two-card spec. §6.3 Compare rewritten from "Wave 3 — coming soon" stub to actual implementation (rows / cols / cell semantics / cascading filters with regex note / legend / sortable columns / row-hover affordance). §6.4 Pair added (was missing entirely; describes 2 PickerColumns + 3 CountTiles + single combined PairTable with leader-side accent ring). Patch notes "session 34" annotated inline.
+- **`docs/TASKS.md`** — Status line records the heatmap polish + filter bug fix. Active line drops "Heatmap UI further polish" from the pre-bite forks (it's done); only Wave 3 A2 and labeler iteration remain. `Last reconciled = 2026-05-18`.
+
+**Open items deferred to session 35.**
+- **Operator visual confirm against `index-B7gMvLmE.js`** (replaces session-33's `index-7Qcz5hSE.js`). 5-min hard-refresh walk; validation items in the audit checklist above.
+- **Wave 3 A2 path** (fork 1) — same shape as session-33 carry-forward.
+- **Sonnet aspect-labeler iteration** (fork 2) — same shape.
+
+**Memory updates.** None this session.
+
+---
 
 ### 2026-05-15 — session 33: UI iteration round (6 frontend polish edits — `/standalone` empty-state landing · `BriefPanel` card-per-claim render · `Sources` accordion extracted out of `Under the hood` · `Standalone` + `Pair` no-auto-pick-on-company-change · `Pair` 3-count tiles + single combined table sorted by combined `total_mentions` with leader-side accent ring · `Compare` 3 horizontal `MultiSelectPopover`s defaulted to all-selected + `HeatCell` cell-width fix) + bite 33.a (`README.md` full rewrite as operator runbook · `docs/TASKS.md:132` session-N drift cleanup · `docs/DESIGN_SYSTEM.md` §5.2 card-per-claim patch).
 
