@@ -354,7 +354,7 @@ Custom dropdown (not native `<select>`). Click-toggle list anchored to the trigg
 
 Default landing route. Three-card executive home, locked sessions 32–33.
 
-- Title + 1-line intro: `pulse-check surfaces what owners are actually saying about your products.`
+- Title (h1) "Consumer Voice on Gaming Laptops" + 4-sentence intro paragraph framing the data (aggregates from real public mentions; drillable numbers; briefs cite real mention IDs). Closes with underlined "Refreshed quarterly." cadence note (session 36; supersedes the prior session-31 monthly cadence per quarterly lock).
 - **Three product cards** in a row: `Standalone voice` (links to `/standalone` empty-state picker) · `Head-to-head` (links to `/pair`) · `Cross-product heatmap` (links to `/compare`). Each card carries one line of plain-English framing for a non-technical reader. CTA on each card is a **purple-outlined button** (`border-accent bg-surface text-accent`) that flips to **solid purple on hover** (`hover:bg-accent hover:text-fg-on-accent`) — patched session 35 from text-hyperlink-with-arrow to proper button affordance.
 - **RunMetaStrip** below the cards: run id · product count · last-refreshed timestamp (live counts from `GET /api/home`).
 - **Sources accordion** (accent-soft tinted, sits OUTSIDE the Under-the-hood block): collapsible 3-column table of subreddits + YouTube channels + review sites driven by `GET /api/sources` reading the run + RSS YAMLs at request time.

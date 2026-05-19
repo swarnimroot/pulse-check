@@ -402,6 +402,8 @@ Attribution is the act of linking a mention to the product(s) it's about. Two pa
 
 **Definitional default — "considered mention":** review body contains a comparator-anchor secondary attribution. The operator can refine attribution patterns iteratively; every scrape re-runs secondary attribution against the current pattern set, so refinements propagate without re-scraping.
 
+**Pattern-refinement policy (session 36).** When SKUs in the same product family differ only by an optional letter prefix on the size digit (MSI's AMD-chip variants: `Crosshair A17` vs `Crosshair 17`, `Katana A15` vs `Katana 15`, `Cyborg A14`/`A15`/`A17`, `Vector A16`/`A17`/`A18`), regex patterns use `a?` before the size digit so one pattern matches both Intel and AMD SKUs. Refinements propagate at secondary-attribution time without re-scraping. Rule of thumb: if SKUs in the same family differ only by an optional letter prefix on size, fold them in one pattern; if they're distinct families with distinct positioning (e.g., Legion 7 vs Legion 7i vs Legion Pro 7), give each its own product entry.
+
 ---
 
 ## 6. LLM routing and contracts

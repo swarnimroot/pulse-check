@@ -137,6 +137,22 @@ def test_search_notebookcheck_invokes_fetcher_with_correct_args(rog_strix_html: 
     assert len(reviews) == 18
 
 
+def test_search_notebookcheck_passes_manufacturer_when_provided(rog_strix_html: str) -> None:
+    fake_fetcher: MagicMock = MagicMock(return_value=rog_strix_html)
+    search_notebookcheck("ROG Strix G16", manufacturer="11", fetcher=fake_fetcher)
+    fake_fetcher.assert_called_once_with(
+        SEARCH_URL, {"model": "ROG Strix G16", "manufacturer": "11"}
+    )
+
+
+def test_search_notebookcheck_accepts_int_manufacturer(rog_strix_html: str) -> None:
+    fake_fetcher: MagicMock = MagicMock(return_value=rog_strix_html)
+    search_notebookcheck("ROG Strix G16", manufacturer=11, fetcher=fake_fetcher)
+    fake_fetcher.assert_called_once_with(
+        SEARCH_URL, {"model": "ROG Strix G16", "manufacturer": "11"}
+    )
+
+
 def test_search_notebookcheck_returns_unfiltered_results(rog_strix_html: str) -> None:
     fake_fetcher = MagicMock(return_value=rog_strix_html)
     reviews = search_notebookcheck("ROG Strix G16", fetcher=fake_fetcher)

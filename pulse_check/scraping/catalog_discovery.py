@@ -155,20 +155,32 @@ def _default_post_fetcher() -> HtmlPostFetcher:
 def search_notebookcheck(
     model_name: str,
     *,
+    manufacturer: str | int | None = None,
     fetcher: HtmlPostFetcher | None = None,
 ) -> list[DiscoveredReview]:
     """POST a model search to Notebookcheck and return ALL discovered reviews.
 
     Returns editorial and spec entries unfiltered; the caller filters as
     needed (the CLI filters to editorials before writing per-product YAMLs).
+
+    ``manufacturer`` accepts the numeric manufacturer ID from Notebookcheck's
+    search form (e.g. Acer=18, Alienware=19, ASUS=11, HP=9, Lenovo=35, MSI=15).
+    When supplied, results are restricted to that brand on the server side —
+    the fix for generic model names ("Legion 7", "TUF 15") that previously
+    pulled phones / tablets / unrelated SKUs into the 500-result cap.
+    Defaults to ``None`` (unfiltered substring match — original behavior).
     """
     f = fetcher if fetcher is not None else _default_post_fetcher()
-    response = f(SEARCH_URL, {"model": model_name})
+    payload: dict[str, str] = {"model": model_name}
+    if manufacturer is not None:
+        payload["manufacturer"] = str(manufacturer)
+    response = f(SEARCH_URL, payload)
     reviews = parse_results(response)
     editorial_count = sum(1 for r in reviews if r.review_type == "editorial")
     log.info(
-        "notebookcheck search model=%r total=%d editorial=%d",
+        "notebookcheck search model=%r manufacturer=%s total=%d editorial=%d",
         model_name,
+        manufacturer if manufacturer is not None else "any",
         len(reviews),
         editorial_count,
     )

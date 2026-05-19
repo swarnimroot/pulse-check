@@ -33,6 +33,20 @@ from pulse_check.scraping.catalog_discovery import (
 
 log = logging.getLogger("pulse_check.scripts.discover_notebookcheck")
 
+# Notebookcheck manufacturer-dropdown ID mapping (recon'd from
+# Laptop_Search.8223.0.html on 2026-05-19). Keys match the `brand` field in
+# product_set YAMLs exactly (case-sensitive). Used by --manufacturer auto
+# to derive the per-product filter ID from the product's declared brand.
+_MANUFACTURER_IDS: dict[str, str] = {
+    "Acer": "18",
+    "Alienware": "19",
+    "ASUS": "11",
+    "Dell": "5",
+    "HP": "9",
+    "Lenovo": "35",
+    "MSI": "15",
+}
+
 
 def _parse_args(argv: list[str] | None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
@@ -77,6 +91,21 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
         ),
     )
     parser.add_argument(
+        "--manufacturer",
+        type=str,
+        default=None,
+        choices=sorted(_MANUFACTURER_IDS.keys()) + ["auto"],
+        help=(
+            "Restrict Notebookcheck search to one manufacturer (server-side "
+            "filter via the form's manufacturer dropdown). 'auto' resolves "
+            "the brand per product from the product_set YAML. Omit for the "
+            "original unfiltered substring match (backwards compatible). Use "
+            "this to recover quarantined mega-product queries like 'Legion 7' "
+            "or 'TUF 15' that previously pulled phones/tablets into the "
+            "500-result cap."
+        ),
+    )
+    parser.add_argument(
         "--dry-run",
         action="store_true",
         help="Print findings to logs without writing YAML files.",
@@ -104,15 +133,27 @@ def main(argv: list[str] | None = None) -> int:
 
     for i, product in enumerate(products):
         search_term = product.display_name
+        if args.manufacturer == "auto":
+            mfr_id = _MANUFACTURER_IDS.get(product.brand)
+            if mfr_id is None:
+                log.warning(
+                    "  no manufacturer ID mapping for brand=%r; running unfiltered",
+                    product.brand,
+                )
+        elif args.manufacturer is not None:
+            mfr_id = _MANUFACTURER_IDS[args.manufacturer]
+        else:
+            mfr_id = None
         log.info(
-            "[%d/%d] %s — searching %r",
+            "[%d/%d] %s — searching %r (manufacturer=%s)",
             i + 1,
             len(products),
             product.product_id,
             search_term,
+            mfr_id if mfr_id is not None else "any",
         )
         try:
-            all_reviews = search_notebookcheck(search_term)
+            all_reviews = search_notebookcheck(search_term, manufacturer=mfr_id)
         except Exception as exc:
             log.warning("  search failed: %s", exc, exc_info=True)
             if i < len(products) - 1:

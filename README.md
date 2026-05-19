@@ -29,7 +29,7 @@ Comparative deliberation decoder (A2 — "why people choose one over another") i
 See [`docs/PRD.md` §4.2 Non-goals](docs/PRD.md). Highlights:
 
 - Not a consumer-facing buying tool.
-- Not a real-time monitoring dashboard (v1 runs analyses on demand; monthly refresh is the operational cadence).
+- Not a real-time monitoring dashboard (v1 runs analyses on demand; quarterly refresh is the operational cadence).
 - Not a general brand-sentiment tool; every analysis is product-set-scoped.
 - No PDF/markdown export, no mobile, no multi-user auth.
 
@@ -144,9 +144,9 @@ A frontend or backend change requires re-running `serve_public.py` (the build st
 
 ---
 
-## Monthly refresh procedure
+## Quarterly refresh procedure
 
-The operational cadence is **monthly** — public-voice drift on PC laptops is months, not weeks. Estimated steady-state: ~$10–20/month in LLM spend + ~2–3 hours of operator review time. Weekly cadence would mostly produce noise indistinguishable from the prior week.
+The operational cadence is **quarterly** — public-voice drift on PC laptops is months, not weeks, so a quarterly refresh catches every review cycle worth catching without burning operator review time on cosmetic deltas. Estimated steady-state: ~$15–25 per refresh in LLM spend (~$60–100/year) + ~2–3 hours of operator review time per refresh. Monthly cadence multiplies review time for marginal new signal; weekly is mostly noise.
 
 ```powershell
 # 1. Re-scrape — incremental; cached HTTP responses + dedup on mention_id mean

@@ -628,8 +628,8 @@ products:
       - "MSI Crosshair 16"
     attribution_patterns:
       primary:
-        - "\\bmsi\\s+crosshair\\s+16\\b"
-        - "\\bcrosshair\\s+16\\b"
+        - "\\bmsi\\s+crosshair\\s+a?16\\b"
+        - "\\bcrosshair\\s+a?16\\b"
     urls: {}
 
   - product_id: msi_crosshair_17
@@ -640,8 +640,8 @@ products:
       - "MSI Crosshair 17"
     attribution_patterns:
       primary:
-        - "\\bmsi\\s+crosshair\\s+17\\b"
-        - "\\bcrosshair\\s+17\\b"
+        - "\\bmsi\\s+crosshair\\s+a?17\\b"
+        - "\\bcrosshair\\s+a?17\\b"
     urls: {}
 
   - product_id: msi_crosshair_18
@@ -652,8 +652,8 @@ products:
       - "MSI Crosshair 18"
     attribution_patterns:
       primary:
-        - "\\bmsi\\s+crosshair\\s+18\\b"
-        - "\\bcrosshair\\s+18\\b"
+        - "\\bmsi\\s+crosshair\\s+a?18\\b"
+        - "\\bcrosshair\\s+a?18\\b"
     urls: {}
 
   - product_id: msi_katana_15
@@ -664,8 +664,8 @@ products:
       - "MSI Katana 15"
     attribution_patterns:
       primary:
-        - "\\bmsi\\s+katana\\s+15\\b"
-        - "\\bkatana\\s+15\\b"
+        - "\\bmsi\\s+katana\\s+a?15\\b"
+        - "\\bkatana\\s+a?15\\b"
     urls: {}
 
   - product_id: msi_katana_17
@@ -676,8 +676,8 @@ products:
       - "MSI Katana 17"
     attribution_patterns:
       primary:
-        - "\\bmsi\\s+katana\\s+17\\b"
-        - "\\bkatana\\s+17\\b"
+        - "\\bmsi\\s+katana\\s+a?17\\b"
+        - "\\bkatana\\s+a?17\\b"
     urls: {}
 
   - product_id: msi_cyborg_14
@@ -688,8 +688,8 @@ products:
       - "MSI Cyborg 14"
     attribution_patterns:
       primary:
-        - "\\bmsi\\s+cyborg\\s+14\\b"
-        - "\\bcyborg\\s+14\\b"
+        - "\\bmsi\\s+cyborg\\s+a?14\\b"
+        - "\\bcyborg\\s+a?14\\b"
     urls: {}
 
   - product_id: msi_cyborg_15
@@ -700,8 +700,8 @@ products:
       - "MSI Cyborg 15"
     attribution_patterns:
       primary:
-        - "\\bmsi\\s+cyborg\\s+15\\b"
-        - "\\bcyborg\\s+15\\b"
+        - "\\bmsi\\s+cyborg\\s+a?15\\b"
+        - "\\bcyborg\\s+a?15\\b"
     urls: {}
 
   - product_id: msi_cyborg_17
@@ -712,8 +712,8 @@ products:
       - "MSI Cyborg 17"
     attribution_patterns:
       primary:
-        - "\\bmsi\\s+cyborg\\s+17\\b"
-        - "\\bcyborg\\s+17\\b"
+        - "\\bmsi\\s+cyborg\\s+a?17\\b"
+        - "\\bcyborg\\s+a?17\\b"
     urls: {}
 
   - product_id: msi_vector_16
@@ -724,8 +724,8 @@ products:
       - "MSI Vector 16"
     attribution_patterns:
       primary:
-        - "\\bmsi\\s+vector\\s+16\\b"
-        - "\\bvector\\s+16\\b"
+        - "\\bmsi\\s+vector\\s+a?16\\b"
+        - "\\bvector\\s+a?16\\b"
     urls: {}
 
   - product_id: msi_vector_17
@@ -736,8 +736,8 @@ products:
       - "MSI Vector 17"
     attribution_patterns:
       primary:
-        - "\\bmsi\\s+vector\\s+17\\b"
-        - "\\bvector\\s+17\\b"
+        - "\\bmsi\\s+vector\\s+a?17\\b"
+        - "\\bvector\\s+a?17\\b"
     urls: {}
 
   - product_id: msi_vector_18
@@ -748,8 +748,8 @@ products:
       - "MSI Vector 18"
     attribution_patterns:
       primary:
-        - "\\bmsi\\s+vector\\s+18\\b"
-        - "\\bvector\\s+18\\b"
+        - "\\bmsi\\s+vector\\s+a?18\\b"
+        - "\\bvector\\s+a?18\\b"
     urls: {}
 
   - product_id: msi_raider_16

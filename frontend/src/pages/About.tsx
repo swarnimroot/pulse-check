@@ -91,7 +91,8 @@ export function About(): JSX.Element {
             Every aggregate on every screen was computed from real public
             mentions — Reddit threads, editorial reviews, and other public
             sources. Click any number to see the contributing quotes verbatim.
-            Briefs cite the exact mentions they drew from.
+            Briefs cite the exact mentions they drew from.{" "}
+            <span className="underline">Refreshed quarterly.</span>
           </p>
         </header>
 
