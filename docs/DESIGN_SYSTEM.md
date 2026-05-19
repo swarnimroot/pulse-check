@@ -245,6 +245,12 @@ The single most-rendered atom on the page. Section order, top-to-bottom:
 
 **Locked exclusions per session-13:** no ownership phrase ("owned 6 months"), no tombstone marker. Re-add when there's a real workflow demand.
 
+### 4.9 Skeleton (session 37)
+
+Vanilla content-placeholder block. `<div>` with `animate-pulse rounded bg-muted` (surface-alt §2.1) + a11y attributes (`role="status"`, `aria-busy="true"`, `aria-live="polite"`). Caller sizes + tints per spot via `className`; default tint is `bg-muted`, prominent spots pass `bg-accent-soft` to stay on-brand. Lives at `frontend/src/components/ui/skeleton.tsx`. No new deps — `tailwindcss-animate` was already installed for shadcn primitives.
+
+**Used on (session 37):** Compare heatmap (5 skeleton rows × 11 cells while `/api/compare` loads); Standalone picker (2 stacked dropdown-shaped blocks); Standalone full-page product (title bar + 2 content blocks); Standalone brief panel (heading bar + 4 claim cards each with header + 2 body lines); Pair scorecard (3 count-tile stubs + 6 row stubs); EvidenceDrawer + CitationPanel (3 mention-card stubs each). Replaces the prior text-based "Loading…" copy across all seven spots.
+
 ---
 
 ## 5. Composite components

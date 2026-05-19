@@ -275,10 +275,14 @@ def _harmonic_mean(precision: float, recall: float) -> float:
 
 
 def compute_micro_f1(scored_entries: list[ScoredEntry]) -> MicroF1Result:
-    """Aggregate per-tuple micro-F1 across all non-skipped entries.
+    """Aggregate per-tuple micro-F1 across all non-skipped entries (strict).
 
     Skipped entries (truth-mode skip or parse failure) are excluded entirely
     from numerator and denominator — they neither help nor hurt the score.
+
+    Strict means full ``(aspect, polarity, intensity)`` tuple equality. For
+    the ±1 intensity-tolerance variant (Wave 2 headline gate as of
+    session 37), see :func:`compute_micro_f1_loose`.
     """
     tp = 0
     fp = 0
@@ -291,6 +295,72 @@ def compute_micro_f1(scored_entries: list[ScoredEntry]) -> MicroF1Result:
         tp += len(gold_set & pred_set)
         fp += len(pred_set - gold_set)
         fn += len(gold_set - pred_set)
+    precision = _safe_divide(tp, tp + fp)
+    recall = _safe_divide(tp, tp + fn)
+    return MicroF1Result(
+        tp=tp,
+        fp=fp,
+        fn=fn,
+        precision=precision,
+        recall=recall,
+        f1=_harmonic_mean(precision, recall),
+    )
+
+
+_INTENSITY_INDEX: dict[Intensity, int] = {
+    Intensity.LOW: 0,
+    Intensity.MEDIUM: 1,
+    Intensity.HIGH: 2,
+}
+
+
+def compute_micro_f1_loose(scored_entries: list[ScoredEntry]) -> MicroF1Result:
+    """Per-tuple micro-F1 with ±1 intensity-bucket tolerance.
+
+    A predicted tuple matches a gold tuple iff they share
+    ``(aspect, polarity)`` and their intensities are within one bucket
+    (e.g. medium↔high counts; low↔high does not). Exact matches consume
+    their pair first, so they're never lost to a greedy adjacent match;
+    remaining gold/pred tuples are paired one-to-one greedily within each
+    ``(aspect, polarity)`` group.
+
+    Rationale: intensity is inherently fuzzy (one human's "high" is
+    another's "medium") and doesn't gate any downstream routing — it
+    shows up only as low/medium/high counts in aggregates. Adjacent-bucket
+    disagreement is not a categorical error. This metric is the Wave 2
+    headline gate as of session 37; the strict variant
+    (:func:`compute_micro_f1`) remains exposed for transparency.
+    """
+    tp = 0
+    fp = 0
+    fn = 0
+    for scored in scored_entries:
+        if scored.skipped:
+            continue
+        gold_set = set(scored.gold_tuples)
+        pred_set = set(scored.pred_tuples)
+        exact = gold_set & pred_set
+        tp += len(exact)
+        gold_remaining = list(gold_set - exact)
+        pred_remaining = list(pred_set - exact)
+        for gold_tuple in gold_remaining:
+            g_aspect, g_pol, g_int = gold_tuple
+            match: LabelTuple | None = None
+            for pred_tuple in pred_remaining:
+                p_aspect, p_pol, p_int = pred_tuple
+                if (
+                    g_aspect == p_aspect
+                    and g_pol == p_pol
+                    and abs(_INTENSITY_INDEX[g_int] - _INTENSITY_INDEX[p_int]) == 1
+                ):
+                    match = pred_tuple
+                    break
+            if match is not None:
+                pred_remaining.remove(match)
+                tp += 1
+            else:
+                fn += 1
+        fp += len(pred_remaining)
     precision = _safe_divide(tp, tp + fp)
     recall = _safe_divide(tp, tp + fn)
     return MicroF1Result(
@@ -405,10 +475,13 @@ def per_aspect_breakdown(
 class EvalReport:
     """Top-level result of running an eval over a gold set.
 
-    ``passed`` is the headline Wave 2 exit-gate verdict: ``micro.f1 >=
-    THRESHOLD``. ``scored_count`` excludes both truth-skipped entries
-    (semantically not the classifier's fault) and parse-failed entries
-    (classifier's fault, but already surfaced separately).
+    ``passed`` is the headline Wave 2 exit-gate verdict and gates on
+    ``micro_loose.f1 >= THRESHOLD`` — the off-by-one intensity-tolerance
+    metric — as of session 37. ``micro`` (strict) remains exposed for
+    transparency; readers can compare both numbers in the report.
+    ``scored_count`` excludes both truth-skipped entries (semantically not
+    the classifier's fault) and parse-failed entries (classifier's fault,
+    but already surfaced separately).
     """
 
     total_entries: int
@@ -416,6 +489,7 @@ class EvalReport:
     truth_skip_count: int
     parse_failure_count: int
     micro: MicroF1Result
+    micro_loose: MicroF1Result
     per_aspect: dict[Aspect, AspectStats]
     threshold: float
     passed: bool
@@ -431,6 +505,7 @@ class EvalReport:
         )
         scored_count = total - truth_skips - parse_failures
         micro = compute_micro_f1(scored_entries)
+        micro_loose = compute_micro_f1_loose(scored_entries)
         per_aspect = per_aspect_breakdown(scored_entries)
         return cls(
             total_entries=total,
@@ -438,9 +513,10 @@ class EvalReport:
             truth_skip_count=truth_skips,
             parse_failure_count=parse_failures,
             micro=micro,
+            micro_loose=micro_loose,
             per_aspect=per_aspect,
             threshold=THRESHOLD,
-            passed=micro.f1 >= THRESHOLD,
+            passed=micro_loose.f1 >= THRESHOLD,
         )
 
 
@@ -534,6 +610,14 @@ def report_to_dict(
             "precision": report.micro.precision,
             "recall": report.micro.recall,
             "f1": report.micro.f1,
+        },
+        "micro_f1_loose": {
+            "tp": report.micro_loose.tp,
+            "fp": report.micro_loose.fp,
+            "fn": report.micro_loose.fn,
+            "precision": report.micro_loose.precision,
+            "recall": report.micro_loose.recall,
+            "f1": report.micro_loose.f1,
         },
         "per_aspect": {
             aspect.value: {

@@ -26,6 +26,7 @@ from pulse_check.eval.eval_runner import (
     ScoredEntry,
     _labels_to_tuples,
     compute_micro_f1,
+    compute_micro_f1_loose,
     disagreements,
     filter_by_content_types,
     per_aspect_breakdown,
@@ -424,6 +425,148 @@ class TestComputeMicroF1:
 
 
 # ---------------------------------------------------------------------------
+# compute_micro_f1_loose (±1 intensity tolerance)
+# ---------------------------------------------------------------------------
+
+
+class TestComputeMicroF1Loose:
+    def test_exact_match_still_counts(self) -> None:
+        # Loose is a superset of strict — exact matches remain matches
+        result = compute_micro_f1_loose(
+            [
+                _scored(
+                    gold_tuples=[(Aspect.THERMALS, Polarity.NEGATIVE, Intensity.HIGH)],
+                    pred_tuples=[(Aspect.THERMALS, Polarity.NEGATIVE, Intensity.HIGH)],
+                )
+            ]
+        )
+        assert result.tp == 1
+        assert result.fp == 0
+        assert result.fn == 0
+        assert result.f1 == 1.0
+
+    def test_adjacent_intensity_counts_as_match(self) -> None:
+        # gold HIGH, pred MEDIUM — off-by-one bucket, same aspect + polarity
+        result = compute_micro_f1_loose(
+            [
+                _scored(
+                    gold_tuples=[(Aspect.THERMALS, Polarity.NEGATIVE, Intensity.HIGH)],
+                    pred_tuples=[(Aspect.THERMALS, Polarity.NEGATIVE, Intensity.MEDIUM)],
+                )
+            ]
+        )
+        assert result.tp == 1
+        assert result.fp == 0
+        assert result.fn == 0
+        assert result.f1 == 1.0
+
+    def test_two_buckets_apart_does_not_match(self) -> None:
+        # gold LOW, pred HIGH — 2 buckets apart, treated as miss
+        result = compute_micro_f1_loose(
+            [
+                _scored(
+                    gold_tuples=[(Aspect.THERMALS, Polarity.NEGATIVE, Intensity.LOW)],
+                    pred_tuples=[(Aspect.THERMALS, Polarity.NEGATIVE, Intensity.HIGH)],
+                )
+            ]
+        )
+        assert result.tp == 0
+        assert result.fp == 1
+        assert result.fn == 1
+        assert result.f1 == 0.0
+
+    def test_polarity_mismatch_blocks_match_even_at_adjacent_intensity(self) -> None:
+        # Same aspect, intensities adjacent, but polarity differs — no match
+        result = compute_micro_f1_loose(
+            [
+                _scored(
+                    gold_tuples=[(Aspect.THERMALS, Polarity.NEGATIVE, Intensity.HIGH)],
+                    pred_tuples=[(Aspect.THERMALS, Polarity.POSITIVE, Intensity.MEDIUM)],
+                )
+            ]
+        )
+        assert result.tp == 0
+        assert result.fp == 1
+        assert result.fn == 1
+
+    def test_aspect_mismatch_blocks_match(self) -> None:
+        # Different aspects can never match under loose either
+        result = compute_micro_f1_loose(
+            [
+                _scored(
+                    gold_tuples=[(Aspect.THERMALS, Polarity.NEGATIVE, Intensity.HIGH)],
+                    pred_tuples=[(Aspect.BATTERY, Polarity.NEGATIVE, Intensity.MEDIUM)],
+                )
+            ]
+        )
+        assert result.tp == 0
+        assert result.fp == 1
+        assert result.fn == 1
+
+    def test_exact_match_consumed_before_adjacent(self) -> None:
+        # gold = {(T,N,H), (T,N,M)}; pred = {(T,N,H)}.
+        # Greedy must NOT consume (T,N,H) with adjacent (T,N,M) and leave
+        # the exact (T,N,H) gold unmatched. Exact-first ordering gives
+        # 1 TP, 1 FN; bad ordering would give 1 TP, 1 FN too here but
+        # the assertion guards against regression on the ordering rule.
+        result = compute_micro_f1_loose(
+            [
+                _scored(
+                    gold_tuples=[
+                        (Aspect.THERMALS, Polarity.NEGATIVE, Intensity.HIGH),
+                        (Aspect.THERMALS, Polarity.NEGATIVE, Intensity.MEDIUM),
+                    ],
+                    pred_tuples=[
+                        (Aspect.THERMALS, Polarity.NEGATIVE, Intensity.HIGH),
+                    ],
+                )
+            ]
+        )
+        assert result.tp == 1
+        assert result.fp == 0
+        assert result.fn == 1
+
+    def test_one_pred_does_not_double_count_for_two_gold(self) -> None:
+        # gold = {(T,N,L), (T,N,H)}; pred = {(T,N,M)} — medium is adjacent to
+        # both, but a single pred can absorb at most one gold. 1 TP, 1 FN.
+        result = compute_micro_f1_loose(
+            [
+                _scored(
+                    gold_tuples=[
+                        (Aspect.THERMALS, Polarity.NEGATIVE, Intensity.LOW),
+                        (Aspect.THERMALS, Polarity.NEGATIVE, Intensity.HIGH),
+                    ],
+                    pred_tuples=[
+                        (Aspect.THERMALS, Polarity.NEGATIVE, Intensity.MEDIUM),
+                    ],
+                )
+            ]
+        )
+        assert result.tp == 1
+        assert result.fn == 1
+        assert result.fp == 0
+
+    def test_skipped_entries_excluded_from_loose_counts(self) -> None:
+        result = compute_micro_f1_loose(
+            [
+                _scored(
+                    gold_tuples=[(Aspect.THERMALS, Polarity.NEGATIVE, Intensity.HIGH)],
+                    pred_tuples=[(Aspect.THERMALS, Polarity.NEGATIVE, Intensity.HIGH)],
+                ),
+                _scored(
+                    gold_tuples=[(Aspect.BATTERY, Polarity.POSITIVE, Intensity.LOW)],
+                    pred_tuples=[],
+                    skipped=True,
+                    skip_reason="parse_failure",
+                ),
+            ]
+        )
+        assert result.tp == 1
+        assert result.fn == 0
+        assert result.f1 == 1.0
+
+
+# ---------------------------------------------------------------------------
 # per_aspect_breakdown
 # ---------------------------------------------------------------------------
 
@@ -561,6 +704,20 @@ class TestEvalReport:
         for stats in report.per_aspect.values():
             assert isinstance(stats, AspectStats)
 
+    def test_passed_gate_is_loose_not_strict(self) -> None:
+        # gold HIGH, pred MEDIUM — strict f1 = 0.0, loose f1 = 1.0.
+        # Gate is loose, so passed must be True even though strict misses.
+        entries = [
+            _scored(
+                gold_tuples=[(Aspect.THERMALS, Polarity.NEGATIVE, Intensity.HIGH)],
+                pred_tuples=[(Aspect.THERMALS, Polarity.NEGATIVE, Intensity.MEDIUM)],
+            )
+        ]
+        report = EvalReport.from_scored(entries)
+        assert report.micro.f1 == 0.0
+        assert report.micro_loose.f1 == 1.0
+        assert report.passed is True
+
 
 # ---------------------------------------------------------------------------
 # disagreements
@@ -661,11 +818,26 @@ class TestReportToDict:
             "meta",
             "summary",
             "micro_f1",
+            "micro_f1_loose",
             "per_aspect",
             "disagreements",
             "parse_failures",
         }
         assert rendered["meta"] == {}
+
+    def test_micro_f1_loose_serialized_alongside_strict(self) -> None:
+        # Adjacent intensity: strict 0.0, loose 1.0 — both must surface
+        entries = [
+            _scored(
+                gold_tuples=[(Aspect.THERMALS, Polarity.NEGATIVE, Intensity.HIGH)],
+                pred_tuples=[(Aspect.THERMALS, Polarity.NEGATIVE, Intensity.MEDIUM)],
+            )
+        ]
+        report = EvalReport.from_scored(entries)
+        rendered = report_to_dict(report, entries, meta=None)
+        assert rendered["micro_f1"]["f1"] == 0.0
+        assert rendered["micro_f1_loose"]["f1"] == 1.0
+        assert rendered["summary"]["passed"] is True
 
     def test_per_aspect_keyed_by_enum_value_strings(self) -> None:
         report = EvalReport.from_scored([])

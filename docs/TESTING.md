@@ -59,7 +59,7 @@ End-to-end on a miniature run. Validates that modules compose correctly.
 - **Fixture product set:** 2 products (1 primary, 1 comparator), tiny aliased patterns.
 - **Fixture corpus:** 30–60 hand-crafted mentions covering all 6 source types, committed as JSON fixtures under `tests/integration/fixtures/`.
 - **Scrapers-lib integration test:** stubs the library's HTTP layer (via `respx` or scrapers-lib's own test helpers) to return the fixture payload, verifies that our wrappers convert library outputs to `Mention` rows correctly.
-- **Pipeline integration test:** runs `scrape → attribute → tag → aggregate → synthesize` end-to-end against the fixture, with LLM calls hitting a pre-seeded `llm_cache` table (cached outputs committed to fixtures). Asserts: final aggregate rows have expected shape; briefs contain valid citations; no mentions dropped silently.
+- **Pipeline integration test:** `tests/integration/test_stage_b_pipeline.py` (session 37, ~250 lines, 2 tests) seeds a small post-classifier corpus (1 product, 6 mentions with attributions + aspect tags) and runs `aggregate_a1 → synthesize_a1` end-to-end. Stubs `cluster_near_duplicates` + `write_a1_brief` via monkeypatch so no LLM calls fire. Exercises the citation validator and the retry-on-fabricated-IDs branch. Asserts: aggregate row shape + sentiment arithmetic, Brief schema + persistence, citation-validator pass-through. The fuller `scrape → attribute → tag` end-to-end seam (pre-classifier) remains a future bite.
 - **FastAPI integration test:** spins up the app in-process, hits routes, asserts response shapes match the frontend's expected data model.
 
 Integration tests use a real SQLite file in `tests/integration/.tmp/test.db`, migrated fresh per test via Alembic, torn down after.
@@ -119,7 +119,7 @@ Replaces manual hand-labeling of hundreds of mentions with a ~30-minute operator
 
 | Task | Gold set filename | Target size | Threshold |
 |---|---|---|---|
-| Aspect + polarity + intensity | `aspect_tagging_v1.json` | 150 | ≥ 80% per-dimension accuracy |
+| Aspect + polarity + intensity | `aspect_tagging_v2.jsonl` | 115 (shipped) / 150 (target) | ≥ 80% **loose micro-F1** (off-by-one intensity-bucket tolerance via `compute_micro_f1_loose`; strict micro-F1 reported alongside but not the gate) |
 | Deliberation thread classification | `deliberation_v1.json` | 100 | ≥ 85% binary (is_deliberation + is_resolved) |
 | Outcome extraction | `outcome_v1.json` | 100 resolved threads | ≥ 85% exact product match |
 | Reason tagging | `reason_tagging_v1.json` | 150 comments | ≥ 80% reason_bucket; ≥ 80% intensity |

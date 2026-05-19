@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { Select, type SelectOption } from "@/components/atoms";
 import { EvidenceDrawer } from "@/components/EvidenceDrawer";
 import { GlossaryButton } from "@/components/GlossaryDialog";
+import { Skeleton } from "@/components/ui/skeleton";
 import { ApiError, api } from "@/lib/api";
 import type {
   MentionView,
@@ -367,7 +368,18 @@ function PairBody({ pairState, onCellClick }: PairBodyProps): JSX.Element | null
     );
   }
   if (pairState.kind === "loading") {
-    return <p className="text-sm text-fg-muted">Comparing…</p>;
+    return (
+      <div className="flex flex-col gap-3" aria-label="Comparing">
+        <div className="flex gap-2">
+          <Skeleton className="h-16 flex-1" />
+          <Skeleton className="h-16 flex-1" />
+          <Skeleton className="h-16 flex-1" />
+        </div>
+        {Array.from({ length: 6 }).map((_, idx) => (
+          <Skeleton key={idx} className="h-10 w-full" />
+        ))}
+      </div>
+    );
   }
   if (pairState.kind === "error") {
     return (

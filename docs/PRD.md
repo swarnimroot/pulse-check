@@ -129,7 +129,7 @@ All run outputs — tagged mentions, aggregates, briefs — are stored with run 
 
 ### Functional correctness
 
-- Classifier accuracy **≥ 80%** on aspect tagging, sentiment scoring, and reason tagging (measured against Sonnet-built + operator-spot-checked gold sets)
+- Classifier accuracy **≥ 80% loose micro-F1** on aspect tagging, sentiment scoring, and reason tagging (loose = ±1 intensity-bucket tolerance via `compute_micro_f1_loose`; strict tuple match reported alongside but not the gate, per session-37 metric change). Measured against Sonnet-built + operator-spot-checked gold sets.
 - Classifier accuracy **≥ 85%** on deliberation thread classification and outcome extraction (binary/multi-class)
 - Classifier accuracy **≥ 80%** on intensity tagging (low / medium / high) — measured against the same gold-set methodology
 - **≥ 100 usable mentions per pair** in the comparative corpus, so win-rates and ranked reasons aren't anecdotal

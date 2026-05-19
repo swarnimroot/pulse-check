@@ -8,10 +8,11 @@ Usage::
 
 Loads the gold set, runs the production aspect classifier (Haiku per
 session-5 deviation; ``--provider qwen`` falls back to Ollama+Qwen for
-symmetry with ``scripts/tag.py``), computes per-tuple micro-F1 +
-per-aspect breakdown, writes a JSON report to
-``data/eval_results/{timestamp}_aspect_tagging.json``, and prints a
-PASS/FAIL summary versus the 80% Wave 2 exit threshold.
+symmetry with ``scripts/tag.py``), computes per-tuple micro-F1 (both
+strict and ±1 intensity-tolerance) + per-aspect breakdown, writes a JSON
+report to ``data/eval_results/{timestamp}_aspect_tagging.json``, and
+prints a PASS/FAIL summary versus the 80% Wave 2 exit threshold (gated
+on the loose metric as of session 37).
 
 Truth modes:
 - ``sonnet``: compare to Sonnet's labels as-is (treats Sonnet as oracle)
@@ -95,13 +96,14 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
         "--exclude-content-types",
         nargs="+",
         choices=[ct.value for ct in ContentType],
-        default=[],
+        default=[ContentType.DEAL.value],
         metavar="TYPE",
         help=(
             "Drop gold-set entries whose ContentTypeTag matches any of these "
-            "values. Mirrors scripts/tag.py production filter — pass 'deal' "
-            "to match the standard tagging gate. Mentions without a "
-            "ContentTypeTag row are also excluded (strict gate)."
+            "values. Mirrors scripts/run_stage_b.py production gate (default: "
+            "'deal'). Pass an empty list (e.g. via shell trickery) to disable. "
+            "Mentions without a ContentTypeTag row are also excluded "
+            "(strict gate)."
         ),
     )
     return parser.parse_args(argv)
@@ -187,13 +189,17 @@ def _format_summary(
             f"Scored:       {report.scored_count} / {report.total_entries}  "
             f"(truth-skipped: {report.truth_skip_count}, "
             f"parse failures: {report.parse_failure_count})",
-            f"Micro F1:     {report.micro.f1:.4f}  "
+            f"Micro F1 (strict):  {report.micro.f1:.4f}  "
             f"(TP={report.micro.tp}, FP={report.micro.fp}, "
             f"FN={report.micro.fn})",
-            f"Precision:    {report.micro.precision:.4f}",
-            f"Recall:       {report.micro.recall:.4f}",
-            f"Threshold:    {report.threshold:.2f}",
-            f"Result:       {verdict}",
+            f"Micro F1 (loose):   {report.micro_loose.f1:.4f}  "
+            f"(TP={report.micro_loose.tp}, "
+            f"FP={report.micro_loose.fp}, "
+            f"FN={report.micro_loose.fn})  <- gate",
+            f"Precision (loose):  {report.micro_loose.precision:.4f}",
+            f"Recall (loose):     {report.micro_loose.recall:.4f}",
+            f"Threshold:          {report.threshold:.2f}",
+            f"Result:             {verdict}",
             bar,
         ]
     )

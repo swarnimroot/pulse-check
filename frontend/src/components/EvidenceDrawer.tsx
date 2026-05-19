@@ -3,6 +3,7 @@ import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { MentionView, Intensity } from "@/lib/types";
 import { VerbatimCard } from "@/components/atoms";
+import { Skeleton } from "@/components/ui/skeleton";
 
 /**
  * EvidenceDrawer — persistent right-side overlay (440px). No scrim; page
@@ -158,9 +159,21 @@ export function EvidenceDrawer({
 
       <div className="flex-1 overflow-y-auto bg-surface-alt p-4">
         {loading ? (
-          <p className="py-8 text-center text-xs text-fg-muted">
-            Loading evidence…
-          </p>
+          <div
+            className="flex flex-col gap-3"
+            aria-label="Loading evidence"
+          >
+            {Array.from({ length: 3 }).map((_, idx) => (
+              <div
+                key={idx}
+                className="flex flex-col gap-2 rounded-md border border-border bg-surface p-3"
+              >
+                <Skeleton className="h-3 w-1/4" />
+                <Skeleton className="h-3 w-full" />
+                <Skeleton className="h-3 w-4/5" />
+              </div>
+            ))}
+          </div>
         ) : errorMessage !== null ? (
           <p className="py-8 text-center text-xs text-danger">
             Couldn't load evidence: {errorMessage}

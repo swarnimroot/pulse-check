@@ -192,14 +192,16 @@ class TestFormatSummary:
     def test_pass_banner_present_on_perfect_match(self) -> None:
         report = EvalReport.from_scored([_scored_match()])
         summary = _call_summary(report)
-        assert "Result:       PASS" in summary
-        assert "Micro F1:     1.0000" in summary
+        assert "Result:             PASS" in summary
+        assert "Micro F1 (strict):  1.0000" in summary
+        assert "Micro F1 (loose):   1.0000" in summary
 
     def test_fail_banner_present_on_complete_miss(self) -> None:
         report = EvalReport.from_scored([_scored_miss()])
         summary = _call_summary(report)
-        assert "Result:       FAIL" in summary
-        assert "Micro F1:     0.0000" in summary
+        assert "Result:             FAIL" in summary
+        assert "Micro F1 (strict):  0.0000" in summary
+        assert "Micro F1 (loose):   0.0000" in summary
 
     def test_caveat_appears_in_merged_zero_corrected(self) -> None:
         report = EvalReport.from_scored([_scored_match()])
@@ -244,9 +246,11 @@ class TestFormatSummary:
 
 
 class TestParseArgsContentTypeFlag:
-    def test_default_is_empty_list(self) -> None:
+    def test_default_excludes_deal(self) -> None:
+        # Default mirrors scripts/run_stage_b.py production gate. Session 37
+        # flip per feedback_eval_must_mirror_production_filters memory.
         args = _parse_args([])
-        assert args.exclude_content_types == []
+        assert args.exclude_content_types == ["deal"]
 
     def test_single_exclude(self) -> None:
         args = _parse_args(["--exclude-content-types", "deal"])

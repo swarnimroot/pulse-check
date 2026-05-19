@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { EvidenceDrawer } from "@/components/EvidenceDrawer";
 import { GlossaryButton } from "@/components/GlossaryDialog";
+import { Skeleton } from "@/components/ui/skeleton";
 import { ApiError, api } from "@/lib/api";
 import type {
   CompareCell,
@@ -671,7 +672,21 @@ export function Compare(): JSX.Element {
         </header>
 
         {state.kind === "loading" && (
-          <p className="text-sm text-fg-muted">Loading heatmap…</p>
+          <div
+            className="flex flex-col gap-2"
+            aria-label="Loading heatmap"
+          >
+            {Array.from({ length: 5 }).map((_, rowIdx) => (
+              <div key={rowIdx} className="flex items-center gap-2">
+                <Skeleton className="h-6 w-40" />
+                <div className="flex gap-1">
+                  {Array.from({ length: 11 }).map((_, cellIdx) => (
+                    <Skeleton key={cellIdx} className="h-6 w-14" />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
         )}
 
         {state.kind === "error" && (

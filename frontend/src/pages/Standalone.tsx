@@ -8,6 +8,7 @@ import { RunMetaStrip } from "@/components/RunMetaStrip";
 import { Select, type SelectOption } from "@/components/atoms";
 import { GlossaryButton } from "@/components/GlossaryDialog";
 import { BriefExportButton } from "@/components/BriefExportButton";
+import { Skeleton } from "@/components/ui/skeleton";
 import { ApiError, api } from "@/lib/api";
 import type {
   BriefView,
@@ -310,7 +311,13 @@ export function Standalone(): JSX.Element {
               </div>
             </section>
           ) : (
-            <p className="text-sm text-fg-muted">Loading products…</p>
+            <section
+              className="flex flex-col gap-3"
+              aria-label="Loading products"
+            >
+              <Skeleton className="h-9 w-full" />
+              <Skeleton className="h-9 w-full" />
+            </section>
           )}
         </div>
       </main>
@@ -320,8 +327,14 @@ export function Standalone(): JSX.Element {
   if (productState.kind === "loading") {
     return (
       <main className="min-h-screen bg-surface text-fg">
-        <div className="mx-auto flex min-h-screen max-w-[800px] flex-col items-center justify-center px-8 text-center">
-          <p className="text-sm text-fg-muted">Loading product…</p>
+        <div
+          className="mx-auto flex min-h-screen w-full max-w-[800px] flex-col gap-6 px-8 py-14"
+          aria-label="Loading product"
+        >
+          <Skeleton className="h-8 w-1/2" />
+          <Skeleton className="h-4 w-2/3" />
+          <Skeleton className="h-40 w-full" />
+          <Skeleton className="h-40 w-full" />
         </div>
       </main>
     );
@@ -474,7 +487,22 @@ export function Standalone(): JSX.Element {
         <section className="flex flex-col gap-3">
           <h2 className="text-md text-fg">a1 brief</h2>
           {briefState.kind === "loading" && (
-            <p className="text-sm text-fg-muted">Loading brief…</p>
+            <div
+              className="flex flex-col gap-3"
+              aria-label="Loading brief"
+            >
+              <Skeleton className="h-5 w-2/5" />
+              {Array.from({ length: 4 }).map((_, idx) => (
+                <div
+                  key={idx}
+                  className="flex flex-col gap-2 rounded-md border border-border p-3"
+                >
+                  <Skeleton className="h-4 w-1/3" />
+                  <Skeleton className="h-3 w-full" />
+                  <Skeleton className="h-3 w-5/6" />
+                </div>
+              ))}
+            </div>
           )}
           {briefState.kind === "missing" && (
             <p className="text-sm italic text-fg-muted">
