@@ -8,7 +8,7 @@ Running one-page chronicle. Updated **at session close**, when the operator says
 
 Paste at the start of your next session:
 
-> Resume pulse-check session 38. Audit per `docs/SESSION_LOG.md` "Audit checklist (session 37 → 38)" before any forward work; pre-bite forks listed at the end of that section. Polish ordering locked session 36 — 5/9 bites shipped through session 37 (#1 #2 #3 #4 #7); work **bite #5 link-rot / tombstoning** NEXT; exit forks blocked until all 9 polish bites land (see `project_polish_ordering` memory). Be very concise. Ultrathink. Use subagents to save context.
+> Resume pulse-check session 38. Audit first per `docs/SESSION_LOG.md`. Ultrathink. Subagents.
 
 ### Audit checklist (session 37 → 38)
 
