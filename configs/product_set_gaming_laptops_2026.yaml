@@ -74,13 +74,13 @@ products:
     urls: {}
 
   # -------------------------------------------------------------------------
-  # ASUS ROG (9) — Strix G + Strix Scar + Zephyrus + Flow
+  # ASUS — ROG line (9): Strix G + Strix Scar + Zephyrus + Flow
   # COLLISION GROUP: Strix G16 / Strix Scar 16 / Zephyrus G16 all 16-inch ROG.
   # Each pattern REQUIRES the line word (Strix / Scar / Zephyrus).
   # -------------------------------------------------------------------------
   - product_id: rog_strix_g16
     display_name: "ROG Strix G16"
-    brand: "ASUS ROG"
+    brand: "ASUS"
     aliases:
       - "Strix G16"
       - "ROG G16"
@@ -92,7 +92,7 @@ products:
 
   - product_id: rog_strix_g17
     display_name: "ROG Strix G17"
-    brand: "ASUS ROG"
+    brand: "ASUS"
     aliases:
       - "Strix G17"
       - "ROG G17"
@@ -104,7 +104,7 @@ products:
 
   - product_id: rog_strix_g18
     display_name: "ROG Strix G18"
-    brand: "ASUS ROG"
+    brand: "ASUS"
     aliases:
       - "Strix G18"
       - "ROG G18"
@@ -116,7 +116,7 @@ products:
 
   - product_id: rog_strix_scar_16
     display_name: "ROG Strix Scar 16"
-    brand: "ASUS ROG"
+    brand: "ASUS"
     aliases:
       - "Strix Scar 16"
       - "ROG Scar 16"
@@ -130,7 +130,7 @@ products:
 
   - product_id: rog_strix_scar_18
     display_name: "ROG Strix Scar 18"
-    brand: "ASUS ROG"
+    brand: "ASUS"
     aliases:
       - "Strix Scar 18"
       - "ROG Scar 18"
@@ -144,7 +144,7 @@ products:
 
   - product_id: rog_zephyrus_g14
     display_name: "ROG Zephyrus G14"
-    brand: "ASUS ROG"
+    brand: "ASUS"
     aliases:
       - "Zephyrus G14"
       - "ROG G14"
@@ -157,7 +157,7 @@ products:
 
   - product_id: rog_zephyrus_g16
     display_name: "ROG Zephyrus G16"
-    brand: "ASUS ROG"
+    brand: "ASUS"
     aliases:
       - "Zephyrus G16"
       - "ROG Zephyrus 16"
@@ -170,7 +170,7 @@ products:
 
   - product_id: rog_flow_z13
     display_name: "ROG Flow Z13"
-    brand: "ASUS ROG"
+    brand: "ASUS"
     aliases:
       - "Flow Z13"
       - "ROG Flow 13"
@@ -183,7 +183,7 @@ products:
 
   - product_id: rog_flow_x16
     display_name: "ROG Flow X16"
-    brand: "ASUS ROG"
+    brand: "ASUS"
     aliases:
       - "Flow X16"
       - "ROG Flow 16"
@@ -195,7 +195,7 @@ products:
     urls: {}
 
   # -------------------------------------------------------------------------
-  # ASUS non-ROG (5) — TUF Gaming + Vivobook V16
+  # ASUS — TUF + Vivobook (5): TUF Gaming 14/15/16/17 + V16 Gaming
   # NOTE: TUF F (Intel) and TUF A (AMD) chip variants MERGED per D13 — one
   # product per screen size, pattern tolerates optional A/F letter.
   # -------------------------------------------------------------------------

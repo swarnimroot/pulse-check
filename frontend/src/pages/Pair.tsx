@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Select, type SelectOption } from "@/components/atoms";
 import { EvidenceDrawer } from "@/components/EvidenceDrawer";
+import { GlossaryButton } from "@/components/GlossaryDialog";
 import { ApiError, api } from "@/lib/api";
 import type {
   MentionView,
@@ -234,25 +235,28 @@ export function Pair(): JSX.Element {
   return (
     <div className="min-h-screen bg-surface text-fg">
       <main className="mx-auto flex max-w-[1400px] flex-col gap-6 px-8 py-8">
-        <header className="flex flex-col gap-1">
-          <Link
-            to="/"
-            className="self-start text-xs font-medium text-accent hover:text-accent-hover"
-          >
-            ← back
-          </Link>
-          <span className="mt-2 text-xs font-semibold uppercase tracking-wide text-fg-muted">
-            Two products
-          </span>
-          <h1 className="text-xl font-semibold text-fg">
-            Head-to-head comparison
-          </h1>
-          <p className="max-w-[680px] text-xs text-fg-muted">
-            Pick two products. Each row below is one aspect of the laptop —
-            we show how positively or negatively the public talks about it
-            for each side, and which side leads. Click any cell to read the
-            quotes behind the score.
-          </p>
+        <header className="flex items-start justify-between gap-6">
+          <div className="flex flex-col gap-1">
+            <Link
+              to="/"
+              className="self-start text-xs font-medium text-accent hover:text-accent-hover"
+            >
+              ← back
+            </Link>
+            <span className="mt-2 text-xs font-semibold uppercase tracking-wide text-fg-muted">
+              Two products
+            </span>
+            <h1 className="text-xl font-semibold text-fg">
+              Head-to-head comparison
+            </h1>
+            <p className="max-w-[680px] text-xs text-fg-muted">
+              Pick two products. Each row below is one aspect of the laptop —
+              we show how positively or negatively the public talks about it
+              for each side, and which side leads. Click any cell to read the
+              quotes behind the score.
+            </p>
+          </div>
+          <GlossaryButton />
         </header>
 
         <section className="grid grid-cols-[1fr_auto_1fr] items-end gap-6 rounded-md border border-border bg-surface p-5 shadow-card">
@@ -350,7 +354,18 @@ interface PairBodyProps {
 }
 
 function PairBody({ pairState, onCellClick }: PairBodyProps): JSX.Element | null {
-  if (pairState.kind === "idle") return null;
+  if (pairState.kind === "idle") {
+    return (
+      <div className="flex flex-col items-center gap-2 rounded-md border border-dashed border-border bg-surface-alt px-6 py-8 text-center">
+        <p className="text-sm text-fg-secondary">
+          Pick a product on each side to see the head-to-head comparison.
+        </p>
+        <p className="text-xs text-fg-muted">
+          You'll see aspect-by-aspect scores, which side leads on each, and the underlying quotes behind the numbers.
+        </p>
+      </div>
+    );
+  }
   if (pairState.kind === "loading") {
     return <p className="text-sm text-fg-muted">Comparing…</p>;
   }

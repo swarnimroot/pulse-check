@@ -186,6 +186,8 @@ A single mention can have multiple attributions (a Reddit thread citing Area-51 
 
 Unique constraint: `(mention_id, product_id, aspect, taxonomy_version, prompt_version)`. Re-tagging under a new taxonomy version adds rows; does not overwrite.
 
+> **A2 pipeline parked, session 35.** The four A2 tables below (`deliberation_tags`, `reason_tags`, `aggregates_pair_reason`, `pair_win_rates`) remain empty under current runs pending future revival. Decision rationale: Reddit corpus is structurally a comparison venue, not a confirmation venue — too few resolved-to-tracked-product deliberation threads to drive a reliable A2 artifact (0/50 in the v2 gold-set sample). Schema is retained so the work can resume without a migration when the corpus mix changes.
+
 **`deliberation_tags`** — thread-level classification for A2.
 | Column | Type | Notes |
 |---|---|---|

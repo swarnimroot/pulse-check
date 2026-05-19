@@ -6,6 +6,8 @@ import { CitationPanel } from "@/components/CitationPanel";
 import { EvidenceDrawer } from "@/components/EvidenceDrawer";
 import { RunMetaStrip } from "@/components/RunMetaStrip";
 import { Select, type SelectOption } from "@/components/atoms";
+import { GlossaryButton } from "@/components/GlossaryDialog";
+import { BriefExportButton } from "@/components/BriefExportButton";
 import { ApiError, api } from "@/lib/api";
 import type {
   BriefView,
@@ -261,23 +263,26 @@ export function Standalone(): JSX.Element {
     return (
       <main className="min-h-screen bg-surface text-fg">
         <div className="mx-auto flex max-w-[800px] flex-col gap-8 px-8 py-14">
-          <header className="flex flex-col gap-1">
-            <Link
-              to="/"
-              className="self-start text-xs font-medium text-accent hover:text-accent-hover"
-            >
-              ← back
-            </Link>
-            <span className="mt-2 text-xs font-semibold uppercase tracking-wide text-fg-muted">
-              Standalone · A1 voice
-            </span>
-            <h1 className="text-xl font-semibold text-fg">
-              Pick a product to view
-            </h1>
-            <p className="max-w-[560px] text-sm text-fg-secondary">
-              Select a company, then a product. The scorecard and brief load
-              once both are chosen.
-            </p>
+          <header className="flex items-start justify-between gap-6">
+            <div className="flex flex-col gap-1">
+              <Link
+                to="/"
+                className="self-start text-xs font-medium text-accent hover:text-accent-hover"
+              >
+                ← back
+              </Link>
+              <span className="mt-2 text-xs font-semibold uppercase tracking-wide text-fg-muted">
+                Standalone · A1 voice
+              </span>
+              <h1 className="text-xl font-semibold text-fg">
+                Pick a product to view
+              </h1>
+              <p className="max-w-[560px] text-sm text-fg-secondary">
+                Select a company, then a product. The scorecard and brief load
+                once both are chosen.
+              </p>
+            </div>
+            <GlossaryButton />
           </header>
           {allProducts.length > 0 ? (
             <section className="flex flex-col gap-3 rounded-md border border-border bg-surface p-5 shadow-card">
@@ -388,17 +393,25 @@ export function Standalone(): JSX.Element {
       />
 
       <main className="mx-auto flex max-w-[1200px] flex-col gap-10 px-8 py-10">
-        <header className="flex flex-col gap-1">
-          <Link
-            to="/"
-            className="self-start text-xs font-medium text-accent hover:text-accent-hover"
-          >
-            ← back
-          </Link>
-          <span className="mt-2 text-xs font-semibold uppercase tracking-wide text-fg-muted">
-            Standalone · A1 voice
-          </span>
-          <h1 className="text-xl font-semibold text-fg">{product.display_name}</h1>
+        <header className="flex items-start justify-between gap-6">
+          <div className="flex flex-col gap-1">
+            <Link
+              to="/"
+              className="self-start text-xs font-medium text-accent hover:text-accent-hover"
+            >
+              ← back
+            </Link>
+            <span className="mt-2 text-xs font-semibold uppercase tracking-wide text-fg-muted">
+              Standalone · A1 voice
+            </span>
+            <h1 className="text-xl font-semibold text-fg">{product.display_name}</h1>
+          </div>
+          <div className="flex items-start gap-2">
+            <GlossaryButton />
+            {briefState.kind === "ready" && (
+              <BriefExportButton brief={briefState.brief} product={product} />
+            )}
+          </div>
         </header>
 
         {allProducts.length > 0 && (

@@ -92,3 +92,37 @@
     }
   }
 }
+
+/*
+ * Print stylesheet — kicks in when `BriefExportButton` toggles
+ * `body.printing` before `window.print()`. Hides everything except the
+ * single .print-target A4 sheet so the OS print dialog produces a clean
+ * single-page PDF.
+ */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 0;
+  }
+  body.printing {
+    background: #FFFFFF;
+  }
+  body.printing > *:not(.export-overlay) {
+    display: none !important;
+  }
+  body.printing .export-overlay {
+    position: static !important;
+    background: #FFFFFF !important;
+  }
+  body.printing .export-overlay > header {
+    display: none !important;
+  }
+  body.printing .export-overlay > div {
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+  body.printing .a4-sheet {
+    box-shadow: none !important;
+    margin: 0 !important;
+  }
+}

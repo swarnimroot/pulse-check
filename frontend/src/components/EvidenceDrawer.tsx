@@ -9,8 +9,11 @@ import { VerbatimCard } from "@/components/atoms";
  * stays interactive so the operator can re-trigger drill from another row
  * without dismissing.
  *
- * Filters per DESIGN_SYSTEM §4.1: source, verified, recency (no-op v1),
- * intensity. Filter changes update the visible set immediately client-side.
+ * Filters: source, recency (no-op v1), intensity. The verified-purchase
+ * filter is hidden until BestBuy / Amazon retailer-review ingestion lands
+ * (current corpus is Reddit + YouTube + articles only — none carry a
+ * verified-purchase signal, so the filter would always read 0%). Filter
+ * changes update the visible set immediately client-side.
  *
  * 11.2 takes a resolved `mentions` array (fixture data); 11.3 will swap to
  * fetching `/mentions?ids=...` on open.
@@ -55,7 +58,6 @@ export function EvidenceDrawer({
   errorMessage = null,
 }: EvidenceDrawerProps): JSX.Element | null {
   const [source, setSource] = useState<SourceFilter>("all");
-  const [verifiedOnly, setVerifiedOnly] = useState(false);
   const [intensity, setIntensity] = useState<IntensityFilter>("all");
   const [visible, setVisible] = useState(PAGE_SIZE);
 
@@ -70,17 +72,14 @@ export function EvidenceDrawer({
 
   useEffect(() => {
     setVisible(PAGE_SIZE);
-  }, [source, verifiedOnly, intensity, mentions]);
+  }, [source, intensity, mentions]);
 
   const filtered = useMemo(
     () =>
       mentions.filter(
-        (m) =>
-          matchesSource(m, source) &&
-          (!verifiedOnly || m.verified) &&
-          matchesIntensity(m, intensity),
+        (m) => matchesSource(m, source) && matchesIntensity(m, intensity),
       ),
-    [mentions, source, verifiedOnly, intensity],
+    [mentions, source, intensity],
   );
 
   if (!open) return null;
@@ -116,7 +115,7 @@ export function EvidenceDrawer({
           </button>
         </div>
 
-        <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+        <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
           <label className="flex flex-col gap-0.5">
             <span className="text-[11px] uppercase tracking-wide text-fg-muted">source</span>
             <select
@@ -153,15 +152,6 @@ export function EvidenceDrawer({
             >
               <option>all (v1)</option>
             </select>
-          </label>
-          <label className="flex items-center gap-2 self-end pb-1">
-            <input
-              type="checkbox"
-              checked={verifiedOnly}
-              onChange={(e) => setVerifiedOnly(e.target.checked)}
-              className="accent-accent"
-            />
-            <span className="text-xs text-fg-secondary">verified only</span>
           </label>
         </div>
       </header>

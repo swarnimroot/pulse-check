@@ -85,7 +85,7 @@ export function About(): JSX.Element {
             pulse-check
           </span>
           <h1 className="text-2xl font-semibold text-fg">
-            Product listening for executives.
+            Consumer Voice on Gaming Laptops
           </h1>
           <p className="max-w-[680px] text-sm text-fg-secondary">
             Every aggregate on every screen was computed from real public
@@ -100,21 +100,21 @@ export function About(): JSX.Element {
             eyebrow="Per product"
             title="Standalone voice"
             blurb="Single-product scorecard. What people love, what they complain about, across 11 aspects — ranked by mention count, every number drillable."
-            cta="Open standalone →"
+            cta="Open standalone"
             to="/standalone"
           />
           <HomeCard
             eyebrow="Two products"
             title="Head-to-head comparison"
             blurb="Pick two products. See aspect-by-aspect where each one leads, with the underlying quotes one click away."
-            cta="Open comparison →"
+            cta="Open comparison"
             to="/pair"
           />
           <HomeCard
             eyebrow="All products"
             title="Cross-product heatmap"
             blurb="Every tracked product across every aspect on one screen. Tinted by sentiment, click any cell to drill into verbatims."
-            cta="Open heatmap →"
+            cta="Open heatmap"
             to="/compare"
           />
         </section>
@@ -157,7 +157,7 @@ function HomeCard({ eyebrow, title, blurb, cta, to }: HomeCardProps): JSX.Elemen
       </div>
       <Link
         to={to}
-        className="mt-auto text-sm font-medium text-accent hover:text-accent-hover"
+        className="mt-auto inline-flex w-fit items-center justify-center rounded-md border border-accent bg-surface px-4 py-2 text-sm font-medium text-accent transition-colors duration-1 ease-aw hover:bg-accent hover:text-fg-on-accent"
       >
         {cta}
       </Link>
@@ -224,6 +224,7 @@ function SourcesSection({
         type="button"
         onClick={onToggle}
         aria-expanded={open}
+        aria-controls="about-sources-panel"
         className="flex items-center justify-between rounded-md border border-accent-soft bg-accent-soft/40 px-4 py-3 text-left transition-colors duration-1 ease-aw hover:bg-accent-soft/70"
       >
         <span className="flex items-center gap-3">
@@ -241,7 +242,9 @@ function SourcesSection({
           </span>
         </span>
       </button>
-      {open && <SourcesPanel state={state} />}
+      <div id="about-sources-panel">
+        {open && <SourcesPanel state={state} />}
+      </div>
     </section>
   );
 }
@@ -265,6 +268,7 @@ function UnderTheHood({
         type="button"
         onClick={onToggle}
         aria-expanded={open}
+        aria-controls="about-hood-panel"
         className="flex items-center justify-between rounded-md border border-border bg-surface-alt px-4 py-3 text-left transition-colors duration-1 ease-aw hover:bg-surface"
       >
         <span className="flex items-center gap-3">
@@ -287,15 +291,17 @@ function UnderTheHood({
         )}
       </button>
 
-      {open && state.kind === "ready" && (
-        <PipelineExplainer stages={state.summary.pipeline} />
-      )}
-      {open && state.kind === "loading" && (
-        <p className="text-sm text-fg-muted">Loading pipeline…</p>
-      )}
-      {open && state.kind === "error" && (
-        <p className="text-sm text-danger">Couldn't load pipeline: {state.message}</p>
-      )}
+      <div id="about-hood-panel">
+        {open && state.kind === "ready" && (
+          <PipelineExplainer stages={state.summary.pipeline} />
+        )}
+        {open && state.kind === "loading" && (
+          <p className="text-sm text-fg-muted">Loading pipeline…</p>
+        )}
+        {open && state.kind === "error" && (
+          <p className="text-sm text-danger">Couldn't load pipeline: {state.message}</p>
+        )}
+      </div>
     </section>
   );
 }

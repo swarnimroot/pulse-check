@@ -124,6 +124,20 @@ Single elevation. Do not invent more.
 --aw-focus-ring: 0 0 0 2px #FFFFFF, 0 0 0 4px var(--aw-accent);
 ```
 
+Wired globally in `frontend/src/index.css` as `*:focus-visible { box-shadow: var(--aw-focus-ring); outline: none; border-radius: 4px; }` — every interactive element inherits the ring on keyboard focus without per-element opt-in. (Patch, session 35 Wave 4 polish.)
+
+### 2.12 Accessibility patterns (Wave 4 polish, session 35)
+
+- **`prefers-reduced-motion: reduce`** zeros all `animation-duration` / `transition-duration` globally (`frontend/src/index.css`). No per-component opt-in needed.
+- **Accordions** (Sources, Under the hood) carry `aria-expanded` on the trigger plus `aria-controls` pointing at the disclosed panel's `id`. Trigger is a native `<button>`, so Space/Enter activation comes for free.
+- **MultiSelectPopover** (Compare filters, reused on Pair) closes on outside click AND on `Escape` keydown. Both listeners are scoped to `open === true` to avoid global handlers when idle.
+- **Icon-only buttons** carry descriptive `aria-label` — `HeatCell` sentiment buttons announce `"Open evidence for <aspect>, N mentions, net sentiment <s>"`; sort headers announce `"Sort by <column>, ascending/descending/unsorted"`.
+- **Pair idle state** renders an explainer card with copy `"Pick a product on each side to see the head-to-head comparison."` plus a sub-line describing what loads — replaces the prior `null` return so a stakeholder lands on guidance, not a blank panel.
+- **`GlossaryDialog`** (new component, `frontend/src/components/GlossaryDialog.tsx`) — a shared "What are all these numbers?" modal trimmed to **6 entries grouped into 5 sections** (Unit · How we score · How we count · Head-to-head · Output). Trim rationale: drop terms that never appear as labels in the UI (Polarity, Aspect, Verbatim, Citation, Run all dropped or folded into other entries); keep only terms a cold visitor would (a) see on screen AND (b) not guess correctly from context. The "How we count" entry uses sub-bullets (Primary / Secondary / Long-tail side-by-side) since they share a definitional frame. `GlossaryButton` trigger sits at the top-right of every data page header (Standalone landing + product view · Pair · Compare). Closes on outside click and `Escape`. Same content everywhere so vocabulary stays consistent across surfaces.
+- **`EvidenceDrawer` verified-only filter hidden** — the underlying `verified_share` aggregate is structurally 0% across the current corpus because no source ingested today (Reddit / YouTube / articles) carries a `verified_purchase` signal. The filter is hidden in the UI until BestBuy + Amazon retailer-review ingestion lands (Wave 2 deferred). Grid layout updated from `grid-cols-2` to `grid-cols-3` so the remaining three filters (source / intensity / recency-disabled) sit on one row.
+- **`BriefExportButton`** (new component, `frontend/src/components/BriefExportButton.tsx`) — opens a centered modal previewing a single-page A4 one-pager for the current standalone brief, with PDF (browser-print) and HTML (Blob download) export actions in a toolbar above the sheet. Sheet is visual, not text-dump: 4 stat tiles (mentions / pos aspects / neg aspects / avg net) + 11-aspect color-coded chip row + top 3 strengths + top 3 complaints (claim headers only, with bracketed `[n]` cite numbers) + compact citations footer. PDF route adds `body.printing` class → `@media print` rules (`frontend/src/index.css`) hide everything except the `.print-target` sheet so `window.print()` produces a clean A4 file. HTML route serializes `outerHTML` of the sheet into a self-contained `.html` Blob (inline styles throughout, no Tailwind dependency in the saved file). Button uses the Variant A soft-tint treatment (`border-accent-soft bg-accent-soft/40`) so it pairs visually with the `GlossaryButton`. Wired into Standalone today; component is generic over `BriefView` + product metadata so it transplants onto a future Pair brief unchanged.
+- **`GlossaryButton` highlighted** — Variant A soft-tint (`border-accent-soft bg-accent-soft/40`) so the "What are all these numbers?" trigger reads as a discreet invitation. Matches the Sources accordion treatment on About for consistency.
+
 ---
 
 ## 3. Typography
@@ -341,7 +355,7 @@ Custom dropdown (not native `<select>`). Click-toggle list anchored to the trigg
 Default landing route. Three-card executive home, locked sessions 32–33.
 
 - Title + 1-line intro: `pulse-check surfaces what owners are actually saying about your products.`
-- **Three product cards** in a row: `Standalone voice` (links to `/standalone` empty-state picker) · `Head-to-head` (links to `/pair`) · `Cross-product heatmap` (links to `/compare`). Each card carries one line of plain-English framing for a non-technical reader.
+- **Three product cards** in a row: `Standalone voice` (links to `/standalone` empty-state picker) · `Head-to-head` (links to `/pair`) · `Cross-product heatmap` (links to `/compare`). Each card carries one line of plain-English framing for a non-technical reader. CTA on each card is a **purple-outlined button** (`border-accent bg-surface text-accent`) that flips to **solid purple on hover** (`hover:bg-accent hover:text-fg-on-accent`) — patched session 35 from text-hyperlink-with-arrow to proper button affordance.
 - **RunMetaStrip** below the cards: run id · product count · last-refreshed timestamp (live counts from `GET /api/home`).
 - **Sources accordion** (accent-soft tinted, sits OUTSIDE the Under-the-hood block): collapsible 3-column table of subreddits + YouTube channels + review sites driven by `GET /api/sources` reading the run + RSS YAMLs at request time.
 - **Under-the-hood** collapsible (surface-alt tinted, below Sources): plain-English pipeline explainer + stage counts.
@@ -357,6 +371,7 @@ A1 product voice page. Locked layout per session-13, refined session 33.
 3. Sub-header: product name h1 · `<n> mentions · <window>` (drillable count opens drawer with all mention_ids).
 4. **Two-column scroller:** §5.1 — left positive | right negative. Each column has Primary / Secondary / Long-tail sub-sections (sticky sub-headers) inside one scroll viewport per column; max-height anchors the BriefPanel below at a stable y across all products.
 5. **BriefPanel:** §5.2 — card-per-claim render with header on its own line + claim_text below.
+6. **Header actions cluster (top-right, session 35):** `What are all these numbers?` glossary trigger pill + `Export brief` trigger pill (visible only when a brief is loaded). Both use soft-lavender tint (`border-accent-soft bg-accent-soft text-accent`). Export opens a centered overlay with a single-page A4 preview (4 stat tiles + 11-aspect color-coded chip row + top 3 strengths + top 3 complaints + citations footer) and two actions: Save as PDF (browser `window.print()` with `@media print` rules hiding everything except the sheet) and Download HTML (Blob download with inlined styles, self-contained). Overlay uses `backdrop-blur-md` to defocus page content behind it.
 
 Empty state when no `productId` in route (or `/standalone` itself): Company → Product picker card. **No default product is auto-selected** on landing or on Company-change — visitor must explicitly pick a product before any content renders (operator-locked, session 33).
 

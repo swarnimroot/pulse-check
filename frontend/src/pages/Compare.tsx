@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { EvidenceDrawer } from "@/components/EvidenceDrawer";
+import { GlossaryButton } from "@/components/GlossaryDialog";
 import { ApiError, api } from "@/lib/api";
 import type {
   CompareCell,
@@ -130,6 +131,7 @@ function HeatCell({ cell, topBorder, onClick }: HeatCellProps): JSX.Element {
       type="button"
       onClick={onClick}
       title={`${cell.aspect} · net ${sign}${cell.net_sentiment.toFixed(2)} · ${cell.total_mentions} mention${cell.total_mentions === 1 ? "" : "s"}`}
+      aria-label={`Open evidence for ${cell.aspect}, ${cell.total_mentions} mention${cell.total_mentions === 1 ? "" : "s"}, net sentiment ${sign}${cell.net_sentiment.toFixed(2)}`}
       className={`flex h-9 w-full cursor-zoom-in items-center justify-center border-r border-b border-border px-2 transition-[filter] duration-1 ease-aw hover:brightness-95 group-hover:brightness-[0.97] ${cellBgClass(tone)} ${topBorder}`}
     >
       <span className="tabular text-[11px] font-medium text-fg-secondary">
@@ -240,6 +242,16 @@ function MultiSelectPopover({
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  // Escape key → close.
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: KeyboardEvent): void => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
   }, [open]);
 
   const allSelected = selected.size === items.length;
@@ -633,26 +645,29 @@ export function Compare(): JSX.Element {
   return (
     <div className="min-h-screen bg-surface text-fg">
       <main className="mx-auto flex max-w-[1400px] flex-col gap-6 px-8 py-8">
-        <header className="flex flex-col gap-1">
-          <Link
-            to="/"
-            className="self-start text-xs font-medium text-accent hover:text-accent-hover"
-          >
-            ← back
-          </Link>
-          <span className="mt-2 text-xs font-semibold uppercase tracking-wide text-fg-muted">
-            Compare · cross-product
-          </span>
-          <h1 className="text-xl font-semibold text-fg">
-            Aspect heatmap — gaming laptops
-          </h1>
-          {state.kind === "ready" && (
-            <p className="text-xs text-fg-muted">
-              run · {state.data.run_id ?? "(no run with data)"} ·{" "}
-              {state.data.products.length} product
-              {state.data.products.length === 1 ? "" : "s"}
-            </p>
-          )}
+        <header className="flex items-start justify-between gap-6">
+          <div className="flex flex-col gap-1">
+            <Link
+              to="/"
+              className="self-start text-xs font-medium text-accent hover:text-accent-hover"
+            >
+              ← back
+            </Link>
+            <span className="mt-2 text-xs font-semibold uppercase tracking-wide text-fg-muted">
+              Compare · cross-product
+            </span>
+            <h1 className="text-xl font-semibold text-fg">
+              Aspect heatmap — gaming laptops
+            </h1>
+            {state.kind === "ready" && (
+              <p className="text-xs text-fg-muted">
+                run · {state.data.run_id ?? "(no run with data)"} ·{" "}
+                {state.data.products.length} product
+                {state.data.products.length === 1 ? "" : "s"}
+              </p>
+            )}
+          </div>
+          <GlossaryButton />
         </header>
 
         {state.kind === "loading" && (
@@ -757,6 +772,7 @@ export function Compare(): JSX.Element {
                         type="button"
                         onClick={() => onHeaderClick({ kind: "company" })}
                         title={`sort by company${companyActive ? " (click to cycle)" : ""}`}
+                        aria-label={`Sort by company, ${companyActive ? (sortBy.dir === "asc" ? "ascending" : "descending") : "unsorted"}`}
                         className={`sticky top-0 left-0 z-30 flex h-9 cursor-pointer items-center gap-1 border-r border-b border-border bg-surface-alt px-3 text-[11px] font-semibold uppercase tracking-wide transition-[filter] duration-1 ease-aw hover:brightness-95 ${companyActive ? "text-accent" : "text-fg-secondary"}`}
                       >
                         <span>company</span>
@@ -789,6 +805,7 @@ export function Compare(): JSX.Element {
                           onHeaderClick({ kind: "aspect", aspect: a })
                         }
                         title={`${a} — sort by sentiment${active ? " (click to cycle)" : ""}`}
+                        aria-label={`Sort by ${aspectLabel(a)} sentiment, ${active ? (sortBy.dir === "asc" ? "ascending" : "descending") : "unsorted"}`}
                         className={`sticky top-0 z-20 flex h-9 cursor-pointer items-center justify-center gap-1 border-r border-b border-border bg-surface-alt px-2 text-center text-[11px] font-semibold tracking-wide transition-[filter] duration-1 ease-aw hover:brightness-95 ${active ? "text-accent" : "text-fg-secondary"}`}
                       >
                         <span className="truncate">{aspectLabel(a)}</span>

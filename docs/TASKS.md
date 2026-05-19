@@ -2,8 +2,8 @@
 
 Wave-by-wave forward plan. Each wave is a flat checklist of high-level deliverables. Sub-bite breakdowns + per-bite breadcrumbs live in [`SESSION_LOG.md`](SESSION_LOG.md) (the historical record).
 
-**Status:** Wave 2 ✅ substantively ships. Wave 5 Stage A + B complete: all 53 in-corpus products tagged + aggregated + briefed under `run_wave5_v1` (6/59 products skipped — zero qualifying mentions). Brief schema bumped to `a1_brief_v2` with per-claim `header` field rendered as card-per-claim (DESIGN_SYSTEM §5.2 patched session 33). UI shipped: 3-card home page (Standalone voice · Head-to-head · Cross-product heatmap) with separate Sources accordion + collapsible "Under the hood" pipeline explainer; Standalone empty-state Company/Product picker (no default product); Head-to-head Pair page (A1-based, 3-count tiles + single combined table sorted by combined mention count, leader-side accent ring); Cross-product heatmap polished (multi-select popovers · Company column with brand banners · sortable headers on `Company` + 11 aspects with asc/desc/clear cycle · color-scale legend above the grid · row-hover dim affordance · cascading Company → Size → Product filters · screen-size regex now recovers `16x` / `16s` / `Z13` / `X16` and size-less products). DESIGN_SYSTEM §6.1 / §6.3 / §6.4 patched session 34 to match shipped reality. Public deployment live via Tailscale Funnel: uvicorn :8765 → `/pulse-check`. README is the operator runbook. Wave 3 A2 path still pending (deliberation corpus thin). Waves 4–6 ahead.
-**Active:** Pre-bite forks — Wave 3 A2 path · Sonnet aspect-labeler iteration. **623/623 unit tests · mypy clean (125 src) · ruff clean.** All `[ ]` items in Waves 3-5 audit-verified truly incomplete (post-wrap, session 34); two subagent false-positives caught and rejected.
+**Status:** Wave 2 ✅ substantively ships. Wave 5 Stage A + B complete: all 53 in-corpus products tagged + aggregated + briefed under `run_wave5_v1` (6/59 products skipped — zero qualifying mentions). Brief schema bumped to `a1_brief_v2` with per-claim `header` field rendered as card-per-claim (DESIGN_SYSTEM §5.2 patched session 33). UI shipped: 3-card home page (Standalone voice · Head-to-head · Cross-product heatmap), now with **purple-outlined button CTAs** instead of text-hyperlinks (session 35); separate Sources accordion + collapsible "Under the hood" pipeline explainer; Standalone empty-state Company/Product picker (no default product); Head-to-head Pair page (A1-based, 3-count tiles + single combined table sorted by combined mention count, leader-side accent ring, Pair idle-state explainer card added session 35); Cross-product heatmap polished (multi-select popovers · Company column with brand banners · sortable headers on `Company` + 11 aspects with asc/desc/clear cycle · color-scale legend above the grid · row-hover dim affordance · cascading Company → Size → Product filters · screen-size regex now recovers `16x` / `16s` / `Z13` / `X16` and size-less products). All three data pages carry a **soft-lavender `What are all these numbers?` glossary trigger** (session 35; 6 entries × 5 sections); Standalone additionally carries an **`Export brief` trigger** (session 35) opening a centered overlay with a single-page A4 one-pager and Save-as-PDF / Download-HTML actions. ASUS / ASUS ROG merged into a single `ASUS` brand at both the YAML config and DB `products`-table layer (session 35). `EvidenceDrawer` verified-only filter hidden (corpus has zero verified-purchase signal until BestBuy/Amazon ingestion lands). DESIGN_SYSTEM §6.1 / §6.2 / §6.3 / §6.4 + §2.11 / §2.12 patched session 35 to match shipped reality; ARCHITECTURE §3.2 annotates A2 schema tables as parked. Wave 3 A2 path **parked** (Reddit corpus structurally thin on resolved deliberation; tables retained empty in schema for future revival). Public deployment live via Tailscale Funnel: uvicorn :8765 → `/pulse-check`. README is the operator runbook.
+**Active:** Operator brief-review walk pending · reproducibility re-run · stakeholder prep packet · (optional) Pair brief workflow to unlock the export button on the head-to-head surface. **623/623 unit tests · mypy clean (125 src) · ruff clean · frontend tsc + vite build green.** Current frontend bundle: `index-04ofWvva.js`. Migration head: `eb05da255474` (unchanged).
 **Last reconciled:** 2026-05-19
 
 **Waiting on operator action (cross-wave):**
@@ -69,6 +69,8 @@ Wave-by-wave forward plan. Each wave is a flat checklist of high-level deliverab
 
 ## Wave 3 — Aspect 2 (A2 — comparative pairs)
 
+**Parked, session 35.** Decision rationale: Reddit corpus is a comparison venue, not a confirmation venue — too few resolved-to-tracked-product deliberation threads to drive a reliable A2 artifact (0/50 in the v2 gold-set sample). All Wave 3 items below remain unchecked pending future revival; A2 schema tables retained empty in the DB. The head-to-head surface continues to ship as the A1-derived `/pair` page (A1 aggregate diffs only; no A2-driven brief layer).
+
 **Goal:** Full A2 pair view for all 10 demo pairs; deliberation + outcome + reason classifiers pass thresholds.
 **Exit:** Deliberation ≥85% · outcome ≥85% · reason ≥80% · intensity ≥80% · `/pair/:id` renders WinRateHeader + ReasonRows + BriefPanel for all 10 pairs · all briefs citation-validated.
 
@@ -98,10 +100,10 @@ Wave-by-wave forward plan. Each wave is a flat checklist of high-level deliverab
 - [ ] Eval iteration on any classifier near but below threshold
 - [ ] Gold-set refinement (add difficult edge cases from spot-check)
 - [ ] Design-system full rollout (tokens, font loading, all shadcn components themed)
-- [ ] Empty states ("fewer than 100 mentions", "no resolved threads", "no data yet")
-- [ ] Loading skeletons (shadcn defaults)
-- [ ] Error states (API failure, stale data, malformed response)
-- [ ] Accessibility (focus rings, keyboard nav, screen-reader labels, `prefers-reduced-motion`)
+- [x] Empty states (About / Standalone / Compare already shipped; Pair idle-state explainer card added — "Pick a product on each side")
+- [ ] Loading skeletons (shadcn defaults) — text-based "Loading…" fallbacks shipped; visual skeleton component deferred
+- [x] Error states (API failure, stale data, malformed response) — error cards with retry on all 4 pages
+- [x] Accessibility — global `*:focus-visible` ring + `prefers-reduced-motion` rule already in `index.css`; Wave 4 polish added `aria-controls` on accordions, `Escape`-to-close on MultiSelectPopover, descriptive `aria-label` on HeatCell sentiment buttons + sort headers
 - [ ] Performance (drawer pagination >500 mentions, aggregate query indexes)
 - [ ] Tombstoning (`verify_mentions` job wired + UI badge + fixture integration test)
 - [ ] Full brief-generation integration test on fixture corpus (carries the Wave 2 deferral)
@@ -147,9 +149,14 @@ Wave-by-wave forward plan. Each wave is a flat checklist of high-level deliverab
 **Goal:** Slippage absorption; optional polish if Waves 1–5 land on time.
 
 - [x] README refresh as operator runbook (orchestrator-first path · monthly refresh procedure · public deployment via Tailscale Funnel + uvicorn :8765 · granular controls subsection · fixed script names + npm)
+- [x] PDF + HTML brief export (single-page A4 one-pager via `BriefExportButton`: 4 stat tiles + 11-aspect chip row + top 3 strengths/complaints + citations footer. PDF route = browser `window.print()` + `@media print` stylesheet. HTML route = Blob download with inlined styles. Wired on Standalone; component generic over `BriefView` so it transplants onto a future Pair brief.)
+- [x] Glossary modal (`GlossaryDialog`, "What are all these numbers?") on Standalone / Pair / Compare — 6 entries × 5 sections (drop-rule: term must appear on screen AND be non-obvious to a cold visitor)
+- [x] ASUS / ASUS ROG brand merge — single `ASUS` brand with 14 products in both `configs/product_set_gaming_laptops_2026.yaml` AND `data/pulse_check.db` `products` table (9 ROG rows UPDATE'd at the DB layer; YAML alone is insufficient since `/api/products` reads from DB at request time)
+- [x] Home page CTAs converted from text-hyperlinks to purple-outlined buttons (`Open standalone` / `Open comparison` / `Open heatmap`) — flips to solid purple on hover
+- [x] `EvidenceDrawer` verified-only filter hidden (corpus has zero `verified_purchase` signal until BestBuy/Amazon ingestion lands; aggregator + schema column retained)
 - [ ] Attribution regex refinement from scrape findings
 - [ ] Deferred non-blocking items from Open Questions
-- [ ] (Optional v1.5) PDF/markdown brief export, rolling-forward scheduler, tombstoning retention policy
+- [ ] (Optional v1.5) Markdown brief export, rolling-forward scheduler, tombstoning retention policy
 
 ---
 
