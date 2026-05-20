@@ -15,16 +15,23 @@ Public surface:
     ``verify_url`` over a thread pool, persist tombstones via the
     SQLAlchemy session with periodic commits so a mid-run kill keeps
     partial progress (mirrors ``feedback_long_llm_batch_commits``).
+    Reddit-host URLs (``*.reddit.com``) are serialized through a
+    per-domain lock + sleep to dodge the anonymous-concurrent-HEAD 429s
+    that dominated session-38's dry-run.
 """
 
 from __future__ import annotations
 
 import logging
 import socket
+import threading
+import time
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Literal
+from urllib.parse import urlparse
 
 import httpx
 from sqlalchemy import select
@@ -43,7 +50,21 @@ _USER_AGENT = (
 )
 _DEFAULT_TIMEOUT = httpx.Timeout(10.0, connect=5.0)
 
+# Reddit aggressively rate-limits anonymous concurrent HEAD requests; session-38
+# dry-run at workers=16 returned 90.6% http_429 on the reddit-dominated corpus.
+# Serialize reddit-host calls and space them with a sleep gate.
+DEFAULT_REDDIT_THROTTLE_SEC = 1.5
+
 TombstoneReason = Literal["http_404", "http_410", "dns_fail", "conn_refused"]
+
+
+def _is_reddit_host(url: str) -> bool:
+    """True for ``reddit.com`` and any subdomain (``www.``, ``old.``, ``m.``)."""
+    try:
+        host = (urlparse(url).hostname or "").lower()
+    except ValueError:
+        return False
+    return host == "reddit.com" or host.endswith(".reddit.com")
 
 
 @dataclass(frozen=True)
@@ -135,27 +156,44 @@ def verify_all_pending(
     workers: int = 16,
     commit_every: int = 100,
     dry_run: bool = False,
+    reddit_throttle_sec: float = DEFAULT_REDDIT_THROTTLE_SEC,
+    sleep_fn: Callable[[float], None] = time.sleep,
 ) -> BatchStats:
-    """Verify every ``Mention`` with ``tombstoned_at IS NULL`` and persist."""
+    """Verify every ``Mention`` with ``tombstoned_at IS NULL`` and persist.
+
+    ``*.reddit.com`` URLs are processed one-at-a-time through ``reddit_lock``
+    with a ``sleep_fn(reddit_throttle_sec)`` gate to dodge anonymous-concurrent
+    rate-limits. Non-reddit URLs use the full ``workers`` thread pool.
+    """
     query = select(Mention.mention_id, Mention.source_url).where(
         Mention.tombstoned_at.is_(None)
     )
     if limit is not None:
         query = query.limit(limit)
     rows = [(mid, url) for mid, url in session.execute(query).all()]
+    reddit_count = sum(1 for _, url in rows if _is_reddit_host(url))
     log.info(
-        "verifying %d mentions (workers=%d, dry_run=%s)",
+        "verifying %d mentions (workers=%d, dry_run=%s, reddit=%d @ %.2fs)",
         len(rows),
         workers,
         dry_run,
+        reddit_count,
+        reddit_throttle_sec,
     )
 
     stats = BatchStats()
     now = datetime.now(UTC)
+    reddit_lock = threading.Lock()
 
     def _check(row: tuple[str, str]) -> tuple[str, VerifyResult]:
         mention_id, url = row
-        return mention_id, verify_url(client, url)
+        if _is_reddit_host(url):
+            with reddit_lock:
+                result = verify_url(client, url)
+                sleep_fn(reddit_throttle_sec)
+        else:
+            result = verify_url(client, url)
+        return mention_id, result
 
     with ThreadPoolExecutor(max_workers=workers) as pool:
         futures = [pool.submit(_check, row) for row in rows]

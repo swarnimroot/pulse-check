@@ -1,5 +1,5 @@
 import path from "node:path";
-import { defineConfig } from "vite";
+import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 
 // `base: "./"` makes built asset URLs relative ("./assets/foo.js") so the
@@ -18,5 +18,11 @@ export default defineConfig({
   server: {
     port: 5173,
     strictPort: true,
+  },
+  test: {
+    globals: false,
+    environment: "jsdom",
+    setupFiles: ["./src/test-setup.ts"],
+    css: false,
   },
 });

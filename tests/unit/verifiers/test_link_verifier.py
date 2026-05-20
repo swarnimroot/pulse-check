@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import socket
+import threading
+import time
 from collections.abc import Callable
 from datetime import UTC, datetime
 
@@ -238,3 +240,86 @@ def test_verify_all_pending_honors_limit(session: Session) -> None:
         stats = verify_all_pending(session, c, workers=1, limit=2)
 
     assert stats.checked == 2
+
+
+# --------------------------------------------------------------------------- #
+# verify_all_pending — reddit throttle
+# --------------------------------------------------------------------------- #
+
+
+def test_verify_all_pending_serializes_reddit_calls(session: Session) -> None:
+    """Reddit URLs flow through the per-domain lock one-at-a-time even when
+    ``workers`` would otherwise let them overlap."""
+    _seed_mention(session, "r1", "https://www.reddit.com/r/foo/1")
+    _seed_mention(session, "r2", "https://old.reddit.com/r/foo/2")
+    _seed_mention(session, "r3", "https://m.reddit.com/r/foo/3")
+    session.commit()
+
+    state = {"current": 0, "max": 0}
+    state_lock = threading.Lock()
+
+    def handler(req: httpx.Request) -> httpx.Response:
+        with state_lock:
+            state["current"] += 1
+            state["max"] = max(state["max"], state["current"])
+        time.sleep(0.02)  # window for unthrottled overlap to manifest
+        with state_lock:
+            state["current"] -= 1
+        return httpx.Response(200)
+
+    with _client(handler) as c:
+        verify_all_pending(
+            session,
+            c,
+            workers=4,
+            reddit_throttle_sec=0.0,
+            sleep_fn=lambda _: None,
+        )
+
+    assert state["max"] == 1
+
+
+def test_verify_all_pending_sleeps_only_for_reddit(session: Session) -> None:
+    """``sleep_fn`` fires once per reddit URL; non-reddit URLs skip it."""
+    _seed_mention(session, "r1", "https://www.reddit.com/r/foo/1")
+    _seed_mention(session, "r2", "https://old.reddit.com/r/foo/2")
+    _seed_mention(session, "e1", "https://example.com/p1")
+    session.commit()
+
+    sleeps: list[float] = []
+
+    with _client(lambda req: httpx.Response(200)) as c:
+        verify_all_pending(
+            session,
+            c,
+            workers=1,
+            reddit_throttle_sec=1.5,
+            sleep_fn=sleeps.append,
+        )
+
+    assert sleeps == [1.5, 1.5]
+
+
+def test_verify_all_pending_throttles_reddit_subdomain_variants(
+    session: Session,
+) -> None:
+    """Match ``reddit.com`` and its subdomains; sibling hosts skip the throttle."""
+    _seed_mention(session, "m1", "https://www.reddit.com/r/foo/1")
+    _seed_mention(session, "m2", "https://old.reddit.com/r/foo/2")
+    _seed_mention(session, "m3", "https://m.reddit.com/r/foo/3")
+    _seed_mention(session, "m4", "https://reddit.com/r/foo/4")
+    _seed_mention(session, "m5", "https://notreddit.com/foo/5")
+    session.commit()
+
+    sleeps: list[float] = []
+
+    with _client(lambda req: httpx.Response(200)) as c:
+        verify_all_pending(
+            session,
+            c,
+            workers=1,
+            reddit_throttle_sec=0.1,
+            sleep_fn=sleeps.append,
+        )
+
+    assert len(sleeps) == 4

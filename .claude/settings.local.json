@@ -253,7 +253,14 @@
       "Bash(xargs grep -l \"llm_cache\")",
       "PowerShell(Get-Content *)",
       "Bash(.venv/Scripts/alembic current *)",
-      "Bash(npx vite *)"
+      "Bash(npx vite *)",
+      "Bash(del scripts\\\\refresh_quarterly.bat)",
+      "Bash(Find C:\\\\Users\\\\AW-testing\\\\Downloads\\\\Workspace\\\\pulse-check *)",
+      "Bash(xargs grep -l \"MultiSelectPopover\\\\|PickerColumn\\\\|CountTile\\\\|HeatCell\")",
+      "Bash(xargs basename -a)",
+      "Bash(findstr /R \"passed failed warning\")",
+      "Bash(Select-Object Name)",
+      "Bash(npx vitest *)"
     ]
   }
 }

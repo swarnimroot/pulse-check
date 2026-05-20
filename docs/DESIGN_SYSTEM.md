@@ -414,6 +414,14 @@ Shipped session 32, redesigned session 33. Two `PickerColumn` sides — no auto-
 
 `frontend/src/pages/Showcase.tsx` — visual-QA page rendering every atom and composite against fixture data. Not wired into the production navigation; reachable only by manually loading `#/showcase` during frontend development. Kept in-tree so a designer can eyeball every atom/composite without spinning up the full pipeline. (Session-39 audit: noted in §6 inventory after missing from §6.1–§6.4 since session 32 introduction.)
 
+### 6.6 WelcomeModal (overlay on `#/` fresh visits)
+
+`frontend/src/components/WelcomeModal.tsx` — overlay shown on every fresh App mount that lands on `#/`. In-app navigation does NOT re-trigger; state is captured once via `useState(() => location.pathname === "/")` in `App.tsx`. F5 / new tab / direct URL re-mounts App and re-opens.
+
+Layout: white card on `bg-fg/40 backdrop-blur-md` scrim, max-width `3xl`. Header carries the `pulse-check` eyebrow + "At a glance" title + close `X`. Body is a `grid-cols-3` of three sections — `AlertCircle` / `Sparkles` / `Users` lucide icons + eyebrow + 1-line body + inline SVG diagram (scattered sources → faded "?", funnel mentions → 11 aspect bars → brief card, 4-persona row with "quarterly cadence" caption). A `bg-surface-alt/40` band below carries "How each function uses it" with 4 purple-pill rows (PM / Mkt / Eng / Sales) + one-line use cases. Footer is a single `bg-accent` Got-it CTA.
+
+Dismissal — all four routes call the same `onClose`: X button (top-right), backdrop click (with `stopPropagation` on the inner card so content clicks don't dismiss), Escape keydown (document listener), Got-it CTA. (Session-40 addition. Operator-confirmed lock: shows on every fresh page-load of `/` — `localStorage`/`sessionStorage` deliberately not used.)
+
 ---
 
 ## 7. Anti-patterns

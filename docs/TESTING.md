@@ -171,15 +171,20 @@ Without these tests, evidence-first is aspirational. With them, it's enforced.
 
 ---
 
-## 7. Frontend tests (`frontend/src/**/__tests__/`)
+## 7. Frontend tests (`frontend/src/**/*.test.{ts,tsx}`)
 
-- **Component tests** via vitest + @testing-library/react. Focus on behavior, not implementation.
-    - VerbatimCard renders all metadata chips that have values; skips chips with null values; shows tombstone badge when `tombstoned_at` is set.
-    - AggregateNumber is role="button", has descriptive aria-label, triggers drawer on click.
-    - BriefPanel citation markers open the evidence panel on click and show tooltip on hover.
-    - EvidenceDrawer filters apply correctly.
-- **API client tests** — mock the FastAPI backend, verify request shapes + response parsing.
-- **No visual regression / screenshot tests** for v1 — manual review of screenshots during wave-close suffices.
+**Stack** — Vitest + `@testing-library/react` + `@testing-library/jest-dom` on jsdom. Co-located test files next to source (no separate `__tests__/` directory). Setup file at `src/test-setup.ts` registers jest-dom matchers and auto-cleans the DOM between tests. Config lives in `vite.config.ts` under the `test` block, using `defineConfig` from `vitest/config` so the `test` field type-checks.
+
+**Commands** — `npm test` (watch mode) and `npm run test:run` (one-shot; current 13 tests run in ~1.5s).
+
+**Current coverage (session 40):**
+
+- `src/lib/exportMarkdown.test.ts` — 5 tests on the pure `briefToMarkdown` function: H1 + brand/window/run-id header, 11-aspect canonical-order table with em-dash fallbacks for no-data rows, `[n, m]` citation refs from caller-provided number map, empty-strengths and empty-complaints fallback strings, Citations section toggles on `citedIds.length > 0`.
+- `src/components/WelcomeModal.test.tsx` — 8 tests on the welcome modal: renders on `open=true`, returns null on `open=false`, X button calls `onClose`, Got-it button calls `onClose`, Escape keydown calls `onClose`, backdrop click calls `onClose`, inner-content click does NOT (stopPropagation boundary), all three section eyebrows + 4 use-case row bodies present in DOM.
+
+**Mocking strategy** — pure functions tested with hand-built fixture inputs (typed against the same `@/lib/types` shapes as production). Component tests use `fireEvent` from RTL for click/keydown synthetic events; `vi.fn()` for `onClose` spies. No API-call / network tests in scope yet — `fetch` paths remain stubbed via the data-loader contracts and are exercised by manual operator review, not unit tests.
+
+**No visual regression / screenshot tests** for v1 — manual operator review during wave-close suffices.
 
 ---
 

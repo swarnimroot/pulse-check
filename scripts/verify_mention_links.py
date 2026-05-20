@@ -20,7 +20,10 @@ import httpx
 
 from pulse_check.logging_config import configure_logging
 from pulse_check.storage.session import session_scope
-from pulse_check.verifiers.link_verifier import verify_all_pending
+from pulse_check.verifiers.link_verifier import (
+    DEFAULT_REDDIT_THROTTLE_SEC,
+    verify_all_pending,
+)
 
 log = logging.getLogger("pulse_check.scripts.verify_mention_links")
 
@@ -56,6 +59,15 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
         default=100,
         help="Commit after every N checks; smaller = more durable, slower.",
     )
+    parser.add_argument(
+        "--reddit-throttle-sec",
+        type=float,
+        default=DEFAULT_REDDIT_THROTTLE_SEC,
+        help=(
+            "Seconds between reddit-host HEAD requests (serialized "
+            "regardless of --workers). 0 disables the throttle."
+        ),
+    )
     return parser.parse_args(argv)
 
 
@@ -74,6 +86,7 @@ def main(argv: list[str] | None = None) -> int:
             workers=args.workers,
             commit_every=args.commit_every,
             dry_run=args.dry_run,
+            reddit_throttle_sec=args.reddit_throttle_sec,
         )
 
     log.info(
