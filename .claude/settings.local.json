@@ -232,7 +232,26 @@
       "Bash(C:/Users/AW-testing/Downloads/Workspace/pulse-check/.venv/Scripts/python.exe *)",
       "PowerShell(Stop-Process *)",
       "PowerShell(netstat *)",
-      "Bash(npx tsc *)"
+      "Bash(npx tsc *)",
+      "Bash(grep -o \"Battery life stands out\\\\|cited_mention_ids\\\\|font-semibold text-fg\\\\\\\\\\\\\\\\?\\\\\"\\\\|header.*claim_text\" frontend/dist/assets/index-Be8FJ5j3.js)",
+      "Bash(Sort-Object LastWriteTime -Descending)",
+      "Bash(Select-Object -First 3)",
+      "Bash(Select-Object -First 20)",
+      "Bash(uv run *)",
+      "Bash(xargs grep -l \"pair_win_rate\\\\|pair_reason\\\\|addressability\\\\|pair_brief\")",
+      "Bash(xargs grep -l \"verify_mentions\")",
+      "Bash(findstr \"LISTENING\")",
+      "Bash(findstr \":8000 :8765\")",
+      "Bash(sqlite3 data/pulse_check.db \".tables\")",
+      "Bash(sqlite3 data/pulse_check.db \"SELECT name FROM sqlite_master WHERE type='table' AND name LIKE '%product%';\")",
+      "Bash(npx --prefix frontend tsc -p frontend/tsconfig.app.json --noEmit)",
+      "PowerShell(.venv/Scripts/python.exe -m pytest tests/unit/ -q)",
+      "PowerShell(.venv/Scripts/python.exe -m mypy pulse_check/ tests/ scripts/)",
+      "PowerShell(.venv/Scripts/python.exe -m ruff check pulse_check/ tests/ scripts/)",
+      "Bash(PYTHONIOENCODING=utf-8 python *)",
+      "Bash(Select-Object Name, Length)",
+      "Bash(xargs grep -l \"llm_cache\")",
+      "PowerShell(Get-Content *)"
     ]
   }
 }

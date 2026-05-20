@@ -42,3 +42,6 @@ Thumbs.db
 .idea/
 *.swp
 *~
+
+# Claude Code runtime
+.claude/scheduled_tasks.lock
