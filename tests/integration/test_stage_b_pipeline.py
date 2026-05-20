@@ -224,6 +224,47 @@ def test_aggregate_then_synthesize_persists_valid_brief(
     assert issues["is_valid"] is True
 
 
+def test_aggregate_excludes_tombstoned_mentions(session: Session) -> None:
+    """A tombstoned mention is dropped from polarity counts, total_mentions
+    and ``mention_ids`` — its aspect tag still exists in the DB, but the
+    aggregator stops surfacing it once the URL goes dead."""
+    _seed_post_classifier_corpus(session)
+
+    # Tombstone two of the four negatives. Expected effect on the
+    # THERMALS aggregate: 6 → 4 mentions, polarity_counts {neg: 4 → 2,
+    # pos: 2}, net_sentiment 0 (= (2 - 2) / 4).
+    for dead_id in ("m1", "m2"):
+        dead = session.get(Mention, dead_id)
+        assert dead is not None
+        dead.tombstoned_at = _NOW
+        dead.tombstone_reason = "http_404"
+    session.flush()
+
+    stats = aggregate_a1(
+        session,
+        run_id=_RUN,
+        product_ids=[_PRODUCT_ID],
+        taxonomy_version=_TAX,
+        prompt_version=_PROMPT,
+        now=_NOW,
+    )
+    session.commit()
+
+    assert stats.aggregates_upserted == 1
+    assert stats.mentions_contributing == 4
+
+    aggregate = (
+        session.query(AggregateAspectSku)
+        .filter_by(run_id=_RUN, product_id=_PRODUCT_ID)
+        .one()
+    )
+    assert aggregate.total_mentions == 4
+    assert aggregate.polarity_counts["negative"] == 2
+    assert aggregate.polarity_counts["positive"] == 2
+    assert aggregate.net_sentiment == pytest.approx(0.0)
+    assert set(aggregate.mention_ids) == {"m3", "m4", "m5", "m6"}
+
+
 def test_synthesize_retries_brief_on_fabricated_citation(
     session: Session,
     monkeypatch: pytest.MonkeyPatch,

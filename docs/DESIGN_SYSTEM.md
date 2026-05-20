@@ -189,7 +189,7 @@ Tones (from `CHIP_TONES` in prototype `atoms.jsx`):
 | `messaging` / `software` / `hardware` / `pricing` / `mixed` | A2 addressability (Wave 3) |
 | `meta` | Generic neutral metadata (e.g., `↑ 142`, `★ 4.5`) |
 | `verified` | Verified-purchase signal |
-| `tombstone` | Deleted/no-longer-available marker (deferred per session-13 lock) |
+| `tombstone` | "link dead" marker on VerbatimCard tag row 2 when `MentionView.tombstoned_at` is set (session 38). Styling: `bg-surface-alt text-fg-muted italic` — muted by design so a dead link doesn't visually compete with live citation signals. |
 
 **Geometry:** 18px height, 6px horizontal padding, 2px radius (`--aw-radius-sm`), 11px text, 500 weight.
 
@@ -241,9 +241,9 @@ The single most-rendered atom on the page. Section order, top-to-bottom:
 2. **Posted date · author** (muted, 11px).
 3. **Quote** in a left-bordered blockquote, 13px, 1.5 line height. Truncate at 180 chars with show-more / show-less.
 4. **Tag row 1:** aspect-polarity chip + intensity chip.
-5. **Tag row 2 (only if data exists):** `verified purchase` (when present) + `↑ <upvotes>` (Reddit only) + `★ <rating>` (retailer only).
+5. **Tag row 2 (only if data exists):** `verified purchase` (when present) + `↑ <upvotes>` (Reddit only) + `★ <rating>` (retailer only) + **`link dead`** (session 38; when `MentionView.tombstoned_at !== null` — backed by `scripts/verify_mention_links.py` per ARCH §9).
 
-**Locked exclusions per session-13:** no ownership phrase ("owned 6 months"), no tombstone marker. Re-add when there's a real workflow demand.
+**Locked exclusions per session-13:** no ownership phrase ("owned 6 months"). The session-13 tombstone-marker lock was lifted in session 38 alongside bite #5 (link-rot / tombstoning).
 
 ### 4.9 Skeleton (session 37)
 

@@ -303,11 +303,24 @@ def aggregate_a1(
     mentions: dict[str, Mention] = {
         m.mention_id: m
         for m in session.execute(
-            select(Mention).where(Mention.mention_id.in_(needed_mention_ids))
+            select(Mention).where(
+                Mention.mention_id.in_(needed_mention_ids),
+                Mention.tombstoned_at.is_(None),
+            )
         )
         .scalars()
         .all()
     }
+
+    # Drop tags whose backing mention has been tombstoned. ``_compute_bucket``
+    # would otherwise still increment polarity / intensity counts for missing
+    # mentions, leaving a dead URL in ``mention_ids`` and corrupting the
+    # "every mention = 1.0" arithmetic.
+    primary_tags = [t for t in primary_tags if t.mention_id in mentions]
+    secondary_tags = [t for t in secondary_tags if t.mention_id in mentions]
+    if not primary_tags and not secondary_tags:
+        session.flush()
+        return BatchAggregateStats(0, 0, 0, 0)
 
     primary_groups: dict[tuple[str, Aspect], list[AspectTag]] = defaultdict(list)
     for tag in primary_tags:

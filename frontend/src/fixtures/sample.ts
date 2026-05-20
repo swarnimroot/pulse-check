@@ -27,6 +27,8 @@ export const sampleMentions: MentionView[] = [
     upvotes: 142,
     rating: null,
     aspect_tags: [{ aspect: "build_quality", polarity: "positive", intensity: "high" }],
+    tombstoned_at: null,
+    tombstone_reason: null,
   },
   {
     mention_id: "m_002",
@@ -41,6 +43,8 @@ export const sampleMentions: MentionView[] = [
     upvotes: 87,
     rating: null,
     aspect_tags: [{ aspect: "thermals_noise", polarity: "negative", intensity: "medium" }],
+    tombstoned_at: null,
+    tombstone_reason: null,
   },
   {
     mention_id: "m_003",
@@ -55,6 +59,8 @@ export const sampleMentions: MentionView[] = [
     upvotes: null,
     rating: 4,
     aspect_tags: [{ aspect: "battery", polarity: "negative", intensity: "low" }],
+    tombstoned_at: null,
+    tombstone_reason: null,
   },
   {
     mention_id: "m_004",
@@ -69,6 +75,8 @@ export const sampleMentions: MentionView[] = [
     upvotes: null,
     rating: 5,
     aspect_tags: [{ aspect: "keyboard_trackpad", polarity: "positive", intensity: "high" }],
+    tombstoned_at: null,
+    tombstone_reason: null,
   },
   {
     mention_id: "m_005",
@@ -83,6 +91,8 @@ export const sampleMentions: MentionView[] = [
     upvotes: null,
     rating: null,
     aspect_tags: [{ aspect: "performance", polarity: "positive", intensity: "medium" }],
+    tombstoned_at: null,
+    tombstone_reason: null,
   },
   {
     mention_id: "m_006",
@@ -97,6 +107,8 @@ export const sampleMentions: MentionView[] = [
     upvotes: null,
     rating: null,
     aspect_tags: [{ aspect: "display", polarity: "positive", intensity: "high" }],
+    tombstoned_at: null,
+    tombstone_reason: null,
   },
   {
     mention_id: "m_007",
@@ -111,6 +123,8 @@ export const sampleMentions: MentionView[] = [
     upvotes: 23,
     rating: null,
     aspect_tags: [{ aspect: "build_quality", polarity: "negative", intensity: "low" }],
+    tombstoned_at: null,
+    tombstone_reason: null,
   },
   {
     mention_id: "m_008",
@@ -125,6 +139,8 @@ export const sampleMentions: MentionView[] = [
     upvotes: null,
     rating: 3,
     aspect_tags: [{ aspect: "software", polarity: "negative", intensity: "medium" }],
+    tombstoned_at: null,
+    tombstone_reason: null,
   },
   {
     mention_id: "m_009",
@@ -139,6 +155,8 @@ export const sampleMentions: MentionView[] = [
     upvotes: null,
     rating: 4,
     aspect_tags: [{ aspect: "value_pricing", polarity: "neutral", intensity: "medium" }],
+    tombstoned_at: null,
+    tombstone_reason: null,
   },
   {
     mention_id: "m_010",
@@ -153,6 +171,8 @@ export const sampleMentions: MentionView[] = [
     upvotes: null,
     rating: null,
     aspect_tags: [{ aspect: "ports_io", polarity: "neutral", intensity: "low" }],
+    tombstoned_at: null,
+    tombstone_reason: null,
   },
   {
     mention_id: "m_011",
@@ -167,6 +187,8 @@ export const sampleMentions: MentionView[] = [
     upvotes: null,
     rating: null,
     aspect_tags: [{ aspect: "webcam_audio", polarity: "positive", intensity: "low" }],
+    tombstoned_at: null,
+    tombstone_reason: null,
   },
   {
     mention_id: "m_012",
@@ -181,6 +203,8 @@ export const sampleMentions: MentionView[] = [
     upvotes: 64,
     rating: null,
     aspect_tags: [{ aspect: "value_pricing", polarity: "negative", intensity: "medium" }],
+    tombstoned_at: null,
+    tombstone_reason: null,
   },
 ];
 

@@ -251,7 +251,9 @@
       "Bash(PYTHONIOENCODING=utf-8 python *)",
       "Bash(Select-Object Name, Length)",
       "Bash(xargs grep -l \"llm_cache\")",
-      "PowerShell(Get-Content *)"
+      "PowerShell(Get-Content *)",
+      "Bash(.venv/Scripts/alembic current *)",
+      "Bash(npx vite *)"
     ]
   }
 }

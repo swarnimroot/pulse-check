@@ -223,6 +223,8 @@ def _mention_to_view(mention: Mention, tags: list[AspectTag]) -> MentionView:
             }
             for t in tags
         ],
+        tombstoned_at=mention.tombstoned_at,
+        tombstone_reason=mention.tombstone_reason,
     )
 
 

@@ -24,6 +24,8 @@ export interface MentionView {
   upvotes: number | null;
   rating: number | null;
   aspect_tags: AspectTag[];
+  tombstoned_at: string | null;
+  tombstone_reason: string | null;
 }
 
 export interface AspectRow {

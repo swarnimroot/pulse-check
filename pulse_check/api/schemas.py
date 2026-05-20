@@ -8,7 +8,7 @@ Design choices (locked at session-13 start):
   Frontend bins rows into Section A (top-3 PRIMARY) → B (top-3 SECONDARY) → C
   (long tail) per scroller; that bucketing is a UI concern, not a backend one.
 - `MentionView` exposes `upvotes` and `rating` (when present in `Mention.metadata_`)
-  but not `ownership` or `tombstone` (deferred — see SESSION_LOG session-13 locks).
+  plus `tombstoned_at` for the link-rot badge; `ownership` stays deferred.
 - `RunMeta` fields are non-jargon: total mentions + window + last-refreshed date.
   Run-id and taxonomy-version are intentionally excluded.
 - Brief responses pass `BriefNarrative` through unchanged — the §6.3 four-quadrant
@@ -109,6 +109,8 @@ class MentionView(BaseModel):
     upvotes: int | None
     rating: float | None
     aspect_tags: list[dict[str, str]]
+    tombstoned_at: datetime | None
+    tombstone_reason: str | None
 
 
 class MentionsResponse(BaseModel):

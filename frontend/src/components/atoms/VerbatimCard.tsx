@@ -14,9 +14,9 @@ import { SourceMark, sourceLabel } from "./SourceMark";
  *   3. Quote in left-bordered blockquote, 13px / 1.5; truncate at 180 chars
  *      with show-more / show-less
  *   4. Tag row 1: aspect-polarity chip + intensity chip
- *   5. Tag row 2 (only if data exists): verified, ↑ upvotes, ★ rating
- *
- * Session-13 lock: NO ownership phrase, NO tombstone marker.
+ *   5. Tag row 2 (only if data exists): verified, ↑ upvotes, ★ rating,
+ *      link-dead marker (when `tombstoned_at` is set — session-38 lift of
+ *      the session-13 lock; ownership phrase still suppressed).
  */
 
 const POLARITY_TONE: Record<Polarity, ChipTone> = {
@@ -62,7 +62,8 @@ export function VerbatimCard({ mention, className }: VerbatimCardProps): JSX.Ele
   const showTagRow2 =
     mention.verified ||
     typeof mention.upvotes === "number" ||
-    typeof mention.rating === "number";
+    typeof mention.rating === "number" ||
+    mention.tombstoned_at !== null;
 
   return (
     <article
@@ -133,6 +134,9 @@ export function VerbatimCard({ mention, className }: VerbatimCardProps): JSX.Ele
           )}
           {typeof mention.rating === "number" && (
             <Chip tone="meta">★ {mention.rating.toFixed(1)}</Chip>
+          )}
+          {mention.tombstoned_at !== null && (
+            <Chip tone="tombstone">link dead</Chip>
           )}
         </div>
       )}

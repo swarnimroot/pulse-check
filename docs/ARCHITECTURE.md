@@ -602,11 +602,15 @@ Every mention card displays:
 
 ## 9. Tombstoning and upstream deletion
 
-**Detection.** A lightweight `verify_mentions` job periodically re-fetches a sampled subset of stored mentions (or checks HTTP status of their source_url) and marks `tombstoned_at` + `tombstone_reason` for those returning 404 / not-found / deleted.
+**Detection.** `scripts/verify_mention_links.py` HEAD-checks every `Mention.source_url` where `tombstoned_at IS NULL`. The verifier (`pulse_check/verifiers/link_verifier.py`) follows redirects, falls back to GET-stream on HTTP 405, and applies a **conservative tombstone rule**: only `http_404` / `http_410` / `dns_fail` / `conn_refused` write `tombstoned_at` + `tombstone_reason`. 403 / 5xx / timeout / generic transport errors leave the mention alive — a single bad day for an upstream host (or a retailer bot-block) must not look like deletion. Concurrency via `ThreadPoolExecutor` (default `workers=16`) with periodic commits every 100 checks for durability.
 
-**Effect on aggregates.** Tombstoned mentions remain in the corpus and remain contributors to aggregates — the aggregate was computed from them; removing them retroactively would change published numbers. They're shown in the UI with a deletion badge.
+**Effect on aggregates.** Tombstoned mentions are **excluded from new aggregations on re-run.** `pulse_check/aggregation/a1.py` filters `Mention.tombstoned_at IS NULL` at the mention-pool fetch AND drops aspect tags whose backing mention is tombstoned, so `_compute_bucket`'s polarity / intensity / total_mentions arithmetic stays clean. Existing aggregate rows from prior runs are **frozen by their baked-in `mention_ids` arrays** — no retroactive surgery on already-published briefs, no silent number drift in stakeholder packets. (Reversed from an earlier "remain contributors" stance; session-38 implementation choice.)
 
-**Operator policy (to nail down during implementation, §12 of PRD):** retention window, whether to exclude tombstoned mentions from *new* aggregations on re-run, and whether to include deletion rate as a quality signal on the scorecard.
+**UI surface.** `VerbatimCard.tsx` renders a "link dead" `<Chip tone="tombstone">` in tag row 2 when `MentionView.tombstoned_at !== null`. The badge is mostly a courtesy for the EvidenceDrawer / CitationPanel browse paths; net-new briefs won't cite tombstoned mentions because the aggregation filter never passes them to the selector.
+
+**Production status (session 38).** Code is shipped + gates green, but the **live HEAD batch has not been run**. The corpus is 96.8% reddit (4898 / 5061 mentions), and reddit aggressively rate-limits anonymous concurrent HEAD requests (a dry-run at `workers=16` returned 90.6% `http_429`). The conservative rule means a live run would tombstone exactly 0 — same outcome as the dry-run, no information gain. A follow-on bite is needed to add reddit-domain throttling (per-domain semaphore + sleep loop) or authenticated-reddit-API verification before live HEAD verification produces usable signal on the bulk of the corpus.
+
+**Operator policy (still open, §12 of PRD).** Retention window for tombstoned rows remains undecided — they currently persist indefinitely. Open questions around surfacing deletion rate as a scorecard quality signal also remain. The exclude-from-new-aggregations question is now answered (exclude).
 
 ---
 
