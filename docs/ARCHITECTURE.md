@@ -676,3 +676,21 @@ scripts/run-eval.py        --task aspect_tagging  --against-gold-set gold_v1.jso
 ```
 
 Each script is idempotent — re-running after partial failure picks up where it left off via the LLM cache and durable mentions.
+
+---
+
+## 14. Quarterly refresh skeleton
+
+Added session 39 as a "skeleton" — the wiring exists but the first live quarterly run has not fired. Lives at `scripts/refresh.py` + `pulse_check/scheduling/state.py`.
+
+**Entry point.** `scripts/refresh.py` orchestrates the subprocess chain `scrape.py → run_stage_b.py → verify_mention_links.py`. Each child inherits parent stdout/stderr and is invoked with the project root as CWD.
+
+**Default mode is dry-run.** Bare invocation prints a plan (state-file path · last refresh timestamp · days since · is-due verdict · planned chain · cost + wall-time estimate) but fires no subprocess and writes no state. `--execute` is the opt-in that actually runs the chain; a y/N keypress confirmation is required before any subprocess fires. `--force` bypasses the 90-day is-due gate but still asks for confirmation. Rationale: the scheduler will invoke this unattended, and a misfired auto-execute would burn `$5–25` of LLM credit per quarterly cycle.
+
+**State file at `data/refresh_state.json`.** Single-row JSON keyed on `schema_version: 1`, with fields `last_refresh_at` (ISO 8601 UTC timestamp) and `last_refresh_run_id`. Read/written atomically via `tempfile.mkstemp` + `os.replace` so a crash mid-write cannot leave a half-written file. **State is advanced ONLY on a fully successful pipeline run** — if any subprocess returns non-zero, `last_refresh_at` is left unchanged and the next invocation re-proposes the refresh. Matches the no-auto-rerun-on-crash discipline.
+
+**Path env-overrideable.** `Settings.refresh_state_path` (alias `REFRESH_STATE_PATH`) defaults to `data/refresh_state.json`. Tests pass an explicit path arg into `read_state` / `write_state` to avoid env mocking.
+
+**Schedule artifact pair.** `scripts/refresh_quarterly.xml` is a Windows Task Scheduler 1.4 import template firing at 09:00 on the 1st of Jan / Apr / Jul / Oct. Two `PLACEHOLDER_*` slots (repo root, user account) the operator fills before `Register-ScheduledTask -Xml`. The scheduled action invokes `scripts/refresh_quarterly.ps1` which calls `refresh.py` WITHOUT `--execute` — the scheduled job's role is to produce a dry-run plan into `data/refresh_log/dryrun_<ts>.log`. The operator reviews the plan and manually runs `--execute` if it looks right.
+
+**Promote to a DB row if cross-run history becomes a product surface.** A `RefreshLog` SQLAlchemy table (one row per refresh attempt, success/failure status, error path) would graduate naturally if the About page ever wants to show a "last 5 refreshes" widget. Not built today — YAGNI for the skeleton.

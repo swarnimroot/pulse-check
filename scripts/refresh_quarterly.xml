@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  pulse-check quarterly refresh -- DRY-RUN only.
+
+  Imports into Windows Task Scheduler. Before import:
+    1. Replace PLACEHOLDER_REPO_ROOT with the absolute path to the
+       pulse-check working copy (e.g. C:\Users\you\pulse-check).
+    2. Replace PLACEHOLDER_DOMAIN\PLACEHOLDER_USER with the Windows user
+       account the job should run under (e.g. WORKSTATION\swarnim).
+    3. Save the file with UTF-8 encoding (matches the declaration above).
+
+  Import command (Admin PowerShell):
+    Register-ScheduledTask -Xml (Get-Content -Path "PLACEHOLDER_REPO_ROOT\scripts\refresh_quarterly.xml" -Raw) -TaskName "pulse-check quarterly refresh dryrun" -Force
+
+  The scheduled job runs refresh_quarterly.ps1 which invokes refresh.py
+  WITHOUT --execute on purpose. The dry-run plan is captured under
+  data/refresh_log/dryrun_<timestamp>.log. The operator reviews the log
+  and -- if the plan looks right -- manually runs:
+      .venv\Scripts\python.exe scripts\refresh.py --execute
+
+  Trigger: 09:00 on the 1st of Jan / Apr / Jul / Oct.
+-->
+<Task version="1.4" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
+  <RegistrationInfo>
+    <Description>pulse-check quarterly refresh -- dry-run only. Operator manually runs --execute after reviewing the dry-run plan in data/refresh_log/.</Description>
+    <Author>pulse-check operator</Author>
+    <URI>\pulse-check\quarterly-refresh-dryrun</URI>
+  </RegistrationInfo>
+  <Triggers>
+    <CalendarTrigger>
+      <StartBoundary>2026-07-01T09:00:00</StartBoundary>
+      <Enabled>true</Enabled>
+      <ScheduleByMonth>
+        <DaysOfMonth>
+          <Day>1</Day>
+        </DaysOfMonth>
+        <MonthsOfYear>
+          <January />
+          <April />
+          <July />
+          <October />
+        </MonthsOfYear>
+      </ScheduleByMonth>
+    </CalendarTrigger>
+  </Triggers>
+  <Principals>
+    <Principal id="Author">
+      <UserId>PLACEHOLDER_DOMAIN\PLACEHOLDER_USER</UserId>
+      <LogonType>InteractiveToken</LogonType>
+      <RunLevel>LeastPrivilege</RunLevel>
+    </Principal>
+  </Principals>
+  <Settings>
+    <MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>
+    <DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>
+    <StopIfGoingOnBatteries>false</StopIfGoingOnBatteries>
+    <AllowHardTerminate>true</AllowHardTerminate>
+    <StartWhenAvailable>true</StartWhenAvailable>
+    <RunOnlyIfNetworkAvailable>true</RunOnlyIfNetworkAvailable>
+    <IdleSettings>
+      <StopOnIdleEnd>false</StopOnIdleEnd>
+      <RestartOnIdle>false</RestartOnIdle>
+    </IdleSettings>
+    <AllowStartOnDemand>true</AllowStartOnDemand>
+    <Enabled>true</Enabled>
+    <Hidden>false</Hidden>
+    <RunOnlyIfIdle>false</RunOnlyIfIdle>
+    <WakeToRun>false</WakeToRun>
+    <ExecutionTimeLimit>PT15M</ExecutionTimeLimit>
+    <Priority>7</Priority>
+  </Settings>
+  <Actions Context="Author">
+    <Exec>
+      <Command>powershell.exe</Command>
+      <Arguments>-NoProfile -ExecutionPolicy Bypass -File "PLACEHOLDER_REPO_ROOT\scripts\refresh_quarterly.ps1"</Arguments>
+      <WorkingDirectory>PLACEHOLDER_REPO_ROOT</WorkingDirectory>
+    </Exec>
+  </Actions>
+</Task>

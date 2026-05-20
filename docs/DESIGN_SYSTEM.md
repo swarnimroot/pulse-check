@@ -93,6 +93,8 @@ All tokens declared as CSS custom properties on `:root`. Source: `tokens.css` (f
 | `--aw-page-pad` | 32 |
 | `--aw-card-pad` | 24 |
 
+> **Aspirational, session 39.** These tokens document intent. Today's components use Tailwind's default 4px-grid spacing scale directly (`p-2`, `gap-3`, …); the `--aw-space-*` CSS variables are not declared in `frontend/src/index.css` and are not exposed via `tailwind.config.ts`. Consistency hasn't drifted enough to justify the migration — promote to real CSS vars if/when spacing inconsistency starts showing up in PR review.
+
 ### 2.8 Radii
 
 | Token | px |
@@ -135,7 +137,7 @@ Wired globally in `frontend/src/index.css` as `*:focus-visible { box-shadow: var
 - **Pair idle state** renders an explainer card with copy `"Pick a product on each side to see the head-to-head comparison."` plus a sub-line describing what loads — replaces the prior `null` return so a stakeholder lands on guidance, not a blank panel.
 - **`GlossaryDialog`** (new component, `frontend/src/components/GlossaryDialog.tsx`) — a shared "What are all these numbers?" modal trimmed to **6 entries grouped into 5 sections** (Unit · How we score · How we count · Head-to-head · Output). Trim rationale: drop terms that never appear as labels in the UI (Polarity, Aspect, Verbatim, Citation, Run all dropped or folded into other entries); keep only terms a cold visitor would (a) see on screen AND (b) not guess correctly from context. The "How we count" entry uses sub-bullets (Primary / Secondary / Long-tail side-by-side) since they share a definitional frame. `GlossaryButton` trigger sits at the top-right of every data page header (Standalone landing + product view · Pair · Compare). Closes on outside click and `Escape`. Same content everywhere so vocabulary stays consistent across surfaces.
 - **`EvidenceDrawer` verified-only filter hidden** — the underlying `verified_share` aggregate is structurally 0% across the current corpus because no source ingested today (Reddit / YouTube / articles) carries a `verified_purchase` signal. The filter is hidden in the UI until BestBuy + Amazon retailer-review ingestion lands (Wave 2 deferred). Grid layout updated from `grid-cols-2` to `grid-cols-3` so the remaining three filters (source / intensity / recency-disabled) sit on one row.
-- **`BriefExportButton`** (new component, `frontend/src/components/BriefExportButton.tsx`) — opens a centered modal previewing a single-page A4 one-pager for the current standalone brief, with PDF (browser-print) and HTML (Blob download) export actions in a toolbar above the sheet. Sheet is visual, not text-dump: 4 stat tiles (mentions / pos aspects / neg aspects / avg net) + 11-aspect color-coded chip row + top 3 strengths + top 3 complaints (claim headers only, with bracketed `[n]` cite numbers) + compact citations footer. PDF route adds `body.printing` class → `@media print` rules (`frontend/src/index.css`) hide everything except the `.print-target` sheet so `window.print()` produces a clean A4 file. HTML route serializes `outerHTML` of the sheet into a self-contained `.html` Blob (inline styles throughout, no Tailwind dependency in the saved file). Button uses the Variant A soft-tint treatment (`border-accent-soft bg-accent-soft/40`) so it pairs visually with the `GlossaryButton`. Wired into Standalone today; component is generic over `BriefView` + product metadata so it transplants onto a future Pair brief unchanged.
+- **`BriefExportButton`** (new component, `frontend/src/components/BriefExportButton.tsx`) — opens a centered modal previewing a single-page A4 one-pager for the current standalone brief, with PDF (browser-print), HTML (Blob download), and Markdown (Blob download, session 39) export actions in a toolbar above the sheet. Sheet is visual, not text-dump: 4 stat tiles (mentions / pos aspects / neg aspects / avg net) + 11-aspect color-coded chip row + top 3 strengths + top 3 complaints (claim headers only, with bracketed `[n]` cite numbers) + compact citations footer. PDF route adds `body.printing` class → `@media print` rules (`frontend/src/index.css`) hide everything except the `.print-target` sheet so `window.print()` produces a clean A4 file. HTML route serializes `outerHTML` of the sheet into a self-contained `.html` Blob (inline styles throughout, no Tailwind dependency in the saved file). Markdown route emits GFM-flavored text via `frontend/src/lib/exportMarkdown.ts` — snapshot stats table, 11-aspect table, top strengths / complaints bullet lists with bracketed `[n]` cite refs, numbered citations list — citation numbers agree with the visual sheet because both consumers build the same `Map<mention_id, n>` from the same `citedIds` order. Button uses the Variant A soft-tint treatment (`border-accent-soft bg-accent-soft/40`) so it pairs visually with the `GlossaryButton`. Wired into Standalone today; component is generic over `BriefView` + product metadata so it transplants onto a future Pair brief unchanged.
 - **`GlossaryButton` highlighted** — Variant A soft-tint (`border-accent-soft bg-accent-soft/40`) so the "What are all these numbers?" trigger reads as a discreet invitation. Matches the Sources accordion treatment on About for consistency.
 
 ---
@@ -166,6 +168,8 @@ Line heights: `--aw-line-tight: 1.2`, `--aw-line-normal: 1.45`, `--aw-line-loose
 
 Weights: `--aw-weight-regular: 400`, `--aw-weight-medium: 500`, `--aw-weight-semibold: 600` (heading weight).
 
+> **Aspirational, session 39.** The line-height and weight token *names* are documented for future consistency. Today the values are wired into `tailwind.config.ts`'s `fontSize` entries as literals (e.g., `lineHeight: "1.45"`), not as `var()` refs, and the `--aw-line-*` / `--aw-weight-*` CSS variables are not declared in `frontend/src/index.css`. Promote to real tokens if/when type-scale churn justifies the migration.
+
 ### 3.3 Numerics
 
 All counts, scores, percentages: `font-variant-numeric: tabular-nums`. Numerics in the mono stack where alignment matters (run-meta strip, drillable counts, sparkline labels).
@@ -190,6 +194,7 @@ Tones (from `CHIP_TONES` in prototype `atoms.jsx`):
 | `meta` | Generic neutral metadata (e.g., `↑ 142`, `★ 4.5`) |
 | `verified` | Verified-purchase signal |
 | `tombstone` | "link dead" marker on VerbatimCard tag row 2 when `MentionView.tombstoned_at` is set (session 38). Styling: `bg-surface-alt text-fg-muted italic` — muted by design so a dead link doesn't visually compete with live citation signals. |
+| `primary` / `secondary` | Attribution-type emphasis on AspectRow / AspectColumn chips (PRIMARY vs SECONDARY attribution). `primary` uses `bg-accent-soft text-accent-hover`; `secondary` uses `bg-surface-alt text-fg-muted`. (Session-39 audit: tones existed in `Chip.tsx` since the §5.1 build; missed by §4.1 inventory until now.) |
 
 **Geometry:** 18px height, 6px horizontal padding, 2px radius (`--aw-radius-sm`), 11px text, 500 weight.
 
@@ -377,7 +382,7 @@ A1 product voice page. Locked layout per session-13, refined session 33.
 3. Sub-header: product name h1 · `<n> mentions · <window>` (drillable count opens drawer with all mention_ids).
 4. **Two-column scroller:** §5.1 — left positive | right negative. Each column has Primary / Secondary / Long-tail sub-sections (sticky sub-headers) inside one scroll viewport per column; max-height anchors the BriefPanel below at a stable y across all products.
 5. **BriefPanel:** §5.2 — card-per-claim render with header on its own line + claim_text below.
-6. **Header actions cluster (top-right, session 35):** `What are all these numbers?` glossary trigger pill + `Export brief` trigger pill (visible only when a brief is loaded). Both use soft-lavender tint (`border-accent-soft bg-accent-soft text-accent`). Export opens a centered overlay with a single-page A4 preview (4 stat tiles + 11-aspect color-coded chip row + top 3 strengths + top 3 complaints + citations footer) and two actions: Save as PDF (browser `window.print()` with `@media print` rules hiding everything except the sheet) and Download HTML (Blob download with inlined styles, self-contained). Overlay uses `backdrop-blur-md` to defocus page content behind it.
+6. **Header actions cluster (top-right, session 35):** `What are all these numbers?` glossary trigger pill + `Export brief` trigger pill (visible only when a brief is loaded). Both use soft-lavender tint (`border-accent-soft bg-accent-soft text-accent`). Export opens a centered overlay with a single-page A4 preview (4 stat tiles + 11-aspect color-coded chip row + top 3 strengths + top 3 complaints + citations footer) and three actions: Save as PDF (browser `window.print()` with `@media print` rules hiding everything except the sheet), Download HTML (Blob download with inlined styles, self-contained), and Download Markdown (Blob download of a GFM brief — added session 39 for paste-into-doc workflows). Overlay uses `backdrop-blur-md` to defocus page content behind it.
 
 Empty state when no `productId` in route (or `/standalone` itself): Company → Product picker card. **No default product is auto-selected** on landing or on Company-change — visitor must explicitly pick a product before any content renders (operator-locked, session 33).
 
@@ -404,6 +409,10 @@ Auto-populate semantics: `GET /api/compare` once on mount; refresh the tab to pi
 Shipped session 32, redesigned session 33. Two `PickerColumn` sides — no auto-pick on landing; visitor explicitly picks Company → Product on each side.
 
 `PairScorecard` body: three `CountTile`s (`Primary leads N` / `Ties N` / `Competitor leads N`) above a single combined `PairTable` sorted by combined `total_mentions` (talked-about signal; tiebreaker = canonical aspect order). Each row: `[P1 score | Aspect | P2 score]`. `PairCellChip` on the leader column gets a 2px accent ring (`ring-2 ring-accent ring-offset-1`).
+
+### 6.5 Showcase (dev-only QA route)
+
+`frontend/src/pages/Showcase.tsx` — visual-QA page rendering every atom and composite against fixture data. Not wired into the production navigation; reachable only by manually loading `#/showcase` during frontend development. Kept in-tree so a designer can eyeball every atom/composite without spinning up the full pipeline. (Session-39 audit: noted in §6 inventory after missing from §6.1–§6.4 since session 32 introduction.)
 
 ---
 

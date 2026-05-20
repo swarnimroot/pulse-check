@@ -1,6 +1,7 @@
 import { forwardRef, useEffect, useMemo, useRef, useState } from "react";
-import { X, Download, Printer } from "lucide-react";
+import { X, Download, FileText, Printer } from "lucide-react";
 import { api } from "@/lib/api";
+import { briefToMarkdown } from "@/lib/exportMarkdown";
 import type {
   AspectRow,
   BriefView,
@@ -218,6 +219,31 @@ export function BriefExportButton({
     URL.revokeObjectURL(url);
   };
 
+  const handleMarkdownDownload = (): void => {
+    // Citation numbers must agree with what the visual sheet renders, so
+    // rebuild the same Map<mention_id, n> here from the same citedIds list.
+    const citeNumber = new Map<string, number>();
+    extracted.citedIds.forEach((id, i) => citeNumber.set(id, i + 1));
+    const md = briefToMarkdown({
+      product,
+      brief,
+      strengths: extracted.strengths,
+      weaknesses: extracted.weaknesses,
+      citedIds: extracted.citedIds,
+      citeNumber,
+      mentions,
+    });
+    const blob = new Blob([md], { type: "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `pulse-check-${product.product_id}-${new Date().toISOString().slice(0, 10)}.md`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <>
       <button
@@ -232,6 +258,7 @@ export function BriefExportButton({
           onClose={() => setOpen(false)}
           onPrint={handlePrint}
           onHtmlDownload={handleHtmlDownload}
+          onMarkdownDownload={handleMarkdownDownload}
         >
           <BriefExportSheet
             ref={sheetRef}
@@ -254,6 +281,7 @@ interface ExportOverlayProps {
   onClose: () => void;
   onPrint: () => void;
   onHtmlDownload: () => void;
+  onMarkdownDownload: () => void;
   children: React.ReactNode;
 }
 
@@ -261,6 +289,7 @@ function ExportOverlay({
   onClose,
   onPrint,
   onHtmlDownload,
+  onMarkdownDownload,
   children,
 }: ExportOverlayProps): JSX.Element {
   return (
@@ -295,6 +324,14 @@ function ExportOverlay({
           >
             <Download size={14} aria-hidden="true" />
             Download HTML
+          </button>
+          <button
+            type="button"
+            onClick={onMarkdownDownload}
+            className="flex items-center gap-2 rounded-md border border-border bg-surface px-3 py-1.5 text-xs font-medium text-fg-secondary transition-colors duration-1 ease-aw hover:border-accent hover:text-accent"
+          >
+            <FileText size={14} aria-hidden="true" />
+            Download Markdown
           </button>
           <button
             type="button"

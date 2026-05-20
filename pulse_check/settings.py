@@ -44,6 +44,9 @@ class Settings(BaseSettings):
     playwright_profile_dir: str = Field(
         default="data/playwright_profiles", alias="PLAYWRIGHT_PROFILE_DIR"
     )
+    refresh_state_path: str = Field(
+        default="data/refresh_state.json", alias="REFRESH_STATE_PATH"
+    )
 
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
     log_file: str = Field(default="data/pulse_check.log", alias="LOG_FILE")
