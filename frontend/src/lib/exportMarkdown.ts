@@ -143,6 +143,18 @@ export function briefToMarkdown(input: BriefToMarkdownInput): string {
   }
   lines.push("");
 
+  // Summary (a1_brief_v3+; rendered only when present)
+  if (brief.narrative.summary) {
+    const summaryNums = brief.narrative.summary.cited_mention_ids
+      .map((id) => citeNumber.get(id))
+      .filter((n): n is number => n !== undefined);
+    const summaryTail = summaryNums.length > 0 ? ` [${summaryNums.join(", ")}]` : "";
+    lines.push("## Summary");
+    lines.push("");
+    lines.push(`*${brief.narrative.summary.text}*${summaryTail}`);
+    lines.push("");
+  }
+
   // Top strengths
   lines.push("## Top strengths");
   lines.push("");

@@ -455,6 +455,10 @@ Briefs must cite evidence for every claim. Sonnet is prompted to return a struct
 ```json
 {
   "brief_title": "...",
+  "summary": {
+    "text": "Discussion clusters around heat under sustained load and keyboard feel, with a thread of pricing frustration. Build quality draws broad agreement; display performance polarizes.",
+    "cited_mention_ids": ["m_abc123", "m_def456"]
+  },
   "sections": [
     {
       "heading": "Top losing reasons",
@@ -472,15 +476,22 @@ Briefs must cite evidence for every claim. Sonnet is prompted to return a struct
 
 `header` (2–5 words) is the bold lead-in the UI surfaces ahead of the claim sentence so a non-technical reader can scan a brief by headlines. `claim_text` (1–2 sentences) expands on it without restating. Added in `prompt_version a1_brief_v2` (session 32). Older briefs in storage may lack `header`; the frontend renders gracefully without it.
 
+`summary` is an optional top-level paragraph capturing the **texture of consumer chatter** for the product — what people are discussing and where minds are made up vs split. Added in `prompt_version a1_brief_v3` (session 41; the field was briefly named `vibe_summary` during the session and renamed to `summary` later in the same session per operator-preferred register — the brief_writer parser accepts either key from cached Sonnet responses for backward compatibility, and a one-shot DB migration rewrote the in-flight v3 briefs). Briefs persisted under v2 and earlier have `summary = null`, and the frontend renders nothing for that branch. Rules enforced by the Sonnet prompt:
+
+- 50–80 words, exactly 2 sentences.
+- Sentence 1 = topic texture (what is being discussed). Sentence 2 = convergence vs polarization (where opinions agree vs split).
+- Forbidden content (non-redundancy guard with the snapshot row and the four-quadrant claims): no counts / percentages; no naming of any aspect already named in a `header`; no overall "sentiment is positive/negative" framing.
+- Cites 2–3 mention IDs drawn from the same input pool the section claims cite. Defense-in-depth: the brief writer filters `cited_mention_ids` against the allowed pool in Python before persistence, so any fabricated or out-of-pool IDs Sonnet emits are dropped silently. The citation validator additionally walks summary cites so genuine fabrication still surfaces in `flagged_citation_issues`.
+
 Post-generation validation (soft-warn, operator-locked session 12 — see "Validation output" below):
-1. Every `cited_mention_ids` entry must resolve to a real `mentions.mention_id`. **Retry policy:** on `fabricated_ids` only, the orchestrator re-calls the brief writer once with `prompt_version = a1_brief_v2_strict` (a stricter preamble emphasizing fidelity to provided verbatims) and re-validates. Other warning channels do not retry. An empty `cited_mention_ids` list is permitted only for the explicit placeholder claim defined under "A1 brief layout" below.
+1. Every `cited_mention_ids` entry must resolve to a real `mentions.mention_id`. **Retry policy:** on `fabricated_ids` only, the orchestrator re-calls the brief writer once with `prompt_version = a1_brief_v3_strict` (a stricter preamble emphasizing fidelity to provided verbatims) and re-validates. Other warning channels do not retry. An empty `cited_mention_ids` list is permitted only for the explicit placeholder claim defined under "A1 brief layout" below.
 2. The cited mentions must actually be in the input pool the selector was given (`allowed_pool` = PRIMARY ∪ SECONDARY mention IDs across all aspects of the product) — no cross-product / cross-run leakage.
 3. If a claim carries a specific count paired with a count-noun ("60 threads", "10 users"), the citation validator regex-extracts the integer and compares it to the matched aggregate's mention count for the appropriate bucket (PRIMARY for §1/§2 claims, SECONDARY for §3/§4). Drift > ±5% is flagged as a soft-warn — not blocking. Pattern: `\d+\s+(user|mention|thread|reviewer|comment|post|review|owner|customer|complaint|complain|praise|report)s?` (case-insensitive).
 4. Empty claims (cited_mention_ids = []) outside the §6.3 placeholder are flagged.
 
 This structure renders naturally in the UI: each `claim_text` is one sentence or paragraph; hovering or clicking it opens a panel with the cited mentions as drillable cards.
 
-**A1 brief layout (operator-locked, session 11).** The contract above is generic; the A1 brief uses four sections in fixed order, prompt_version `a1_brief_v2` (bumped session 32 to add the per-claim `header` field; v1 still readable from storage):
+**A1 brief layout (operator-locked, session 11).** The contract above is generic; the A1 brief uses four sections in fixed order, prompt_version `a1_brief_v3` (bumped session 41 to add the top-level `summary` paragraph; v2 added the per-claim `header` field session 32; v1 still readable from storage):
 
 | # | Heading | Inclusion rule | Cap |
 |---|---|---|---|

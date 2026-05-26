@@ -30,13 +30,22 @@ from pulse_check.llm_cache import LlmResponse, LlmResponseError, call_with_cache
 from pulse_check.storage.enums import Aspect, AttributionType, Polarity
 from pulse_check.storage.models import AggregateAspectSku, Mention, Product
 from pulse_check.synthesis.anthropic_client import AnthropicClient
-from pulse_check.synthesis.contracts import BriefNarrative, BriefSection, Claim
+from pulse_check.synthesis.contracts import (
+    BriefNarrative,
+    BriefSection,
+    BriefSummary,
+    Claim,
+)
 from pulse_check.synthesis.selector import AspectSelection, SelectedVerbatim
 
 log = logging.getLogger(__name__)
 
-BRIEF_PROMPT_VERSION = "a1_brief_v2"
-BRIEF_PROMPT_VERSION_STRICT = "a1_brief_v2_strict"
+BRIEF_PROMPT_VERSION = "a1_brief_v3"
+BRIEF_PROMPT_VERSION_STRICT = "a1_brief_v3_strict"
+# Legacy versions retained for cache reads on historical briefs; never used
+# for new writes after session 41.
+BRIEF_PROMPT_VERSION_V2 = "a1_brief_v2"
+BRIEF_PROMPT_VERSION_V2_STRICT = "a1_brief_v2_strict"
 BRIEF_MODEL = "claude-sonnet-4-6"
 _SONNET_MODEL = BRIEF_MODEL  # internal alias preserved for grep stability
 _TEMPERATURE = 0.0
@@ -220,6 +229,10 @@ excerpts that are the only cite-able evidence.
 Your task -- return a JSON object with this exact shape:
 {{
   "brief_title": "<one-line title naming the product>",
+  "summary": {{
+    "text": "<50-80 word paragraph, 1-2 sentences>",
+    "cited_mention_ids": ["<id1>", "<id2>", "..."]
+  }},
   "claims": [
     {{"quadrant_id": <int 1..4>, "aspect": "<aspect_id>", \
 "header": "<2-5 word headline>", \
@@ -227,9 +240,9 @@ Your task -- return a JSON object with this exact shape:
   ]
 }}
 
-Rules:
-- Write ONE entry in `claims` per (quadrant_id, aspect) pair present in the \
-input. Do NOT invent aspects or quadrants.
+Rules for `claims`:
+- Write ONE entry per (quadrant_id, aspect) pair present in the input. Do \
+NOT invent aspects or quadrants.
 - `header` is a 2-5 word headline naming THE SPECIFIC THING the bullet is \
 about, in plain English an executive could scan in one glance. Examples: \
 "Keyboard feels premium", "Thermals run hot under load", "Display brightness \
@@ -242,7 +255,34 @@ the header verbatim; expand on it.
 or `header`. The orchestrator wires citations from the input pool.
 - If a quadrant in the input has zero aspects, skip it -- do not emit a \
 claim for it.
-- Return ONLY valid JSON, no prose.
+
+Rules for `summary`:
+- ONE paragraph, 50-80 words, exactly 2 sentences.
+- Sentence 1: what the conversation centers on -- the topic texture of \
+chatter for this product. What ARE people discussing? (e.g. "Discussion \
+clusters around thermals under sustained load and keyboard feel, with a \
+recurring undercurrent of pricing frustration.")
+- Sentence 2: where consensus holds versus where opinions split. Name the \
+axis of agreement and the axis of polarization, without restating the \
+specific aspect names already covered in `claims`. (e.g. "Build quality \
+draws broad agreement; display performance polarizes buyers, with pointed \
+praise alongside equally pointed criticism.")
+- FORBIDDEN content (avoid redundancy with the snapshot row and the claims):
+  * No counts, ratios, or percentages ("60 threads", "10 users", "33%"). \
+The snapshot row carries those.
+  * Do not name a specific aspect already named in the `header` field of any \
+emitted claim. If the claims cover Thermals and Keyboard, the summary should \
+not also say "thermals" or "keyboard" by name -- find adjacent texture (heat, \
+typing feel) or higher-level framing (build quality, daily-use ergonomics).
+  * Do not say "consumer sentiment is positive/negative overall" -- net \
+sentiment is in the snapshot.
+- `cited_mention_ids`: 2-3 IDs DRAWN FROM the verbatims provided in the \
+input quadrants. Pick mentions whose text best illustrates the texture you \
+describe. Do NOT invent IDs; only IDs visible in the input are valid.
+- The summary paragraph is DESCRIPTIVE, not prescriptive. Do not recommend \
+actions; do not predict.
+
+Return ONLY valid JSON, no prose.
 
 INPUT:
 {payload_json}
@@ -415,4 +455,49 @@ def write_a1_brief(
             )
         sections.append(BriefSection(heading=plan.heading, claims=section_claims))
 
-    return BriefNarrative(brief_title=brief_title_raw.strip(), sections=sections)
+    # Look up the summary block under the canonical key first, then fall back
+    # to the legacy `vibe_summary` key for cached Sonnet responses written
+    # earlier in session 41 before the rename.
+    summary_raw = parsed.get("summary")
+    if summary_raw is None:
+        summary_raw = parsed.get("vibe_summary")
+    summary = _parse_summary(summary_raw, allowed_pool=set(all_mention_ids))
+
+    return BriefNarrative(
+        brief_title=brief_title_raw.strip(),
+        sections=sections,
+        summary=summary,
+    )
+
+
+def _parse_summary(
+    raw: Any, *, allowed_pool: set[str]
+) -> BriefSummary | None:
+    """Coerce the LLM's `summary` block into a BriefSummary, filtering
+    cited_mention_ids against the input pool (defense-in-depth: Sonnet writes
+    cited IDs directly here, unlike the per-claim cites which are wired in
+    Python).
+
+    Returns None when the block is missing, malformed, or has empty text.
+    The frontend renders gracefully when summary is None.
+    """
+    if not isinstance(raw, dict):
+        return None
+    text_raw = raw.get("text")
+    if not isinstance(text_raw, str) or not text_raw.strip():
+        return None
+    text = text_raw.strip()
+    if len(text) > 600:
+        # Sonnet exceeded the contract; truncate to the schema bound rather
+        # than dropping the paragraph entirely. The prompt asks for 50-80
+        # words; this is a guardrail, not a normal path.
+        text = text[:600]
+    raw_ids = raw.get("cited_mention_ids")
+    if not isinstance(raw_ids, list):
+        cited: list[str] = []
+    else:
+        cited = [
+            mid for mid in raw_ids
+            if isinstance(mid, str) and mid in allowed_pool
+        ]
+    return BriefSummary(text=text, cited_mention_ids=cited)

@@ -425,3 +425,124 @@ def test_validator_handles_brief_with_no_citations(session: Session) -> None:
     assert result.out_of_context_ids == []
     assert result.empty_claims == []
     assert result.numerical_drift == []
+
+
+# ---------------------------------------------------------------------------
+# Summary cites (a1_brief_v3)
+# ---------------------------------------------------------------------------
+
+
+def test_summary_fabricated_id_flagged(session: Session) -> None:
+    from pulse_check.synthesis.contracts import BriefSummary
+
+    _setup(session)
+    _add_mention(session, "m1")
+    session.flush()
+    agg = _agg(aspect=Aspect.PERFORMANCE, primary_ids=("m1",))
+
+    narrative = BriefNarrative(
+        brief_title="Test brief",
+        sections=[
+            BriefSection(
+                heading=SECTION_HEADINGS[1],
+                claims=[
+                    Claim(
+                        header="H",
+                        claim_text="Owners praise the performance.",
+                        cited_mention_ids=["m1"],
+                    )
+                ],
+            )
+        ],
+        summary=BriefSummary(
+            text="Conversation centers on raw speed.",
+            cited_mention_ids=["m1", "m_fabricated_999"],
+        ),
+    )
+
+    result = validate_citations(
+        session,
+        narrative=narrative,
+        aggregates={Aspect.PERFORMANCE: agg},
+        allowed_pool={"m1", "m_fabricated_999"},
+    )
+
+    assert result.is_valid is False
+    assert result.fabricated_ids == ["m_fabricated_999"]
+
+
+def test_summary_out_of_pool_id_flagged(session: Session) -> None:
+    from pulse_check.synthesis.contracts import BriefSummary
+
+    _setup(session)
+    _add_mention(session, "m1")
+    _add_mention(session, "m_external")
+    session.flush()
+    agg = _agg(aspect=Aspect.PERFORMANCE, primary_ids=("m1",))
+
+    narrative = BriefNarrative(
+        brief_title="Test brief",
+        sections=[
+            BriefSection(
+                heading=SECTION_HEADINGS[1],
+                claims=[
+                    Claim(
+                        header="H",
+                        claim_text="Owners praise the performance.",
+                        cited_mention_ids=["m1"],
+                    )
+                ],
+            )
+        ],
+        summary=BriefSummary(
+            text="Conversation centers on raw speed.",
+            cited_mention_ids=["m1", "m_external"],
+        ),
+    )
+
+    result = validate_citations(
+        session,
+        narrative=narrative,
+        aggregates={Aspect.PERFORMANCE: agg},
+        allowed_pool={"m1"},
+    )
+
+    assert result.is_valid is False
+    assert result.fabricated_ids == []
+    assert result.out_of_context_ids == ["m_external"]
+
+
+def test_summary_none_does_not_affect_validation(session: Session) -> None:
+    """Old v2 briefs (summary=None) validate exactly as before."""
+    _setup(session)
+    _add_mention(session, "m1")
+    session.flush()
+    agg = _agg(aspect=Aspect.PERFORMANCE, primary_ids=("m1",))
+
+    narrative = BriefNarrative(
+        brief_title="Test brief",
+        sections=[
+            BriefSection(
+                heading=SECTION_HEADINGS[1],
+                claims=[
+                    Claim(
+                        header="H",
+                        claim_text="Owners praise the performance.",
+                        cited_mention_ids=["m1"],
+                    )
+                ],
+            )
+        ],
+        summary=None,
+    )
+
+    result = validate_citations(
+        session,
+        narrative=narrative,
+        aggregates={Aspect.PERFORMANCE: agg},
+        allowed_pool={"m1"},
+    )
+
+    assert result.is_valid is True
+    assert result.fabricated_ids == []
+    assert result.out_of_context_ids == []

@@ -260,7 +260,14 @@
       "Bash(xargs basename -a)",
       "Bash(findstr /R \"passed failed warning\")",
       "Bash(Select-Object Name)",
-      "Bash(npx vitest *)"
+      "Bash(npx vitest *)",
+      "Bash(sqlite3 data/pulse_check.db \"SELECT content_type, COUNT\\(*\\) FROM mentions GROUP BY content_type ORDER BY 2 DESC;\")",
+      "Bash(.venv\\\\Scripts\\\\python.exe)",
+      "Bash(xargs grep -l \"class Mention\\\\|class.*Text\\\\|String\\(\")",
+      "Bash(xargs ls -lh)",
+      "Bash(sqlite3 data/pulse_check.db \"SELECT typeof\\(raw_text\\), length\\(raw_text\\) FROM mentions LIMIT 10;\")",
+      "Bash(tee \"data/retag_log/retag_v2_$\\(date +%Y%m%d_%H%M%S\\).log\")",
+      "Bash(tee \"data/retag_log/brief_regen_v3_$\\(date +%Y%m%d_%H%M%S\\).log\")"
     ]
   }
 }

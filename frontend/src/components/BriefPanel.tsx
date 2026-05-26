@@ -1,5 +1,5 @@
 import { CiteChip } from "@/components/atoms";
-import type { BriefNarrative, Claim } from "@/lib/types";
+import type { BriefNarrative, BriefSummary, Claim } from "@/lib/types";
 
 /**
  * BriefPanel — A1 brief render, collapsed 4 → 2 sections at UI time.
@@ -100,6 +100,34 @@ export interface BriefPanelProps {
   onCite: (claimText: string, citedMentionIds: string[]) => void;
 }
 
+interface SummaryBlockProps {
+  summary: BriefSummary;
+  onCite: (claimText: string, citedMentionIds: string[]) => void;
+}
+
+function SummaryBlock({ summary, onCite }: SummaryBlockProps): JSX.Element {
+  return (
+    <aside
+      aria-label="Brief summary"
+      className="flex flex-col gap-1 border-l-2 border-accent/70 bg-surface-alt px-4 py-3"
+    >
+      <span className="text-[11px] font-semibold uppercase tracking-wide text-fg-muted">
+        Summary
+      </span>
+      <p className="text-[13px] italic leading-[1.55] text-fg-secondary">
+        {summary.text}
+        {summary.cited_mention_ids.length > 0 && (
+          <CiteChip
+            count={summary.cited_mention_ids.length}
+            citedMentionIds={summary.cited_mention_ids}
+            onClick={(ids) => onCite(summary.text, ids)}
+          />
+        )}
+      </p>
+    </aside>
+  );
+}
+
 export function BriefPanel({
   narrative,
   model,
@@ -118,6 +146,9 @@ export function BriefPanel({
           {narrative.brief_title}
         </h3>
       </header>
+      {narrative.summary && (
+        <SummaryBlock summary={narrative.summary} onCite={onCite} />
+      )}
       <BriefBlock heading="What's working" claims={buckets.positive} onCite={onCite} />
       <BriefBlock heading="What's not working" claims={buckets.negative} onCite={onCite} />
     </article>

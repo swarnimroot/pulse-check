@@ -75,6 +75,8 @@ def validate_citations(
     for section in narrative.sections:
         for claim in section.claims:
             cited_ids.update(claim.cited_mention_ids)
+    if narrative.summary is not None:
+        cited_ids.update(narrative.summary.cited_mention_ids)
 
     if cited_ids:
         existing_rows = session.execute(

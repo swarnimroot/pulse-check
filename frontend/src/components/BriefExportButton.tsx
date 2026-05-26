@@ -78,7 +78,16 @@ function extractTopClaims(brief: BriefView): ExtractedClaims {
   const strengths = strengthSections.slice(0, 3);
   const weaknesses = weaknessSections.slice(0, 3);
 
+  // Summary paragraph cites lead the [n] numbering so they get [1], [2], [3]
+  // — matches reading order on the sheet (the summary sits above strengths).
+  // Then strengths cites, then weaknesses cites, deduplicated keeping first
+  // appearance.
   const citedSet = new Set<string>();
+  if (brief.narrative.summary) {
+    for (const id of brief.narrative.summary.cited_mention_ids) {
+      citedSet.add(id);
+    }
+  }
   for (const c of [...strengths, ...weaknesses]) {
     for (const id of c.cited_mention_ids) citedSet.add(id);
   }
@@ -458,6 +467,28 @@ const SHEET_STYLES: Record<string, React.CSSProperties> = {
     border: "1px solid",
     fontVariantNumeric: "tabular-nums",
   },
+  summaryBlock: {
+    borderLeft: "2px solid #5F00F8",
+    background: "#F7F4FF",
+    padding: "2.5mm 3.5mm",
+    marginTop: "1mm",
+  },
+  summaryLabel: {
+    fontSize: "7.5pt",
+    color: "#5F00F8",
+    textTransform: "uppercase",
+    letterSpacing: "0.08em",
+    fontWeight: 700,
+    display: "block",
+    marginBottom: "1mm",
+  },
+  summaryText: {
+    fontSize: "10pt",
+    fontStyle: "italic",
+    color: "#17171C",
+    lineHeight: 1.5,
+    margin: 0,
+  },
   claimList: {
     display: "flex",
     flexDirection: "column",
@@ -633,6 +664,27 @@ const BriefExportSheet = forwardRef<HTMLDivElement, BriefExportSheetProps>(
             })}
           </div>
         </div>
+
+        {/* Summary paragraph (a1_brief_v3+; rendered only when present) */}
+        {brief.narrative.summary && (
+          <div style={SHEET_STYLES.summaryBlock}>
+            <span style={SHEET_STYLES.summaryLabel}>Summary</span>
+            <p style={SHEET_STYLES.summaryText}>
+              {brief.narrative.summary.text}
+              {(() => {
+                const nums = brief.narrative.summary.cited_mention_ids
+                  .map((id) => citeNumber.get(id))
+                  .filter((n): n is number => n !== undefined);
+                if (nums.length === 0) return null;
+                return (
+                  <span style={SHEET_STYLES.citeNumber}>
+                    [{nums.join(", ")}]
+                  </span>
+                );
+              })()}
+            </p>
+          </div>
+        )}
 
         {/* Strengths */}
         <div>

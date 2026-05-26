@@ -47,6 +47,10 @@ from pulse_check.storage.models import (
 )
 from pulse_check.synthesis import orchestrator
 from pulse_check.synthesis.anthropic_client import AnthropicClient
+from pulse_check.synthesis.brief_writer import (
+    BRIEF_PROMPT_VERSION,
+    BRIEF_PROMPT_VERSION_STRICT,
+)
 from pulse_check.synthesis.contracts import BriefNarrative, BriefSection, Claim
 
 _TAX = "v0"
@@ -207,7 +211,7 @@ def test_aggregate_then_synthesize_persists_valid_brief(
     assert persisted.scope_type == ScopeType.ASPECT_1_SKU
     assert persisted.scope_id == _PRODUCT_ID
     assert persisted.run_id == _RUN
-    assert persisted.prompt_version == "a1_brief_v2"
+    assert persisted.prompt_version == BRIEF_PROMPT_VERSION
     assert persisted.model == "claude-sonnet-4-6"
 
     narrative = persisted.narrative
@@ -295,7 +299,7 @@ def test_synthesize_retries_brief_on_fabricated_citation(
         selections: dict[Aspect, Any], prompt_version: str,
     ) -> BriefNarrative:
         writer_prompt_versions.append(prompt_version)
-        if prompt_version == "a1_brief_v2":
+        if prompt_version == BRIEF_PROMPT_VERSION:
             # First call: cite a fabricated mention ID (not in the DB).
             return _stub_narrative(cited_mention_ids=["fake_mention_999"])
         # Retry under _strict: cite real IDs.
@@ -311,6 +315,6 @@ def test_synthesize_retries_brief_on_fabricated_citation(
     )
     session.commit()
 
-    assert writer_prompt_versions == ["a1_brief_v2", "a1_brief_v2_strict"]
-    assert brief.prompt_version == "a1_brief_v2_strict"
+    assert writer_prompt_versions == [BRIEF_PROMPT_VERSION, BRIEF_PROMPT_VERSION_STRICT]
+    assert brief.prompt_version == BRIEF_PROMPT_VERSION_STRICT
     assert brief.narrative["flagged_citation_issues"]["fabricated_ids"] == []

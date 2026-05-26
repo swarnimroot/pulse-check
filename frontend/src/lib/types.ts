@@ -80,9 +80,17 @@ export interface BriefSection {
   claims: Claim[];
 }
 
+// Added in a1_brief_v3 (session 41). Briefs persisted under v2 and earlier
+// lack this field; consumers check for presence before rendering.
+export interface BriefSummary {
+  text: string;
+  cited_mention_ids: string[];
+}
+
 export interface BriefNarrative {
   brief_title: string;
   sections: BriefSection[];
+  summary?: BriefSummary | null;
   flagged_citation_issues?: Record<string, unknown>;
 }
 

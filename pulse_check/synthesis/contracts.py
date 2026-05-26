@@ -41,6 +41,23 @@ class BriefSection(BaseModel):
     claims: list[Claim] = Field(..., min_length=1)
 
 
+class BriefSummary(BaseModel):
+    """One short paragraph capturing the texture of consumer chatter for a
+    product, with 2-3 citations into the same mention pool the sections cite.
+
+    Added in `a1_brief_v3` (session 41; originally `VibeSummary` →
+    `BriefSummary` later in session 41 per operator-preferred register). The
+    paragraph sits between the snapshot row and the strengths section in both
+    the on-page brief and the export sheet. Content rules live in the Sonnet
+    prompt; this contract enforces only the length bound and the citation-list
+    shape. Briefs from `a1_brief_v2` and earlier have `summary = None`; the
+    frontend renders nothing for that branch.
+    """
+
+    text: str = Field(..., min_length=1, max_length=600)
+    cited_mention_ids: list[str] = Field(..., min_length=0)
+
+
 class BriefNarrative(BaseModel):
     """Top-level brief shape; serializes to the `briefs.narrative` JSON column.
 
@@ -50,6 +67,7 @@ class BriefNarrative(BaseModel):
 
     brief_title: str = Field(..., min_length=1)
     sections: list[BriefSection] = Field(..., min_length=1)
+    summary: BriefSummary | None = None
 
 
 class NumericalDrift(BaseModel):

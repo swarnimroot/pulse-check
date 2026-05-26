@@ -127,9 +127,15 @@ def _selection(
     )
 
 
-def _mock_client(claims: list[dict[str, Any]], brief_title: str = "Brief") -> Any:
+def _mock_client(
+    claims: list[dict[str, Any]],
+    brief_title: str = "Brief",
+    summary: dict[str, Any] | None = None,
+) -> Any:
     client = MagicMock()
-    payload = {"brief_title": brief_title, "claims": claims}
+    payload: dict[str, Any] = {"brief_title": brief_title, "claims": claims}
+    if summary is not None:
+        payload["summary"] = summary
     text = json.dumps(payload)
     client.generate_json.return_value = LlmResponse(raw_output=text, parsed_output=payload)
     return client
@@ -338,3 +344,156 @@ def test_no_qualifying_aspects_short_circuits_sonnet_with_placeholder_only(
     assert brief.sections[0].claims[0].claim_text == PLACEHOLDER_CLAIM_TEXT
     assert brief.brief_title == "Alienware 16 — A1 voice"
     client.generate_json.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# Summary paragraph (a1_brief_v3)
+# ---------------------------------------------------------------------------
+
+
+def test_summary_carried_through_when_sonnet_returns_block(
+    session: Session,
+) -> None:
+    p = _setup(session)
+    for mid in ["m1", "m2"]:
+        _add_mention(session, mid, "fast")
+    session.commit()
+
+    aggs = {
+        Aspect.PERFORMANCE: _agg(
+            aspect=Aspect.PERFORMANCE, primary_pos=5, primary_ids=["m1", "m2"]
+        )
+    }
+    sels = {Aspect.PERFORMANCE: _selection(Aspect.PERFORMANCE, pp=["m1", "m2"])}
+    client = _mock_client(
+        claims=[
+            {"quadrant_id": 1, "aspect": "performance", "header": "H", "claim_text": "Fast."}
+        ],
+        summary={
+            "text": "Discussion centers on raw speed and responsiveness. "
+            "Broad agreement on performance; divisive takes on price.",
+            "cited_mention_ids": ["m1", "m2"],
+        },
+    )
+
+    brief = write_a1_brief(session, client=client, product=p, aggregates=aggs, selections=sels)
+
+    assert brief.summary is not None
+    assert "Discussion centers on raw speed" in brief.summary.text
+    assert brief.summary.cited_mention_ids == ["m1", "m2"]
+
+
+def test_summary_absent_yields_none(session: Session) -> None:
+    p = _setup(session)
+    _add_mention(session, "m1", "fast")
+    session.commit()
+
+    aggs = {Aspect.PERFORMANCE: _agg(aspect=Aspect.PERFORMANCE, primary_pos=5, primary_ids=["m1"])}
+    sels = {Aspect.PERFORMANCE: _selection(Aspect.PERFORMANCE, pp=["m1"])}
+    client = _mock_client(
+        claims=[
+            {"quadrant_id": 1, "aspect": "performance", "header": "H", "claim_text": "Fast."}
+        ],
+        summary=None,
+    )
+
+    brief = write_a1_brief(session, client=client, product=p, aggregates=aggs, selections=sels)
+
+    assert brief.summary is None
+
+
+def test_summary_cited_ids_filtered_to_allowed_pool(session: Session) -> None:
+    p = _setup(session)
+    _add_mention(session, "m1", "fast")
+    _add_mention(session, "m_external", "hallucinated")
+    session.commit()
+
+    aggs = {Aspect.PERFORMANCE: _agg(aspect=Aspect.PERFORMANCE, primary_pos=5, primary_ids=["m1"])}
+    sels = {Aspect.PERFORMANCE: _selection(Aspect.PERFORMANCE, pp=["m1"])}
+    client = _mock_client(
+        claims=[
+            {"quadrant_id": 1, "aspect": "performance", "header": "H", "claim_text": "Fast."}
+        ],
+        summary={
+            "text": "Conversation focuses on raw speed.",
+            "cited_mention_ids": ["m1", "m_external", "m_fabricated"],
+        },
+    )
+
+    brief = write_a1_brief(session, client=client, product=p, aggregates=aggs, selections=sels)
+
+    assert brief.summary is not None
+    assert brief.summary.cited_mention_ids == ["m1"]
+
+
+def test_summary_text_truncated_at_600_chars(session: Session) -> None:
+    p = _setup(session)
+    _add_mention(session, "m1", "fast")
+    session.commit()
+
+    aggs = {Aspect.PERFORMANCE: _agg(aspect=Aspect.PERFORMANCE, primary_pos=5, primary_ids=["m1"])}
+    sels = {Aspect.PERFORMANCE: _selection(Aspect.PERFORMANCE, pp=["m1"])}
+    long_text = "x" * 1200
+    client = _mock_client(
+        claims=[
+            {"quadrant_id": 1, "aspect": "performance", "header": "H", "claim_text": "Fast."}
+        ],
+        summary={"text": long_text, "cited_mention_ids": ["m1"]},
+    )
+
+    brief = write_a1_brief(session, client=client, product=p, aggregates=aggs, selections=sels)
+
+    assert brief.summary is not None
+    assert len(brief.summary.text) == 600
+
+
+def test_summary_malformed_yields_none(session: Session) -> None:
+    """Sonnet returns a summary key but with bad shape; parser returns None."""
+    p = _setup(session)
+    _add_mention(session, "m1", "fast")
+    session.commit()
+
+    aggs = {Aspect.PERFORMANCE: _agg(aspect=Aspect.PERFORMANCE, primary_pos=5, primary_ids=["m1"])}
+    sels = {Aspect.PERFORMANCE: _selection(Aspect.PERFORMANCE, pp=["m1"])}
+    client = _mock_client(
+        claims=[
+            {"quadrant_id": 1, "aspect": "performance", "header": "H", "claim_text": "Fast."}
+        ],
+        summary={"text": "", "cited_mention_ids": ["m1"]},  # empty text
+    )
+
+    brief = write_a1_brief(session, client=client, product=p, aggregates=aggs, selections=sels)
+
+    assert brief.summary is None
+
+
+def test_summary_reads_legacy_vibe_summary_key_from_cached_response(
+    session: Session,
+) -> None:
+    """Cached Sonnet responses written before the session-41 rename use the
+    `vibe_summary` key. Parser must accept it for backward compatibility."""
+    p = _setup(session)
+    _add_mention(session, "m1", "fast")
+    session.commit()
+
+    aggs = {Aspect.PERFORMANCE: _agg(aspect=Aspect.PERFORMANCE, primary_pos=5, primary_ids=["m1"])}
+    sels = {Aspect.PERFORMANCE: _selection(Aspect.PERFORMANCE, pp=["m1"])}
+    # Build the cached-shape payload directly (legacy key).
+    client = MagicMock()
+    payload = {
+        "brief_title": "Brief",
+        "claims": [
+            {"quadrant_id": 1, "aspect": "performance", "header": "H", "claim_text": "Fast."}
+        ],
+        "vibe_summary": {
+            "text": "Legacy text from a cached response.",
+            "cited_mention_ids": ["m1"],
+        },
+    }
+    text = json.dumps(payload)
+    client.generate_json.return_value = LlmResponse(raw_output=text, parsed_output=payload)
+
+    brief = write_a1_brief(session, client=client, product=p, aggregates=aggs, selections=sels)
+
+    assert brief.summary is not None
+    assert brief.summary.text == "Legacy text from a cached response."

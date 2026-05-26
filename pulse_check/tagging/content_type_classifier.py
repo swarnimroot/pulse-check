@@ -28,12 +28,15 @@ from pulse_check.tagging.aspect_classifier import JsonGenerator
 log = logging.getLogger(__name__)
 
 
-PROMPT_VERSION = "content_type_classifier_v1"
+PROMPT_VERSION = "content_type_classifier_v2"
 # Default to Haiku per session 5 routing — cheap, fast, sufficient for triage.
 _DEFAULT_MODEL = "claude-haiku-4-5-20251001"
-# Cap to keep prompts modest. Intent is decisive in the opening of a post —
-# review/deal/other distinction is rarely buried halfway through.
-_MAX_MENTION_CHARS = 3000
+# Cap to bound prompt size. v2 raised from 3000 → 25000 after session-41
+# diagnostic found 182 long mentions (incl. 9 of 44 articles, avg article body
+# 34,739 chars) silently triaged as `deal` from their first 3000 chars and
+# dropped from aspect tagging. 25k covers most full articles; Haiku 200k context
+# handles it trivially.
+_MAX_MENTION_CHARS = 25000
 
 
 # ---------------------------------------------------------------------------
