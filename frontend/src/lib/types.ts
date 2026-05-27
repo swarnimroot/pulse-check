@@ -94,6 +94,26 @@ export interface BriefNarrative {
   flagged_citation_issues?: Record<string, unknown>;
 }
 
+// Added session 42 (ARCHITECTURE §6.4). 800-char cap (wider than A1's
+// BriefSummary 600 — pair briefs run longer because each sentence enumerates
+// aspects on one side).
+export interface PairBriefContrast {
+  text: string;
+  cited_mention_ids: string[];
+}
+
+export interface PairBriefNarrative {
+  brief_title: string;
+  contrast: PairBriefContrast;
+  flagged_citation_issues?: Record<string, unknown>;
+}
+
+// `BriefView.narrative` is typed as the A1 narrative for convenience — most
+// consumers (Standalone, Showcase, BriefPanel, exportMarkdown) work with A1
+// briefs. Pair-brief consumers (Pair page, PairBriefPanel) discriminate at
+// runtime on `scope_type === "aspect_2_pair"` and cast to PairBriefNarrative.
+// The backend `BriefView.narrative` is `dict[str, Any]` so the wire envelope
+// carries both shapes.
 export interface BriefView {
   brief_id: number;
   run_id: string;
@@ -176,6 +196,10 @@ export interface PairResponse {
   ties_count: number;
   run_id: string | null;
   generated_at: string;
+  // Highest brief_id for a pair brief (scope_type=aspect_2_pair, scope_id =
+  // `${primary}_vs_${competitor}`) or null when no pair brief exists yet.
+  // Pair page uses this to fetch /api/brief/:id directly.
+  latest_pair_brief_id: number | null;
 }
 
 // /api/sources — operator-curated source list for the home page accordion.

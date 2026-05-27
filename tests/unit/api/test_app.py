@@ -696,6 +696,92 @@ def test_brief_returns_persisted_narrative(
 
 
 # ---------------------------------------------------------------------------
+# /api/pair · latest_pair_brief_id
+# ---------------------------------------------------------------------------
+
+
+def test_pair_advertises_latest_pair_brief_id(
+    app_with_session: FastAPI, seed_session: Session
+) -> None:
+    """`latest_pair_brief_id` is the MAX brief_id for `scope_type=aspect_2_pair`
+    and `scope_id={primary}_vs_{competitor}`. Briefs scoped to a different
+    pair or to A1 must not bleed through.
+    """
+    _seed_product(seed_session)
+    _seed_product(seed_session, product_id="rog_strix_g16", display_name="ROG Strix G16")
+    _seed_product(seed_session, product_id="hp_omen_16", display_name="HP Omen 16")
+    minimal_narrative: dict[str, object] = {
+        "brief_title": "stub",
+        "contrast": {"text": "stub contrast", "cited_mention_ids": []},
+    }
+    older = Brief(
+        run_id="smoke_test",
+        scope_type=ScopeType.ASPECT_2_PAIR,
+        scope_id="alienware_16_aurora_vs_rog_strix_g16",
+        narrative=minimal_narrative,
+        prompt_version="pair_brief_v1",
+        model="claude-sonnet-4-6",
+    )
+    newer = Brief(
+        run_id="smoke_test",
+        scope_type=ScopeType.ASPECT_2_PAIR,
+        scope_id="alienware_16_aurora_vs_rog_strix_g16",
+        narrative=minimal_narrative,
+        prompt_version="pair_brief_v1",
+        model="claude-sonnet-4-6",
+    )
+    # Same primary, DIFFERENT competitor — must not leak into this pair.
+    other_pair = Brief(
+        run_id="smoke_test",
+        scope_type=ScopeType.ASPECT_2_PAIR,
+        scope_id="alienware_16_aurora_vs_hp_omen_16",
+        narrative=minimal_narrative,
+        prompt_version="pair_brief_v1",
+        model="claude-sonnet-4-6",
+    )
+    # An A1 brief for the primary — must NOT win the pair lookup.
+    a1_brief = Brief(
+        run_id="smoke_test",
+        scope_type=ScopeType.ASPECT_1_SKU,
+        scope_id="alienware_16_aurora",
+        narrative={"brief_title": "a1", "sections": []},
+        prompt_version="a1_brief_v3",
+        model="claude-sonnet-4-6",
+    )
+    seed_session.add_all([older, newer, other_pair, a1_brief])
+    seed_session.commit()
+
+    client = TestClient(app_with_session)
+    body = client.get(
+        "/api/pair",
+        params={
+            "primary": "alienware_16_aurora",
+            "competitor": "rog_strix_g16",
+        },
+    ).json()
+    assert body["latest_pair_brief_id"] == newer.brief_id
+    assert newer.brief_id > older.brief_id  # autoincrement sanity
+
+
+def test_pair_latest_pair_brief_id_null_when_none(
+    app_with_session: FastAPI, seed_session: Session
+) -> None:
+    _seed_product(seed_session)
+    _seed_product(seed_session, product_id="rog_strix_g16", display_name="ROG Strix G16")
+    seed_session.commit()
+
+    client = TestClient(app_with_session)
+    body = client.get(
+        "/api/pair",
+        params={
+            "primary": "alienware_16_aurora",
+            "competitor": "rog_strix_g16",
+        },
+    ).json()
+    assert body["latest_pair_brief_id"] is None
+
+
+# ---------------------------------------------------------------------------
 # Static-frontend mount behavior
 # ---------------------------------------------------------------------------
 

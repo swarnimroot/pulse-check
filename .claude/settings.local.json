@@ -267,7 +267,32 @@
       "Bash(xargs ls -lh)",
       "Bash(sqlite3 data/pulse_check.db \"SELECT typeof\\(raw_text\\), length\\(raw_text\\) FROM mentions LIMIT 10;\")",
       "Bash(tee \"data/retag_log/retag_v2_$\\(date +%Y%m%d_%H%M%S\\).log\")",
-      "Bash(tee \"data/retag_log/brief_regen_v3_$\\(date +%Y%m%d_%H%M%S\\).log\")"
+      "Bash(tee \"data/retag_log/brief_regen_v3_$\\(date +%Y%m%d_%H%M%S\\).log\")",
+      "Bash(findstr /n /c:\"pair_id\")",
+      "Bash(xargs grep -l \"call_with_cache\\\\|LlmCache\")",
+      "PowerShell(.venv\\\\Scripts\\\\python.exe -m mypy pulse_check/synthesis/contracts.py pulse_check/synthesis/pair_brief_writer.py pulse_check/synthesis/citation_validator.py pulse_check/synthesis/orchestrator.py scripts/synthesize_pair.py 2>&1 | Select-Object -Last 30)",
+      "PowerShell(.venv\\\\Scripts\\\\python.exe -m ruff check pulse_check/synthesis/contracts.py pulse_check/synthesis/pair_brief_writer.py pulse_check/synthesis/citation_validator.py pulse_check/synthesis/orchestrator.py scripts/synthesize_pair.py 2>&1 | Select-Object -Last 30)",
+      "PowerShell(.venv\\\\Scripts\\\\python.exe -m ruff check pulse_check/synthesis/pair_brief_writer.py scripts/synthesize_pair.py 2>&1 | Select-Object -Last 10)",
+      "PowerShell(.venv\\\\Scripts\\\\python.exe -m pytest tests/unit/ -x -q 2>&1 | Select-Object -Last 30)",
+      "PowerShell(.venv\\\\Scripts\\\\python.exe -m pytest tests/unit/synthesis/test_pair_brief_writer.py -x -q 2>&1 | Select-Object -Last 40)",
+      "PowerShell(.venv\\\\Scripts\\\\python.exe -m mypy pulse_check tests scripts 2>&1 | Select-Object -Last 10)",
+      "PowerShell(.venv\\\\Scripts\\\\python.exe -m ruff check pulse_check tests scripts 2>&1 | Select-Object -Last 10)",
+      "PowerShell(.venv\\\\Scripts\\\\python.exe -m ruff check pulse_check tests scripts 2>&1 | Select-Object -First 60)",
+      "PowerShell(.venv\\\\Scripts\\\\python.exe -m ruff check tests/unit/synthesis/test_pair_brief_writer.py --fix 2>&1 | Select-Object -Last 5)",
+      "PowerShell(.venv\\\\Scripts\\\\python.exe -m ruff check pulse_check tests scripts 2>&1 | Select-Object -Last 3; .venv\\\\Scripts\\\\python.exe -m pytest tests/unit/ -q 2>&1 | Select-Object -Last 5)",
+      "PowerShell(.venv\\\\Scripts\\\\python.exe scripts/synthesize_pair.py --pair-plan configs/pair_plan_alienware_vs_all.yaml --run-id run_wave5_v1 --limit 2 2>&1 | Select-Object -Last 40)",
+      "PowerShell(.venv\\\\Scripts\\\\python.exe scripts/synthesize_pair.py --pair-plan configs/pair_plan_alienware_vs_all.yaml --run-id run_wave5_v1 2>&1 | Select-Object -Last 80)",
+      "PowerShell(.venv\\\\Scripts\\\\python.exe -m pytest tests/unit/synthesis/test_pair_brief_writer.py -q 2>&1 | Select-Object -Last 10)",
+      "PowerShell(.venv\\\\Scripts\\\\python.exe -m mypy pulse_check 2>&1 | Select-Object -Last 5; .venv\\\\Scripts\\\\python.exe -m ruff check pulse_check 2>&1 | Select-Object -Last 5; .venv\\\\Scripts\\\\python.exe -m pytest tests/unit/ -q 2>&1 | Select-Object -Last 5)",
+      "PowerShell(npm *)",
+      "PowerShell(Start-Sleep -Seconds 3; Invoke-RestMethod -Uri \"http://127.0.0.1:8765/api/pair?primary=alienware_16_aurora&competitor=rog_strix_g16\" -Method Get | Select-Object primary, competitor, primary_leads_count, competitor_leads_count, ties_count, latest_pair_brief_id, run_id | Format-List)",
+      "PowerShell(Invoke-RestMethod -Uri \"http://127.0.0.1:8765/api/brief/185\" -Method Get | ConvertTo-Json -Depth 6 | Select-Object -First 30)",
+      "PowerShell(.venv\\\\Scripts\\\\python.exe -m pytest tests/unit/synthesis/test_citation_validator.py -q 2>&1 | Select-Object -Last 10; .venv\\\\Scripts\\\\python.exe -m ruff check tests/unit/synthesis/test_citation_validator.py 2>&1 | Select-Object -Last 5)",
+      "PowerShell(.venv\\\\Scripts\\\\python.exe -m ruff check tests/unit/synthesis/test_citation_validator.py --fix 2>&1 | Select-Object -Last 5)",
+      "PowerShell(.venv\\\\Scripts\\\\python.exe -m pytest tests/unit/api/test_app.py -k pair -q 2>&1 | Select-Object -Last 10)",
+      "PowerShell(.venv\\\\Scripts\\\\python.exe -m pytest tests/integration/ -v 2>&1 | Select-Object -Last 20)",
+      "PowerShell(.venv\\\\Scripts\\\\python.exe -m pytest tests/unit/ -q 2>&1 | Select-Object -Last 5; .venv\\\\Scripts\\\\python.exe -m mypy pulse_check tests scripts 2>&1 | Select-Object -Last 3; .venv\\\\Scripts\\\\python.exe -m ruff check pulse_check tests scripts 2>&1 | Select-Object -Last 3)",
+      "PowerShell(.venv\\\\Scripts\\\\python.exe -m alembic current 2>&1 | Select-Object -Last 5)"
     ]
   }
 }

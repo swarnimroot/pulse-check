@@ -29,8 +29,10 @@ from pulse_check.synthesis.brief_writer import PLACEHOLDER_CLAIM_TEXT
 from pulse_check.synthesis.contracts import (
     BriefNarrative,
     NumericalDrift,
+    PairBriefNarrative,
     ValidationResult,
 )
+from pulse_check.synthesis.pair_brief_writer import PAIR_PLACEHOLDER_CONTRAST_TEXT
 
 NUMERICAL_DRIFT_TOLERANCE = 0.05
 
@@ -142,3 +144,53 @@ def _resolve_actual_n(
         if cited_set <= secondary_set:
             return len(secondary_set)
     return len(cited_mention_ids)
+
+
+def validate_pair_citations(
+    session: Session,
+    *,
+    narrative: PairBriefNarrative,
+    allowed_pool: set[str],
+) -> ValidationResult:
+    """Citation integrity check for a generated PairBriefNarrative.
+
+    Pair brief has a simpler structure than A1: one contrast paragraph, no
+    multi-claim sections, no per-aspect aggregates to drift-check against.
+    Skipped checks: numerical drift (prompt forbids counts), empty claims
+    (single paragraph; zero cites is permitted on placeholder branch).
+
+    `allowed_pool` is the union of mention IDs from BOTH sides' verbatim pools
+    fed into the Sonnet payload. Cited IDs outside this set indicate
+    fabrication or cross-pair leakage. Mirrors `validate_citations` shape so
+    `flagged_citation_issues` serialization is uniform across A1 and pair
+    briefs.
+    """
+    fabricated: list[str] = []
+    out_of_context: list[str] = []
+
+    cited_ids = set(narrative.contrast.cited_mention_ids)
+    if cited_ids:
+        existing_rows = session.execute(
+            select(Mention.mention_id).where(Mention.mention_id.in_(cited_ids))
+        ).all()
+        existing_ids = {row[0] for row in existing_rows}
+        fabricated = sorted(cited_ids - existing_ids)
+        out_of_context = sorted((cited_ids & existing_ids) - allowed_pool)
+
+    empty_claims: list[str] = []
+    if (
+        not narrative.contrast.cited_mention_ids
+        and narrative.contrast.text != PAIR_PLACEHOLDER_CONTRAST_TEXT
+    ):
+        # Non-placeholder contrast with zero cites — Sonnet chose nothing
+        # from the supplied pool. Soft-warn, don't block.
+        empty_claims.append(narrative.contrast.text)
+
+    is_valid = not (fabricated or out_of_context or empty_claims)
+    return ValidationResult(
+        is_valid=is_valid,
+        fabricated_ids=fabricated,
+        out_of_context_ids=out_of_context,
+        numerical_drift=[],
+        empty_claims=empty_claims,
+    )

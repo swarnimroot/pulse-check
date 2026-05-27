@@ -51,7 +51,14 @@ from pulse_check.synthesis.brief_writer import (
     BRIEF_PROMPT_VERSION,
     BRIEF_PROMPT_VERSION_STRICT,
 )
-from pulse_check.synthesis.contracts import BriefNarrative, BriefSection, Claim
+from pulse_check.synthesis.contracts import (
+    BriefNarrative,
+    BriefSection,
+    Claim,
+    PairBriefContrast,
+    PairBriefNarrative,
+)
+from pulse_check.synthesis.pair_brief_writer import PAIR_BRIEF_PROMPT_VERSION
 
 _TAX = "v0"
 _PROMPT = "aspect_classifier_v1"
@@ -318,3 +325,114 @@ def test_synthesize_retries_brief_on_fabricated_citation(
     assert writer_prompt_versions == [BRIEF_PROMPT_VERSION, BRIEF_PROMPT_VERSION_STRICT]
     assert brief.prompt_version == BRIEF_PROMPT_VERSION_STRICT
     assert brief.narrative["flagged_citation_issues"]["fabricated_ids"] == []
+
+
+def test_synthesize_pair_persists_brief_with_contrast(
+    session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """End-to-end: with both sides aggregated, `synthesize_pair` persists a
+    Brief row with scope_type=ASPECT_2_PAIR, scope_id=pair_id, and the
+    PairBriefNarrative serialized into `narrative`."""
+    _seed_post_classifier_corpus(session)
+    # Seed a comparator product with a parallel mini-corpus on THERMALS.
+    comparator_id = "rog_strix_g16"
+    session.add(
+        Product(product_id=comparator_id, display_name="ROG Strix G16", brand="ASUS")
+    )
+    pattern: list[tuple[str, Polarity, Intensity, int]] = [
+        ("c1", Polarity.POSITIVE, Intensity.HIGH, 5),
+        ("c2", Polarity.POSITIVE, Intensity.MEDIUM, 10),
+        ("c3", Polarity.POSITIVE, Intensity.MEDIUM, 15),
+        ("c4", Polarity.NEGATIVE, Intensity.LOW, 20),
+    ]
+    for mid, pol, intensity, days_old in pattern:
+        session.add(
+            Mention(
+                mention_id=mid,
+                source_type=SourceType.REDDIT_POST,
+                source_url=f"https://example.com/{mid}",
+                raw_text=f"comparator text for {mid}",
+                published_at=_NOW - timedelta(days=days_old),
+                metadata_={},
+            )
+        )
+        session.add(
+            MentionAttribution(
+                mention_id=mid,
+                product_id=comparator_id,
+                attribution_type=AttributionType.PRIMARY,
+                attribution_method=AttributionMethod.REGEX,
+            )
+        )
+        session.add(
+            AspectTag(
+                mention_id=mid,
+                product_id=comparator_id,
+                aspect=Aspect.THERMALS,
+                polarity=pol,
+                intensity=intensity,
+                classifier_confidence=0.9,
+                taxonomy_version=_TAX,
+                prompt_version=_PROMPT,
+                model="qwen2.5:7b-q4_K_M",
+                temperature=0.0,
+            )
+        )
+
+    aggregate_a1(
+        session, run_id=_RUN, product_ids=[_PRODUCT_ID, comparator_id],
+        taxonomy_version=_TAX, prompt_version=_PROMPT, now=_NOW,
+    )
+    session.commit()
+
+    monkeypatch.setattr(
+        orchestrator, "cluster_near_duplicates",
+        lambda *_args, **_kwargs: {},
+    )
+
+    def _stub_pair_writer(
+        session_: Session, *, client: Any, primary: Product, comparator: Product,
+        primary_aggregates: dict[Aspect, AggregateAspectSku],
+        comparator_aggregates: dict[Aspect, AggregateAspectSku],
+        primary_selections: dict[Aspect, Any],
+        comparator_selections: dict[Aspect, Any],
+        prompt_version: str,
+    ) -> PairBriefNarrative:
+        return PairBriefNarrative(
+            brief_title=f"{primary.display_name} vs {comparator.display_name}",
+            contrast=PairBriefContrast(
+                text="Primary leads on thermals; comparator counters on cooling consistency.",
+                cited_mention_ids=["m1", "c1"],
+            ),
+        )
+
+    monkeypatch.setattr(orchestrator, "write_pair_brief", _stub_pair_writer)
+
+    pair_id = f"{_PRODUCT_ID}_vs_{comparator_id}"
+    brief = orchestrator.synthesize_pair(
+        session,
+        client=MagicMock(spec=AnthropicClient),
+        run_id=_RUN,
+        pair_id=pair_id,
+        primary_product_id=_PRODUCT_ID,
+        comparator_product_id=comparator_id,
+    )
+    session.commit()
+
+    persisted = session.get(Brief, brief.brief_id)
+    assert persisted is not None
+    assert persisted.scope_type == ScopeType.ASPECT_2_PAIR
+    assert persisted.scope_id == pair_id
+    assert persisted.run_id == _RUN
+    assert persisted.prompt_version == PAIR_BRIEF_PROMPT_VERSION
+
+    narrative = persisted.narrative
+    assert narrative["brief_title"].startswith("Alienware Aurora 16 vs ROG Strix G16")
+    assert narrative["contrast"]["text"].startswith("Primary leads on thermals")
+    assert narrative["contrast"]["cited_mention_ids"] == ["m1", "c1"]
+
+    issues = narrative["flagged_citation_issues"]
+    assert issues["is_valid"] is True
+    assert issues["fabricated_ids"] == []
+    assert issues["out_of_context_ids"] == []

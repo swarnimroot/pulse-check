@@ -186,7 +186,7 @@ A single mention can have multiple attributions (a Reddit thread citing Area-51 
 
 Unique constraint: `(mention_id, product_id, aspect, taxonomy_version, prompt_version)`. Re-tagging under a new taxonomy version adds rows; does not overwrite.
 
-> **A2 pipeline parked, session 35.** The four A2 tables below (`deliberation_tags`, `reason_tags`, `aggregates_pair_reason`, `pair_win_rates`) remain empty under current runs pending future revival. Decision rationale: Reddit corpus is structurally a comparison venue, not a confirmation venue — too few resolved-to-tracked-product deliberation threads to drive a reliable A2 artifact (0/50 in the v2 gold-set sample). Schema is retained so the work can resume without a migration when the corpus mix changes.
+> **A2 pipeline partially shipped (session 42); full deliberation pipeline still parked from session 35.** The four A2 tables below (`deliberation_tags`, `reason_tags`, `aggregates_pair_reason`, `pair_win_rates`) remain empty under current runs — full A2 (per-thread deliberation tagging + reason classifiers + ranked reason aggregates + addressability classification) is parked pending Reddit corpus density improvement (rationale: corpus is structurally a comparison venue, not a confirmation venue — 0/50 resolved-to-tracked-product threads in the v2 gold-set sample). **Pair briefs ship as a narrower A2 artifact (session 42):** Sonnet-generated single-paragraph contrasts per `(primary, comparator)` pair, persisted as `briefs` rows with `scope_type=aspect_2_pair`, citation-validated per §6.3 "Pair brief layout". Pair briefs lazy-join the two products' `aggregates_aspect_sku` rows at writer time and do NOT populate the four parked tables.
 
 **`deliberation_tags`** — thread-level classification for A2.
 | Column | Type | Notes |
@@ -505,6 +505,33 @@ One claim per aspect per section. Each claim cites up to 3 mentions for that asp
 **Empty section 2 — placeholder rule.** When zero aspects qualify for high-confidence weaknesses, section 2 still renders with one placeholder claim: `header = "No criticism noted"`, `claim_text = "No top-of-mind criticism in PRIMARY chatter — see §4 below"`, `cited_mention_ids = []`. This is the sole case where an empty citation list is contractually permitted (see validation rule 1).
 
 **Validation output (operator-locked, session 12).** The four citation-integrity checks (above) run post-generation as a soft-warn — the brief is persisted whether or not warnings fire. The final `ValidationResult` is persisted as a top-level `flagged_citation_issues` key on `briefs.narrative` JSON; downstream UI reads this to badge briefs that have warnings. All-quadrants-empty short-circuits Sonnet entirely (brief title `"{display_name} — A1 voice"` + Q2 placeholder section only; no LLM call).
+
+**Pair brief layout (operator-locked, session 42).** Pair briefs are a Sonnet citation contract variant for the A2 aspect (head-to-head deliberation decoder). Persisted as `briefs` rows with `scope_type = aspect_2_pair`, `scope_id = "{primary}_vs_{competitor}"` matching `configs/pair_plan_*.yaml`. Prompt version `pair_brief_v1` (`pair_brief_v1_strict` for the fabricated-cite retry). Single-paragraph format — the existing Pair-page scorecard supplies the per-aspect numerical detail; the pair brief supplies the texture. Shape:
+
+```json
+{
+  "brief_title": "Alienware 16 Aurora vs ROG Strix G16",
+  "contrast": {
+    "text": "The Alienware 16 Aurora distinguishes itself on build quality perception, thermal management under sustained load, and battery endurance, where consumer chatter consistently frames it as a solid, well-cooled machine with standout runtime. The ROG Strix G16 counters on display quality, raw gaming performance headroom, and keyboard comfort, with reviewers and community voices highlighting its high-refresh matte IPS panel and strong sustained GPU output as its defining strengths.",
+    "cited_mention_ids": ["m_abc123", "m_def456", "m_ghi789"]
+  }
+}
+```
+
+Rules (enforced by `_SONNET_PROMPT` in `pulse_check/synthesis/pair_brief_writer.py`):
+
+- ONE paragraph, 50–80 words, exactly 2 sentences. Hard cap 800 chars in `PairBriefContrast` (wider than A1 `BriefSummary`'s 600 because pair contrast enumerates aspects on both sides; 600 truncated 2-in-10 briefs in the session-42 first batch — operator approved bump after smoke).
+- Sentence 1 names where the PRIMARY product leads — aspects whose `leader` is `"primary"`. Sentence 2 names where the COMPARATOR leads (`"comparator"`) OR where consensus holds (`"tie"`). Even-handed framing — no overall winner verdict.
+- FORBIDDEN: counts / percentages / ratios; prescriptive language ("buyers should…"); raw verbatim quoting inside `contrast.text`; hedging filler.
+- Cites 2–3 mention IDs drawn from the UNION of both sides' verbatim pools. Same defense-in-depth filter as the A1 summary path: `_parse_contrast` drops out-of-pool IDs silently before persistence; the citation validator (`validate_pair_citations`) walks the cite list post-hoc and surfaces real fabrication in `flagged_citation_issues`.
+
+Routing (pure-Python, mirrors A1 brief writer's `_route_aspects_to_quadrants`): `_compute_pair_entries` lazy-joins both products' `AggregateAspectSku` rows for the run (no new pair-aggregate table — see §3 schema), drops aspects with `< 3` total mentions on both sides, computes per-aspect `delta = primary.net_sentiment − comparator.net_sentiment` and `leader ∈ {"primary", "comparator", "tie"}` using the same `_PAIR_LEAD_THRESHOLD = 0.10` constant the `/api/pair` endpoint uses for its scorecard (so the prose tracks the visual). Sorts entries by `abs(delta)` desc so the most striking contrasts feed the top of the Sonnet payload.
+
+Placeholder branch: when no aspect crosses the 3-mention threshold on either side, Sonnet is NOT invoked — `_placeholder_narrative` emits a fixed `contrast.text` (`"Insufficient signal on either side to draw a meaningful contrast."`) with no cites and is persisted as a normal `briefs` row.
+
+Citation validation for pair briefs (`validate_pair_citations`) is a strict subset of A1's: fabricated-IDs check (cited ID not in `mentions`) + out-of-context check (in `mentions` but not in the union pool) + zero-cite check (non-placeholder contrast with empty `cited_mention_ids` → soft-warn). No numerical-drift check (prompt forbids counts in contrast text); no multi-claim empty-claims walk. Retry-on-fabricated mirrors the A1 path: one re-call with `pair_brief_v1_strict` then persist.
+
+Per-pair LLM cost ~$0.02 against Sonnet 4.6 with 11-aspect payload + 4–6 verbatims per aspect per side. Deterministic temperature=0 + `call_with_cache` keyed on payload hash + prompt_version → byte-identical re-runs.
 
 ### 6.4 Haiku — near-duplicate dedup
 

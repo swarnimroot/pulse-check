@@ -10,7 +10,7 @@ A product-listening pilot engine for PC manufacturers. Takes a configured set of
 
 Product-agnostic engine. Alienware gaming laptops are the first demo product set; the same engine runs any product set through the same analysis.
 
-Comparative deliberation decoder (A2 — "why people choose one over another") is deferred to a future wave; the corpus on the v1 demo set has too few resolved deliberation threads to drive a reliable artifact (see [`docs/SESSION_LOG.md`](docs/SESSION_LOG.md) sessions 29–30).
+**Pair-brief contrast** (A2 single-paragraph artifact — "why the choice tilts one way") ships as a narrower view on the Head-to-head page (session 42); each `(primary, comparator)` pair carries a 50–80-word Sonnet-generated contrast above the existing scorecard. **Full comparative deliberation decoder** (A2 reason buckets + addressability classification — "why people choose one over another at the reason level") remains parked because the v1 demo corpus has too few resolved deliberation threads to drive a reliable artifact (see [`docs/SESSION_LOG.md`](docs/SESSION_LOG.md) sessions 29–30 + 42).
 
 ---
 

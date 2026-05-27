@@ -249,6 +249,12 @@ class PairResponse(BaseModel):
     Returns a paired aspect-by-aspect comparison plus a small summary
     (aspects each side leads on). `aspects` carries the canonical column
     order so the frontend renders consistently with the heatmap.
+
+    `latest_pair_brief_id` is the highest `brief_id` whose
+    `scope_type == aspect_2_pair` and `scope_id == "{primary}_vs_{competitor}"`;
+    `None` when no pair brief has been generated for this pair yet.
+    Lets the Pair page navigate pair → brief in one hop (mirrors
+    `ProductDetail.latest_brief_id`).
     """
 
     primary: PairProductRef
@@ -260,6 +266,7 @@ class PairResponse(BaseModel):
     ties_count: int  # both sides equal or both sides missing data
     run_id: str | None
     generated_at: datetime
+    latest_pair_brief_id: int | None = None
 
 
 # ---------------------------------------------------------------------------

@@ -190,6 +190,29 @@ def _latest_a1_brief_id_for_product(session: Session, product_id: str) -> int | 
     return session.execute(stmt).scalar_one_or_none()
 
 
+def _latest_pair_brief_id(
+    session: Session, primary: str, competitor: str
+) -> int | None:
+    """Highest `brief_id` for a pair brief scoped to this directed pair.
+
+    Convention: `scope_id == f"{primary}_vs_{competitor}"`, matching the
+    `pair_id` shape from `configs/pair_plan_*.yaml` and the orchestrator's
+    `synthesize_pair` call site. Lets `/api/pair` advertise the brief link
+    inline so the Pair page navigates pair → brief in one hop.
+    """
+    pair_id = f"{primary}_vs_{competitor}"
+    stmt = (
+        select(Brief.brief_id)
+        .where(
+            Brief.scope_type == ScopeType.ASPECT_2_PAIR,
+            Brief.scope_id == pair_id,
+        )
+        .order_by(Brief.brief_id.desc())
+        .limit(1)
+    )
+    return session.execute(stmt).scalar_one_or_none()
+
+
 def _is_retailer_review(source_type: str) -> bool:
     return source_type in {"bestbuy_review", "amazon_review"}
 
@@ -709,6 +732,7 @@ def _build_api_router() -> APIRouter:
             ties_count=ties,
             run_id=chosen_run_id,
             generated_at=datetime.now(UTC),
+            latest_pair_brief_id=_latest_pair_brief_id(session, primary, competitor),
         )
 
     @router.get("/sources", response_model=SourcesResponse)

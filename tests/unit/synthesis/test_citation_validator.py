@@ -16,12 +16,19 @@ from pulse_check.synthesis.brief_writer import (
     PLACEHOLDER_CLAIM_TEXT,
     SECTION_HEADINGS,
 )
-from pulse_check.synthesis.citation_validator import validate_citations
+from pulse_check.synthesis.citation_validator import (
+    validate_citations,
+    validate_pair_citations,
+)
 from pulse_check.synthesis.contracts import (
     BriefNarrative,
     BriefSection,
+    BriefSummary,
     Claim,
+    PairBriefContrast,
+    PairBriefNarrative,
 )
+from pulse_check.synthesis.pair_brief_writer import PAIR_PLACEHOLDER_CONTRAST_TEXT
 
 _PRODUCT_ID = "alienware_16"
 _RUN_ID = "run_test_validator"
@@ -433,7 +440,6 @@ def test_validator_handles_brief_with_no_citations(session: Session) -> None:
 
 
 def test_summary_fabricated_id_flagged(session: Session) -> None:
-    from pulse_check.synthesis.contracts import BriefSummary
 
     _setup(session)
     _add_mention(session, "m1")
@@ -472,7 +478,6 @@ def test_summary_fabricated_id_flagged(session: Session) -> None:
 
 
 def test_summary_out_of_pool_id_flagged(session: Session) -> None:
-    from pulse_check.synthesis.contracts import BriefSummary
 
     _setup(session)
     _add_mention(session, "m1")
@@ -510,6 +515,85 @@ def test_summary_out_of_pool_id_flagged(session: Session) -> None:
     assert result.is_valid is False
     assert result.fabricated_ids == []
     assert result.out_of_context_ids == ["m_external"]
+
+
+# ---------------------------------------------------------------------------
+# validate_pair_citations
+# ---------------------------------------------------------------------------
+
+
+def _pair_narrative(*, text: str, cited: Sequence[str]) -> PairBriefNarrative:
+    return PairBriefNarrative(
+        brief_title="A vs B",
+        contrast=PairBriefContrast(text=text, cited_mention_ids=list(cited)),
+    )
+
+
+def test_pair_clean_brief_passes(session: Session) -> None:
+    _setup(session)
+    _add_mention(session, "mp1")
+    _add_mention(session, "mc1")
+    session.flush()
+    narrative = _pair_narrative(
+        text="Primary leads on thermals. Comparator leads on display.",
+        cited=("mp1", "mc1"),
+    )
+    result = validate_pair_citations(
+        session, narrative=narrative, allowed_pool={"mp1", "mc1"}
+    )
+    assert result.is_valid is True
+    assert result.fabricated_ids == []
+    assert result.out_of_context_ids == []
+    assert result.empty_claims == []
+
+
+def test_pair_fabricated_id_caught(session: Session) -> None:
+    _setup(session)
+    _add_mention(session, "mp1")
+    session.flush()
+    narrative = _pair_narrative(
+        text="Primary leads on thermals.", cited=("mp1", "made_up")
+    )
+    result = validate_pair_citations(
+        session, narrative=narrative, allowed_pool={"mp1"}
+    )
+    assert result.is_valid is False
+    assert result.fabricated_ids == ["made_up"]
+
+
+def test_pair_out_of_context_id_caught(session: Session) -> None:
+    _setup(session)
+    _add_mention(session, "mp1")
+    _add_mention(session, "mc_other")  # in DB, NOT in pool
+    session.flush()
+    narrative = _pair_narrative(text="Some contrast text.", cited=("mp1", "mc_other"))
+    result = validate_pair_citations(
+        session, narrative=narrative, allowed_pool={"mp1"}
+    )
+    assert result.is_valid is False
+    assert result.out_of_context_ids == ["mc_other"]
+
+
+def test_pair_placeholder_with_empty_cites_passes(session: Session) -> None:
+    _setup(session)
+    session.flush()
+    narrative = _pair_narrative(text=PAIR_PLACEHOLDER_CONTRAST_TEXT, cited=())
+    result = validate_pair_citations(
+        session, narrative=narrative, allowed_pool=set()
+    )
+    assert result.is_valid is True
+    assert result.empty_claims == []
+
+
+def test_pair_non_placeholder_with_zero_cites_flagged(session: Session) -> None:
+    _setup(session)
+    session.flush()
+    narrative = _pair_narrative(text="A real contrast that Sonnet failed to cite.", cited=())
+    result = validate_pair_citations(
+        session, narrative=narrative, allowed_pool=set()
+    )
+    assert result.is_valid is False
+    assert result.empty_claims == ["A real contrast that Sonnet failed to cite."]
 
 
 def test_summary_none_does_not_affect_validation(session: Session) -> None:

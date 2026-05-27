@@ -3,11 +3,14 @@ import { Link } from "react-router-dom";
 import { Select, type SelectOption } from "@/components/atoms";
 import { EvidenceDrawer } from "@/components/EvidenceDrawer";
 import { GlossaryButton } from "@/components/GlossaryDialog";
+import { PairBriefPanel } from "@/components/PairBriefPanel";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ApiError, api } from "@/lib/api";
 import type {
+  BriefView,
   MentionView,
   PairAspectRow,
+  PairBriefNarrative,
   PairResponse,
   ProductSummary,
 } from "@/lib/types";
@@ -59,6 +62,12 @@ type PairState =
   | { kind: "error"; message: string }
   | { kind: "ready"; pair: PairResponse };
 
+type BriefState =
+  | { kind: "idle" }
+  | { kind: "loading" }
+  | { kind: "error"; message: string }
+  | { kind: "ready"; brief: BriefView };
+
 interface DrawerState {
   open: boolean;
   aspect: string;
@@ -105,6 +114,7 @@ export function Pair(): JSX.Element {
   const [competitorCompany, setCompetitorCompany] = useState<string>("");
   const [competitorId, setCompetitorId] = useState<string>("");
   const [pairState, setPairState] = useState<PairState>({ kind: "idle" });
+  const [briefState, setBriefState] = useState<BriefState>({ kind: "idle" });
   const [drawer, setDrawer] = useState<DrawerState>(INITIAL_DRAWER);
 
   // Load product set once. No default selection: the visitor picks both
@@ -134,10 +144,12 @@ export function Pair(): JSX.Element {
         kind: "error",
         message: "Primary and competitor must differ.",
       });
+      setBriefState({ kind: "idle" });
       return;
     }
     let cancelled = false;
     setPairState({ kind: "loading" });
+    setBriefState({ kind: "idle" });
     api
       .pair(primaryId, competitorId)
       .then((pair) => {
@@ -151,6 +163,32 @@ export function Pair(): JSX.Element {
       cancelled = true;
     };
   }, [primaryId, competitorId]);
+
+  // Once the pair payload lands, fetch the latest pair brief if one exists.
+  // Pair page surfaces the brief as a single-paragraph contrast above the
+  // scorecard (ARCHITECTURE §6.4).
+  useEffect(() => {
+    if (pairState.kind !== "ready") return;
+    const briefId = pairState.pair.latest_pair_brief_id;
+    if (briefId == null) {
+      setBriefState({ kind: "idle" });
+      return;
+    }
+    let cancelled = false;
+    setBriefState({ kind: "loading" });
+    api
+      .brief(briefId)
+      .then((brief) => {
+        if (!cancelled) setBriefState({ kind: "ready", brief });
+      })
+      .catch((err: unknown) => {
+        if (!cancelled)
+          setBriefState({ kind: "error", message: describeError(err) });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [pairState]);
 
   const companyOptions = useMemo<SelectOption[]>(() => {
     if (productsState.kind !== "ready") return [];
@@ -190,6 +228,38 @@ export function Pair(): JSX.Element {
     setCompetitorCompany(next);
     setCompetitorId("");
   };
+
+  const openBriefCiteDrawer = useCallback(
+    (claimText: string, mentionIds: string[]): void => {
+      // Pair brief cites are pooled across both products; surface them under
+      // a "Contrast" label so the drawer header doesn't lie about provenance.
+      setDrawer({
+        open: true,
+        aspect: "Contrast",
+        productName: claimText.length > 80 ? `${claimText.slice(0, 80)}…` : claimText,
+        loading: true,
+        mentions: [],
+        errorMessage: null,
+      });
+      api
+        .mentions(mentionIds)
+        .then((res) => {
+          setDrawer((prev) =>
+            prev.open && prev.aspect === "Contrast"
+              ? { ...prev, loading: false, mentions: res.mentions }
+              : prev,
+          );
+        })
+        .catch((err: unknown) => {
+          setDrawer((prev) =>
+            prev.open && prev.aspect === "Contrast"
+              ? { ...prev, loading: false, errorMessage: describeError(err) }
+              : prev,
+          );
+        });
+    },
+    [],
+  );
 
   const openCellDrawer = useCallback(
     (
@@ -284,6 +354,16 @@ export function Pair(): JSX.Element {
             disabled={productsState.kind !== "ready"}
           />
         </section>
+
+        {briefState.kind === "ready" &&
+          briefState.brief.scope_type === "aspect_2_pair" && (
+            <PairBriefPanel
+              narrative={briefState.brief.narrative as unknown as PairBriefNarrative}
+              model={briefState.brief.model}
+              promptVersion={briefState.brief.prompt_version}
+              onCite={openBriefCiteDrawer}
+            />
+          )}
 
         <PairBody
           pairState={pairState}

@@ -26,8 +26,8 @@ pulse-check closes both gaps by pairing the `scrapers-lib` library (for patient,
 
 | Audience | Role | What they read |
 |---|---|---|
-| **Exec / Product Management** *(primary)* | Acts on findings | A1 scorecard + A2 comparative briefs; addressability classification tells them *what kind of fix* each reason implies |
-| **Marketing / PR** *(secondary)* | Messaging, positioning, competitive response | A2 reasons buckets + verbatim evidence |
+| **Exec / Product Management** *(primary)* | Acts on findings | A1 scorecard + A2 pair-brief contrast paragraph (session 42 shipped — single-paragraph per pair); full A2 (reason buckets + addressability classification telling them *what kind of fix* each reason implies) parked pending corpus deliberation density |
+| **Marketing / PR** *(secondary)* | Messaging, positioning, competitive response | A2 pair-brief contrast + verbatim evidence; full reason-bucket detail parked alongside the full A2 pipeline |
 | **Operator** *(developer)* | Runs pipelines, reviews outputs, refines taxonomy | Everything; also sees raw mention drill-downs |
 
 Audience bias: **exec-clarity over analyst-depth.** Default views should surface conclusions; detail is one click away.
@@ -137,7 +137,7 @@ All run outputs — tagged mentions, aggregates, briefs — are stored with run 
 ### Artifact quality
 
 - Each Aspect 1 scorecard reads as a coherent standalone brief
-- Each Aspect 2 pair brief produces **at least one actionable finding** with an addressability classification
+- Each Aspect 2 pair brief contrast paragraph (session 42 shipped) cites real mention IDs with zero fabrication and frames where each side leads in plain English; **full actionability** (at least one actionable finding with an addressability classification) is gated on the parked full-A2 reason pipeline and tracks corpus deliberation density
 - Verbatim evidence is foregrounded on every card — source, verified_purchase, ownership_duration, published_at visible on the quote itself
 - **Every UI claim (aggregate number, ranked reason, brief sentence) is traceable to its underlying mentions without manual cross-referencing — evidence-first principle satisfied end-to-end**
 

@@ -70,6 +70,43 @@ class BriefNarrative(BaseModel):
     summary: BriefSummary | None = None
 
 
+class PairBriefContrast(BaseModel):
+    """Two-side contrast paragraph for a pair brief.
+
+    Shaped like `BriefSummary` (text + cited_mention_ids) but with a wider
+    char cap (800 vs 600). Reason: pair briefs naturally run longer than A1
+    summaries because each sentence enumerates aspects on one side; 50-80
+    word target × two products of aspect lists pushes character count past
+    the A1 ceiling on roughly 1-in-5 pairs (observed session 42 smoke).
+    Cap session-locked at 800 after first 10-pair batch — see
+    SESSION_LOG session 42 D2.
+    """
+
+    text: str = Field(..., min_length=1, max_length=800)
+    cited_mention_ids: list[str] = Field(..., min_length=0)
+
+
+class PairBriefNarrative(BaseModel):
+    """Top-level pair-brief shape; serializes to `briefs.narrative` JSON on
+    rows with `scope_type=ASPECT_2_PAIR`.
+
+    Designed in session 42 (ARCHITECTURE §6.4 — pair brief layout). Single
+    contrast paragraph framing where the primary product leads, where the
+    comparator leads, and where opinions converge. No multi-section structure:
+    the existing Pair page scorecard supplies the per-aspect numerical detail;
+    the contrast paragraph supplies the texture.
+
+    `contrast` is `PairBriefContrast` (50-80 word paragraph, 800-char ceiling,
+    2-3 cited mention IDs drawn from BOTH sides' verbatim pools). The
+    placeholder branch (no aspect crosses the per-side minimum) still emits a
+    valid `PairBriefContrast` carrying fixed text and no cites — see
+    `pair_brief_writer.PAIR_PLACEHOLDER_CONTRAST_TEXT`.
+    """
+
+    brief_title: str = Field(..., min_length=1)
+    contrast: PairBriefContrast
+
+
 class NumericalDrift(BaseModel):
     """A claim whose stated count diverges from the citation list size by more
     than the validator's tolerance (TESTING §6, default ±5%)."""
