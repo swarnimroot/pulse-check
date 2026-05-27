@@ -497,3 +497,21 @@ def test_summary_reads_legacy_vibe_summary_key_from_cached_response(
 
     assert brief.summary is not None
     assert brief.summary.text == "Legacy text from a cached response."
+
+
+def test_truncate_verbatim_passes_short_text_unchanged() -> None:
+    from pulse_check.synthesis.brief_writer import VERBATIM_TEXT_CAP_CHARS, _truncate_verbatim
+
+    short = "y" * (VERBATIM_TEXT_CAP_CHARS - 1)
+    assert _truncate_verbatim(short) == short
+
+
+def test_truncate_verbatim_caps_long_text_with_ellipsis() -> None:
+    from pulse_check.synthesis.brief_writer import VERBATIM_TEXT_CAP_CHARS, _truncate_verbatim
+
+    long_text = "z" * (VERBATIM_TEXT_CAP_CHARS + 1000)
+    out = _truncate_verbatim(long_text)
+    assert out.endswith("...")
+    body = out[:-3]
+    assert len(body) <= VERBATIM_TEXT_CAP_CHARS
+    assert len(out) < len(long_text)

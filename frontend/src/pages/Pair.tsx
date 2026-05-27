@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { Select, type SelectOption } from "@/components/atoms";
 import { EvidenceDrawer } from "@/components/EvidenceDrawer";
 import { GlossaryButton } from "@/components/GlossaryDialog";
+import { PairBriefExportButton } from "@/components/PairBriefExportButton";
 import { PairBriefPanel } from "@/components/PairBriefPanel";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ApiError, api } from "@/lib/api";
@@ -327,7 +328,15 @@ export function Pair(): JSX.Element {
               quotes behind the score.
             </p>
           </div>
-          <GlossaryButton />
+          <div className="flex items-start gap-2">
+            <GlossaryButton />
+            {pairState.kind === "ready" && briefState.kind === "ready" && (
+              <PairBriefExportButton
+                pair={pairState.pair}
+                brief={briefState.brief}
+              />
+            )}
+          </div>
         </header>
 
         <section className="grid grid-cols-[1fr_auto_1fr] items-end gap-6 rounded-md border border-border bg-surface p-5 shadow-card">

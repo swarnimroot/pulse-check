@@ -57,6 +57,19 @@ PAIR_ASPECT_MIN_MENTIONS = 3
 # choice.
 PAIR_VERBATIMS_PER_SIDE_CAP = 2
 
+# Per-verbatim raw_text cap applied at payload-build time. Session-43 cost
+# reckoning: untruncated mention raw_text averaged 977 chars (max 72,945 —
+# Notebookcheck chunks) which pushed per-pair input to ~165K tokens / ~$0.50
+# Sonnet. Sonnet only needs enough text to confirm the aspect/sentiment/
+# intensity that the deterministic selector already assigned; the full body
+# is not load-bearing. Cap at 800 chars (~200 tokens) preserves the lead
+# context while dropping per-pair input by ~30x. Mirrors brief_writer.py
+# (same value) so a future shared constant move is mechanical. Cache-key
+# implication: changing this constant invalidates the LlmCache input_hash
+# for every pair-brief row — existing persisted Brief rows are unaffected
+# but a re-run would not cache-hit prior calls.
+VERBATIM_TEXT_CAP_CHARS = 800
+
 PAIR_PLACEHOLDER_CONTRAST_TEXT = (
     "Insufficient signal on either side to draw a meaningful contrast."
 )
@@ -163,6 +176,15 @@ def _compute_pair_entries(
     return entries
 
 
+def _truncate(text: str) -> str:
+    """Cap a verbatim at VERBATIM_TEXT_CAP_CHARS, appending an explicit
+    ellipsis marker so Sonnet sees that text was cut. Leaves shorter
+    text untouched."""
+    if len(text) <= VERBATIM_TEXT_CAP_CHARS:
+        return text
+    return text[:VERBATIM_TEXT_CAP_CHARS].rstrip() + "..."
+
+
 def _build_sonnet_payload(
     primary: Product,
     comparator: Product,
@@ -187,7 +209,7 @@ def _build_sonnet_payload(
                 "mention_id": v.mention_id,
                 "polarity": v.polarity.value,
                 "intensity": v.intensity.value,
-                "text": verbatim_text[v.mention_id],
+                "text": _truncate(verbatim_text[v.mention_id]),
             }
             for v in verbs
         ]

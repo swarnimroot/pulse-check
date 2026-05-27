@@ -55,6 +55,14 @@ PER_QUADRANT_ASPECT_CAP = 3
 HIGH_CONF_THRESHOLD = 3   # min PRIMARY mentions of a polarity for §1/§2 inclusion
 SECONDARY_THRESHOLD = 1   # min SECONDARY mentions for §3/§4 inclusion
 
+# Per-verbatim raw_text cap applied at payload-build time. See session-43 cost
+# reckoning in pair_brief_writer.py — same rationale: with up to 4 quadrants ×
+# 3 aspects × ~3 verbatims = ~36 mentions per A1 brief, untruncated raw_text
+# (avg 977 chars, max 72,945) blew the per-call input to tens of thousands of
+# tokens. Sonnet only needs the lead context to ground its claim text; the
+# full body is not load-bearing. Mirrors pair_brief_writer.VERBATIM_TEXT_CAP_CHARS.
+VERBATIM_TEXT_CAP_CHARS = 800
+
 SECTION_HEADINGS: dict[int, str] = {
     1: "High-confidence strengths",
     2: "High-confidence weaknesses",
@@ -151,6 +159,14 @@ def _route_aspects_to_quadrants(
     ]
 
 
+def _truncate_verbatim(text: str) -> str:
+    """Cap a verbatim at VERBATIM_TEXT_CAP_CHARS, appending an ellipsis marker
+    when truncation fires. See module-level constant for cost rationale."""
+    if len(text) <= VERBATIM_TEXT_CAP_CHARS:
+        return text
+    return text[:VERBATIM_TEXT_CAP_CHARS].rstrip() + "..."
+
+
 def _build_sonnet_payload(
     product: Product,
     aggregates: Mapping[Aspect, AggregateAspectSku],
@@ -189,7 +205,7 @@ def _build_sonnet_payload(
                             {
                                 "mention_id": v.mention_id,
                                 "intensity": v.intensity.value,
-                                "text": verbatim_text[v.mention_id],
+                                "text": _truncate_verbatim(verbatim_text[v.mention_id]),
                             }
                             for v in entry.selected
                         ],

@@ -10,7 +10,7 @@ A product-listening pilot engine for PC manufacturers. Takes a configured set of
 
 Product-agnostic engine. Alienware gaming laptops are the first demo product set; the same engine runs any product set through the same analysis.
 
-**Pair-brief contrast** (A2 single-paragraph artifact — "why the choice tilts one way") ships as a narrower view on the Head-to-head page (session 42); each `(primary, comparator)` pair carries a 50–80-word Sonnet-generated contrast above the existing scorecard. **Full comparative deliberation decoder** (A2 reason buckets + addressability classification — "why people choose one over another at the reason level") remains parked because the v1 demo corpus has too few resolved deliberation threads to drive a reliable artifact (see [`docs/SESSION_LOG.md`](docs/SESSION_LOG.md) sessions 29–30 + 42).
+**Pair-brief contrast** (A2 single-paragraph artifact — "why the choice tilts one way") ships as a narrower view on the Head-to-head page (session 42; saturated session 43 to 200 distinct pair scope_ids = 4 Alienware primaries × 50 non-Alienware competitors with aggregates). Each `(primary, comparator)` pair carries a 50–80-word Sonnet-generated contrast above the existing scorecard, exportable as PDF / HTML / Markdown via the **Export comparison** button (session 43; mirrors the standalone export). **Full comparative deliberation decoder** (A2 reason buckets + addressability classification — "why people choose one over another at the reason level") remains parked because the v1 demo corpus has too few resolved deliberation threads to drive a reliable artifact (see [`docs/SESSION_LOG.md`](docs/SESSION_LOG.md) sessions 29–30 + 42).
 
 ---
 
@@ -31,7 +31,7 @@ See [`docs/PRD.md` §4.2 Non-goals](docs/PRD.md). Highlights:
 - Not a consumer-facing buying tool.
 - Not a real-time monitoring dashboard (v1 runs analyses on demand; quarterly refresh is the operational cadence).
 - Not a general brand-sentiment tool; every analysis is product-set-scoped.
-- No PDF/markdown export, no mobile, no multi-user auth.
+- No mobile, no multi-user auth. (PDF / HTML / Markdown export of A1 standalone briefs and pair contrast briefs is shipped — sessions 35–43 — via the in-app `Export brief` and `Export comparison` buttons.)
 
 ---
 

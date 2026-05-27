@@ -460,3 +460,23 @@ def test_strict_prompt_template_includes_strict_preamble() -> None:
     base = _PAIR_PROMPT_TEMPLATES[PAIR_BRIEF_PROMPT_VERSION]
     assert "STRICT MODE" in strict
     assert strict.endswith(base)
+
+
+def test_truncate_passes_short_text_unchanged() -> None:
+    from pulse_check.synthesis.pair_brief_writer import VERBATIM_TEXT_CAP_CHARS, _truncate
+
+    short = "x" * (VERBATIM_TEXT_CAP_CHARS - 1)
+    assert _truncate(short) == short
+
+
+def test_truncate_caps_long_text_with_ellipsis_marker() -> None:
+    from pulse_check.synthesis.pair_brief_writer import VERBATIM_TEXT_CAP_CHARS, _truncate
+
+    long_text = "a" * (VERBATIM_TEXT_CAP_CHARS + 5000)
+    out = _truncate(long_text)
+    assert out.endswith("...")
+    # body without the marker fits inside the cap (rstrip may trim trailing
+    # spaces inside the slice; assert against the un-suffixed length)
+    body = out[:-3]
+    assert len(body) <= VERBATIM_TEXT_CAP_CHARS
+    assert len(out) < len(long_text)

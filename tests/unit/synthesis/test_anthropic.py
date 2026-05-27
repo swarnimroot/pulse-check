@@ -151,3 +151,52 @@ def test_parse_retry_exhaustion_raises_parse_error() -> None:
     with pytest.raises(LlmParseError) as err:
         client.generate_json(model=_HAIKU, prompt="x", max_retries=2)
     assert "after 2 retries" in str(err.value)
+
+
+# ---------------------------------------------------------------------------
+# Token-usage logging (session 43 — cost visibility in-flight)
+# ---------------------------------------------------------------------------
+
+
+def test_estimate_cost_usd_sonnet() -> None:
+    from pulse_check.synthesis.anthropic_client import _estimate_cost_usd
+
+    # 100,000 in @ $3/M + 1,000 out @ $15/M = $0.30 + $0.015 = $0.315
+    assert _estimate_cost_usd("claude-sonnet-4-6", 100_000, 1_000) == pytest.approx(0.315)
+
+
+def test_estimate_cost_usd_unknown_model_returns_none() -> None:
+    from pulse_check.synthesis.anthropic_client import _estimate_cost_usd
+
+    assert _estimate_cost_usd("some-future-model", 1000, 100) is None
+
+
+def test_usage_logged_when_response_carries_usage(caplog: pytest.LogCaptureFixture) -> None:
+    """A call with a `usage` attr on the response writes a single INFO line
+    with in_tokens / out_tokens / est_cost — the lever an operator uses to
+    watch spend accumulate in-flight (session-43 cost-blowup remediation)."""
+    sdk = MagicMock()
+
+    class _UsageBearingResponse:
+        def __init__(self) -> None:
+            self.content = [_FakeBlock('{"ok": true}')]
+            usage = MagicMock()
+            usage.input_tokens = 12_345
+            usage.output_tokens = 234
+            self.usage = usage
+
+    sdk.messages.create.return_value = _UsageBearingResponse()
+
+    client = _make_client(sdk)
+    with caplog.at_level("INFO", logger="pulse_check.synthesis.anthropic_client"):
+        client.generate_json(model=_SONNET, prompt="x")
+
+    usage_lines = [
+        r for r in caplog.records if "anthropic call model=" in r.getMessage()
+    ]
+    assert len(usage_lines) == 1
+    msg = usage_lines[0].getMessage()
+    assert "model=claude-sonnet-4-6" in msg
+    assert "in_tokens=12345" in msg
+    assert "out_tokens=234" in msg
+    assert "est_cost=$" in msg

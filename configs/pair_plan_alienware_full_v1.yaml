@@ -1,0 +1,632 @@
+# Wave 5 full-saturation pair plan — 4 Alienware primaries × 50 non-Alienware
+# competitors = 200 pairs. Authored session 43 to expand Pair-page coverage from
+# the 40-distinct-scope_ids set (alienware_vs_all + wave5_staged) to full Alienware-POV
+# saturation across every non-Alienware product with aggregates_aspect_sku rows for
+# run_wave5_v1.
+#
+# Excluded (no aggregate rows for this run; would hit placeholder branch):
+#   hp_omen_slim_16, hp_omen_transcend_16, acer_predator_helios_neo_18,
+#   msi_cyborg_14, msi_cyborg_17.
+#
+# Low-count competitors (1-2 aggregate rows each) included but expected to yield
+# lopsided briefs where the Alienware side carries most aspects:
+#   rog_flow_x16 (1), acer_nitro_16 (1), msi_raider_16 (2).
+#
+# Pair-direction convention: primary = Alienware (manufacturer POV).
+
+pairs:
+  # -------------------------------------------------------------------------
+  # alienware_16_aurora vs 50 competitors
+  # -------------------------------------------------------------------------
+  - pair_id: alienware_16_aurora_vs_acer_nitro_14
+    primary: alienware_16_aurora
+    comparator: acer_nitro_14
+  - pair_id: alienware_16_aurora_vs_acer_nitro_15
+    primary: alienware_16_aurora
+    comparator: acer_nitro_15
+  - pair_id: alienware_16_aurora_vs_acer_nitro_16
+    primary: alienware_16_aurora
+    comparator: acer_nitro_16
+  - pair_id: alienware_16_aurora_vs_acer_nitro_17
+    primary: alienware_16_aurora
+    comparator: acer_nitro_17
+  - pair_id: alienware_16_aurora_vs_acer_predator_helios_16
+    primary: alienware_16_aurora
+    comparator: acer_predator_helios_16
+  - pair_id: alienware_16_aurora_vs_acer_predator_helios_18
+    primary: alienware_16_aurora
+    comparator: acer_predator_helios_18
+  - pair_id: alienware_16_aurora_vs_acer_predator_helios_neo_16
+    primary: alienware_16_aurora
+    comparator: acer_predator_helios_neo_16
+  - pair_id: alienware_16_aurora_vs_acer_predator_neo_16s
+    primary: alienware_16_aurora
+    comparator: acer_predator_neo_16s
+  - pair_id: alienware_16_aurora_vs_acer_predator_triton_14
+    primary: alienware_16_aurora
+    comparator: acer_predator_triton_14
+  - pair_id: alienware_16_aurora_vs_asus_tuf_14
+    primary: alienware_16_aurora
+    comparator: asus_tuf_14
+  - pair_id: alienware_16_aurora_vs_asus_tuf_15
+    primary: alienware_16_aurora
+    comparator: asus_tuf_15
+  - pair_id: alienware_16_aurora_vs_asus_tuf_16
+    primary: alienware_16_aurora
+    comparator: asus_tuf_16
+  - pair_id: alienware_16_aurora_vs_asus_tuf_17
+    primary: alienware_16_aurora
+    comparator: asus_tuf_17
+  - pair_id: alienware_16_aurora_vs_asus_v16
+    primary: alienware_16_aurora
+    comparator: asus_v16
+  - pair_id: alienware_16_aurora_vs_hp_omen_16
+    primary: alienware_16_aurora
+    comparator: hp_omen_16
+  - pair_id: alienware_16_aurora_vs_hp_omen_17
+    primary: alienware_16_aurora
+    comparator: hp_omen_17
+  - pair_id: alienware_16_aurora_vs_hp_omen_max_16
+    primary: alienware_16_aurora
+    comparator: hp_omen_max_16
+  - pair_id: alienware_16_aurora_vs_hp_omen_transcend_14
+    primary: alienware_16_aurora
+    comparator: hp_omen_transcend_14
+  - pair_id: alienware_16_aurora_vs_hp_victus_15
+    primary: alienware_16_aurora
+    comparator: hp_victus_15
+  - pair_id: alienware_16_aurora_vs_legion_7i
+    primary: alienware_16_aurora
+    comparator: legion_7i
+  - pair_id: alienware_16_aurora_vs_lenovo_legion_5_15
+    primary: alienware_16_aurora
+    comparator: lenovo_legion_5_15
+  - pair_id: alienware_16_aurora_vs_lenovo_legion_5_pro_16
+    primary: alienware_16_aurora
+    comparator: lenovo_legion_5_pro_16
+  - pair_id: alienware_16_aurora_vs_lenovo_legion_7
+    primary: alienware_16_aurora
+    comparator: lenovo_legion_7
+  - pair_id: alienware_16_aurora_vs_lenovo_legion_7_pro_16
+    primary: alienware_16_aurora
+    comparator: lenovo_legion_7_pro_16
+  - pair_id: alienware_16_aurora_vs_lenovo_legion_9
+    primary: alienware_16_aurora
+    comparator: lenovo_legion_9
+  - pair_id: alienware_16_aurora_vs_lenovo_loq_15
+    primary: alienware_16_aurora
+    comparator: lenovo_loq_15
+  - pair_id: alienware_16_aurora_vs_lenovo_loq_17
+    primary: alienware_16_aurora
+    comparator: lenovo_loq_17
+  - pair_id: alienware_16_aurora_vs_msi_crosshair_16
+    primary: alienware_16_aurora
+    comparator: msi_crosshair_16
+  - pair_id: alienware_16_aurora_vs_msi_crosshair_17
+    primary: alienware_16_aurora
+    comparator: msi_crosshair_17
+  - pair_id: alienware_16_aurora_vs_msi_crosshair_18
+    primary: alienware_16_aurora
+    comparator: msi_crosshair_18
+  - pair_id: alienware_16_aurora_vs_msi_cyborg_15
+    primary: alienware_16_aurora
+    comparator: msi_cyborg_15
+  - pair_id: alienware_16_aurora_vs_msi_katana_15
+    primary: alienware_16_aurora
+    comparator: msi_katana_15
+  - pair_id: alienware_16_aurora_vs_msi_katana_17
+    primary: alienware_16_aurora
+    comparator: msi_katana_17
+  - pair_id: alienware_16_aurora_vs_msi_raider_16
+    primary: alienware_16_aurora
+    comparator: msi_raider_16
+  - pair_id: alienware_16_aurora_vs_msi_raider_18
+    primary: alienware_16_aurora
+    comparator: msi_raider_18
+  - pair_id: alienware_16_aurora_vs_msi_stealth_16
+    primary: alienware_16_aurora
+    comparator: msi_stealth_16
+  - pair_id: alienware_16_aurora_vs_msi_stealth_18
+    primary: alienware_16_aurora
+    comparator: msi_stealth_18
+  - pair_id: alienware_16_aurora_vs_msi_titan_18
+    primary: alienware_16_aurora
+    comparator: msi_titan_18
+  - pair_id: alienware_16_aurora_vs_msi_vector_16
+    primary: alienware_16_aurora
+    comparator: msi_vector_16
+  - pair_id: alienware_16_aurora_vs_msi_vector_17
+    primary: alienware_16_aurora
+    comparator: msi_vector_17
+  - pair_id: alienware_16_aurora_vs_msi_vector_18
+    primary: alienware_16_aurora
+    comparator: msi_vector_18
+  - pair_id: alienware_16_aurora_vs_rog_flow_x16
+    primary: alienware_16_aurora
+    comparator: rog_flow_x16
+  - pair_id: alienware_16_aurora_vs_rog_flow_z13
+    primary: alienware_16_aurora
+    comparator: rog_flow_z13
+  - pair_id: alienware_16_aurora_vs_rog_strix_g16
+    primary: alienware_16_aurora
+    comparator: rog_strix_g16
+  - pair_id: alienware_16_aurora_vs_rog_strix_g17
+    primary: alienware_16_aurora
+    comparator: rog_strix_g17
+  - pair_id: alienware_16_aurora_vs_rog_strix_g18
+    primary: alienware_16_aurora
+    comparator: rog_strix_g18
+  - pair_id: alienware_16_aurora_vs_rog_strix_scar_16
+    primary: alienware_16_aurora
+    comparator: rog_strix_scar_16
+  - pair_id: alienware_16_aurora_vs_rog_strix_scar_18
+    primary: alienware_16_aurora
+    comparator: rog_strix_scar_18
+  - pair_id: alienware_16_aurora_vs_rog_zephyrus_g14
+    primary: alienware_16_aurora
+    comparator: rog_zephyrus_g14
+  - pair_id: alienware_16_aurora_vs_rog_zephyrus_g16
+    primary: alienware_16_aurora
+    comparator: rog_zephyrus_g16
+
+  # -------------------------------------------------------------------------
+  # alienware_16x_aurora vs 50 competitors
+  # -------------------------------------------------------------------------
+  - pair_id: alienware_16x_aurora_vs_acer_nitro_14
+    primary: alienware_16x_aurora
+    comparator: acer_nitro_14
+  - pair_id: alienware_16x_aurora_vs_acer_nitro_15
+    primary: alienware_16x_aurora
+    comparator: acer_nitro_15
+  - pair_id: alienware_16x_aurora_vs_acer_nitro_16
+    primary: alienware_16x_aurora
+    comparator: acer_nitro_16
+  - pair_id: alienware_16x_aurora_vs_acer_nitro_17
+    primary: alienware_16x_aurora
+    comparator: acer_nitro_17
+  - pair_id: alienware_16x_aurora_vs_acer_predator_helios_16
+    primary: alienware_16x_aurora
+    comparator: acer_predator_helios_16
+  - pair_id: alienware_16x_aurora_vs_acer_predator_helios_18
+    primary: alienware_16x_aurora
+    comparator: acer_predator_helios_18
+  - pair_id: alienware_16x_aurora_vs_acer_predator_helios_neo_16
+    primary: alienware_16x_aurora
+    comparator: acer_predator_helios_neo_16
+  - pair_id: alienware_16x_aurora_vs_acer_predator_neo_16s
+    primary: alienware_16x_aurora
+    comparator: acer_predator_neo_16s
+  - pair_id: alienware_16x_aurora_vs_acer_predator_triton_14
+    primary: alienware_16x_aurora
+    comparator: acer_predator_triton_14
+  - pair_id: alienware_16x_aurora_vs_asus_tuf_14
+    primary: alienware_16x_aurora
+    comparator: asus_tuf_14
+  - pair_id: alienware_16x_aurora_vs_asus_tuf_15
+    primary: alienware_16x_aurora
+    comparator: asus_tuf_15
+  - pair_id: alienware_16x_aurora_vs_asus_tuf_16
+    primary: alienware_16x_aurora
+    comparator: asus_tuf_16
+  - pair_id: alienware_16x_aurora_vs_asus_tuf_17
+    primary: alienware_16x_aurora
+    comparator: asus_tuf_17
+  - pair_id: alienware_16x_aurora_vs_asus_v16
+    primary: alienware_16x_aurora
+    comparator: asus_v16
+  - pair_id: alienware_16x_aurora_vs_hp_omen_16
+    primary: alienware_16x_aurora
+    comparator: hp_omen_16
+  - pair_id: alienware_16x_aurora_vs_hp_omen_17
+    primary: alienware_16x_aurora
+    comparator: hp_omen_17
+  - pair_id: alienware_16x_aurora_vs_hp_omen_max_16
+    primary: alienware_16x_aurora
+    comparator: hp_omen_max_16
+  - pair_id: alienware_16x_aurora_vs_hp_omen_transcend_14
+    primary: alienware_16x_aurora
+    comparator: hp_omen_transcend_14
+  - pair_id: alienware_16x_aurora_vs_hp_victus_15
+    primary: alienware_16x_aurora
+    comparator: hp_victus_15
+  - pair_id: alienware_16x_aurora_vs_legion_7i
+    primary: alienware_16x_aurora
+    comparator: legion_7i
+  - pair_id: alienware_16x_aurora_vs_lenovo_legion_5_15
+    primary: alienware_16x_aurora
+    comparator: lenovo_legion_5_15
+  - pair_id: alienware_16x_aurora_vs_lenovo_legion_5_pro_16
+    primary: alienware_16x_aurora
+    comparator: lenovo_legion_5_pro_16
+  - pair_id: alienware_16x_aurora_vs_lenovo_legion_7
+    primary: alienware_16x_aurora
+    comparator: lenovo_legion_7
+  - pair_id: alienware_16x_aurora_vs_lenovo_legion_7_pro_16
+    primary: alienware_16x_aurora
+    comparator: lenovo_legion_7_pro_16
+  - pair_id: alienware_16x_aurora_vs_lenovo_legion_9
+    primary: alienware_16x_aurora
+    comparator: lenovo_legion_9
+  - pair_id: alienware_16x_aurora_vs_lenovo_loq_15
+    primary: alienware_16x_aurora
+    comparator: lenovo_loq_15
+  - pair_id: alienware_16x_aurora_vs_lenovo_loq_17
+    primary: alienware_16x_aurora
+    comparator: lenovo_loq_17
+  - pair_id: alienware_16x_aurora_vs_msi_crosshair_16
+    primary: alienware_16x_aurora
+    comparator: msi_crosshair_16
+  - pair_id: alienware_16x_aurora_vs_msi_crosshair_17
+    primary: alienware_16x_aurora
+    comparator: msi_crosshair_17
+  - pair_id: alienware_16x_aurora_vs_msi_crosshair_18
+    primary: alienware_16x_aurora
+    comparator: msi_crosshair_18
+  - pair_id: alienware_16x_aurora_vs_msi_cyborg_15
+    primary: alienware_16x_aurora
+    comparator: msi_cyborg_15
+  - pair_id: alienware_16x_aurora_vs_msi_katana_15
+    primary: alienware_16x_aurora
+    comparator: msi_katana_15
+  - pair_id: alienware_16x_aurora_vs_msi_katana_17
+    primary: alienware_16x_aurora
+    comparator: msi_katana_17
+  - pair_id: alienware_16x_aurora_vs_msi_raider_16
+    primary: alienware_16x_aurora
+    comparator: msi_raider_16
+  - pair_id: alienware_16x_aurora_vs_msi_raider_18
+    primary: alienware_16x_aurora
+    comparator: msi_raider_18
+  - pair_id: alienware_16x_aurora_vs_msi_stealth_16
+    primary: alienware_16x_aurora
+    comparator: msi_stealth_16
+  - pair_id: alienware_16x_aurora_vs_msi_stealth_18
+    primary: alienware_16x_aurora
+    comparator: msi_stealth_18
+  - pair_id: alienware_16x_aurora_vs_msi_titan_18
+    primary: alienware_16x_aurora
+    comparator: msi_titan_18
+  - pair_id: alienware_16x_aurora_vs_msi_vector_16
+    primary: alienware_16x_aurora
+    comparator: msi_vector_16
+  - pair_id: alienware_16x_aurora_vs_msi_vector_17
+    primary: alienware_16x_aurora
+    comparator: msi_vector_17
+  - pair_id: alienware_16x_aurora_vs_msi_vector_18
+    primary: alienware_16x_aurora
+    comparator: msi_vector_18
+  - pair_id: alienware_16x_aurora_vs_rog_flow_x16
+    primary: alienware_16x_aurora
+    comparator: rog_flow_x16
+  - pair_id: alienware_16x_aurora_vs_rog_flow_z13
+    primary: alienware_16x_aurora
+    comparator: rog_flow_z13
+  - pair_id: alienware_16x_aurora_vs_rog_strix_g16
+    primary: alienware_16x_aurora
+    comparator: rog_strix_g16
+  - pair_id: alienware_16x_aurora_vs_rog_strix_g17
+    primary: alienware_16x_aurora
+    comparator: rog_strix_g17
+  - pair_id: alienware_16x_aurora_vs_rog_strix_g18
+    primary: alienware_16x_aurora
+    comparator: rog_strix_g18
+  - pair_id: alienware_16x_aurora_vs_rog_strix_scar_16
+    primary: alienware_16x_aurora
+    comparator: rog_strix_scar_16
+  - pair_id: alienware_16x_aurora_vs_rog_strix_scar_18
+    primary: alienware_16x_aurora
+    comparator: rog_strix_scar_18
+  - pair_id: alienware_16x_aurora_vs_rog_zephyrus_g14
+    primary: alienware_16x_aurora
+    comparator: rog_zephyrus_g14
+  - pair_id: alienware_16x_aurora_vs_rog_zephyrus_g16
+    primary: alienware_16x_aurora
+    comparator: rog_zephyrus_g16
+
+  # -------------------------------------------------------------------------
+  # alienware_16_area_51 vs 50 competitors
+  # -------------------------------------------------------------------------
+  - pair_id: alienware_16_area_51_vs_acer_nitro_14
+    primary: alienware_16_area_51
+    comparator: acer_nitro_14
+  - pair_id: alienware_16_area_51_vs_acer_nitro_15
+    primary: alienware_16_area_51
+    comparator: acer_nitro_15
+  - pair_id: alienware_16_area_51_vs_acer_nitro_16
+    primary: alienware_16_area_51
+    comparator: acer_nitro_16
+  - pair_id: alienware_16_area_51_vs_acer_nitro_17
+    primary: alienware_16_area_51
+    comparator: acer_nitro_17
+  - pair_id: alienware_16_area_51_vs_acer_predator_helios_16
+    primary: alienware_16_area_51
+    comparator: acer_predator_helios_16
+  - pair_id: alienware_16_area_51_vs_acer_predator_helios_18
+    primary: alienware_16_area_51
+    comparator: acer_predator_helios_18
+  - pair_id: alienware_16_area_51_vs_acer_predator_helios_neo_16
+    primary: alienware_16_area_51
+    comparator: acer_predator_helios_neo_16
+  - pair_id: alienware_16_area_51_vs_acer_predator_neo_16s
+    primary: alienware_16_area_51
+    comparator: acer_predator_neo_16s
+  - pair_id: alienware_16_area_51_vs_acer_predator_triton_14
+    primary: alienware_16_area_51
+    comparator: acer_predator_triton_14
+  - pair_id: alienware_16_area_51_vs_asus_tuf_14
+    primary: alienware_16_area_51
+    comparator: asus_tuf_14
+  - pair_id: alienware_16_area_51_vs_asus_tuf_15
+    primary: alienware_16_area_51
+    comparator: asus_tuf_15
+  - pair_id: alienware_16_area_51_vs_asus_tuf_16
+    primary: alienware_16_area_51
+    comparator: asus_tuf_16
+  - pair_id: alienware_16_area_51_vs_asus_tuf_17
+    primary: alienware_16_area_51
+    comparator: asus_tuf_17
+  - pair_id: alienware_16_area_51_vs_asus_v16
+    primary: alienware_16_area_51
+    comparator: asus_v16
+  - pair_id: alienware_16_area_51_vs_hp_omen_16
+    primary: alienware_16_area_51
+    comparator: hp_omen_16
+  - pair_id: alienware_16_area_51_vs_hp_omen_17
+    primary: alienware_16_area_51
+    comparator: hp_omen_17
+  - pair_id: alienware_16_area_51_vs_hp_omen_max_16
+    primary: alienware_16_area_51
+    comparator: hp_omen_max_16
+  - pair_id: alienware_16_area_51_vs_hp_omen_transcend_14
+    primary: alienware_16_area_51
+    comparator: hp_omen_transcend_14
+  - pair_id: alienware_16_area_51_vs_hp_victus_15
+    primary: alienware_16_area_51
+    comparator: hp_victus_15
+  - pair_id: alienware_16_area_51_vs_legion_7i
+    primary: alienware_16_area_51
+    comparator: legion_7i
+  - pair_id: alienware_16_area_51_vs_lenovo_legion_5_15
+    primary: alienware_16_area_51
+    comparator: lenovo_legion_5_15
+  - pair_id: alienware_16_area_51_vs_lenovo_legion_5_pro_16
+    primary: alienware_16_area_51
+    comparator: lenovo_legion_5_pro_16
+  - pair_id: alienware_16_area_51_vs_lenovo_legion_7
+    primary: alienware_16_area_51
+    comparator: lenovo_legion_7
+  - pair_id: alienware_16_area_51_vs_lenovo_legion_7_pro_16
+    primary: alienware_16_area_51
+    comparator: lenovo_legion_7_pro_16
+  - pair_id: alienware_16_area_51_vs_lenovo_legion_9
+    primary: alienware_16_area_51
+    comparator: lenovo_legion_9
+  - pair_id: alienware_16_area_51_vs_lenovo_loq_15
+    primary: alienware_16_area_51
+    comparator: lenovo_loq_15
+  - pair_id: alienware_16_area_51_vs_lenovo_loq_17
+    primary: alienware_16_area_51
+    comparator: lenovo_loq_17
+  - pair_id: alienware_16_area_51_vs_msi_crosshair_16
+    primary: alienware_16_area_51
+    comparator: msi_crosshair_16
+  - pair_id: alienware_16_area_51_vs_msi_crosshair_17
+    primary: alienware_16_area_51
+    comparator: msi_crosshair_17
+  - pair_id: alienware_16_area_51_vs_msi_crosshair_18
+    primary: alienware_16_area_51
+    comparator: msi_crosshair_18
+  - pair_id: alienware_16_area_51_vs_msi_cyborg_15
+    primary: alienware_16_area_51
+    comparator: msi_cyborg_15
+  - pair_id: alienware_16_area_51_vs_msi_katana_15
+    primary: alienware_16_area_51
+    comparator: msi_katana_15
+  - pair_id: alienware_16_area_51_vs_msi_katana_17
+    primary: alienware_16_area_51
+    comparator: msi_katana_17
+  - pair_id: alienware_16_area_51_vs_msi_raider_16
+    primary: alienware_16_area_51
+    comparator: msi_raider_16
+  - pair_id: alienware_16_area_51_vs_msi_raider_18
+    primary: alienware_16_area_51
+    comparator: msi_raider_18
+  - pair_id: alienware_16_area_51_vs_msi_stealth_16
+    primary: alienware_16_area_51
+    comparator: msi_stealth_16
+  - pair_id: alienware_16_area_51_vs_msi_stealth_18
+    primary: alienware_16_area_51
+    comparator: msi_stealth_18
+  - pair_id: alienware_16_area_51_vs_msi_titan_18
+    primary: alienware_16_area_51
+    comparator: msi_titan_18
+  - pair_id: alienware_16_area_51_vs_msi_vector_16
+    primary: alienware_16_area_51
+    comparator: msi_vector_16
+  - pair_id: alienware_16_area_51_vs_msi_vector_17
+    primary: alienware_16_area_51
+    comparator: msi_vector_17
+  - pair_id: alienware_16_area_51_vs_msi_vector_18
+    primary: alienware_16_area_51
+    comparator: msi_vector_18
+  - pair_id: alienware_16_area_51_vs_rog_flow_x16
+    primary: alienware_16_area_51
+    comparator: rog_flow_x16
+  - pair_id: alienware_16_area_51_vs_rog_flow_z13
+    primary: alienware_16_area_51
+    comparator: rog_flow_z13
+  - pair_id: alienware_16_area_51_vs_rog_strix_g16
+    primary: alienware_16_area_51
+    comparator: rog_strix_g16
+  - pair_id: alienware_16_area_51_vs_rog_strix_g17
+    primary: alienware_16_area_51
+    comparator: rog_strix_g17
+  - pair_id: alienware_16_area_51_vs_rog_strix_g18
+    primary: alienware_16_area_51
+    comparator: rog_strix_g18
+  - pair_id: alienware_16_area_51_vs_rog_strix_scar_16
+    primary: alienware_16_area_51
+    comparator: rog_strix_scar_16
+  - pair_id: alienware_16_area_51_vs_rog_strix_scar_18
+    primary: alienware_16_area_51
+    comparator: rog_strix_scar_18
+  - pair_id: alienware_16_area_51_vs_rog_zephyrus_g14
+    primary: alienware_16_area_51
+    comparator: rog_zephyrus_g14
+  - pair_id: alienware_16_area_51_vs_rog_zephyrus_g16
+    primary: alienware_16_area_51
+    comparator: rog_zephyrus_g16
+
+  # -------------------------------------------------------------------------
+  # alienware_18_area_51 vs 50 competitors
+  # -------------------------------------------------------------------------
+  - pair_id: alienware_18_area_51_vs_acer_nitro_14
+    primary: alienware_18_area_51
+    comparator: acer_nitro_14
+  - pair_id: alienware_18_area_51_vs_acer_nitro_15
+    primary: alienware_18_area_51
+    comparator: acer_nitro_15
+  - pair_id: alienware_18_area_51_vs_acer_nitro_16
+    primary: alienware_18_area_51
+    comparator: acer_nitro_16
+  - pair_id: alienware_18_area_51_vs_acer_nitro_17
+    primary: alienware_18_area_51
+    comparator: acer_nitro_17
+  - pair_id: alienware_18_area_51_vs_acer_predator_helios_16
+    primary: alienware_18_area_51
+    comparator: acer_predator_helios_16
+  - pair_id: alienware_18_area_51_vs_acer_predator_helios_18
+    primary: alienware_18_area_51
+    comparator: acer_predator_helios_18
+  - pair_id: alienware_18_area_51_vs_acer_predator_helios_neo_16
+    primary: alienware_18_area_51
+    comparator: acer_predator_helios_neo_16
+  - pair_id: alienware_18_area_51_vs_acer_predator_neo_16s
+    primary: alienware_18_area_51
+    comparator: acer_predator_neo_16s
+  - pair_id: alienware_18_area_51_vs_acer_predator_triton_14
+    primary: alienware_18_area_51
+    comparator: acer_predator_triton_14
+  - pair_id: alienware_18_area_51_vs_asus_tuf_14
+    primary: alienware_18_area_51
+    comparator: asus_tuf_14
+  - pair_id: alienware_18_area_51_vs_asus_tuf_15
+    primary: alienware_18_area_51
+    comparator: asus_tuf_15
+  - pair_id: alienware_18_area_51_vs_asus_tuf_16
+    primary: alienware_18_area_51
+    comparator: asus_tuf_16
+  - pair_id: alienware_18_area_51_vs_asus_tuf_17
+    primary: alienware_18_area_51
+    comparator: asus_tuf_17
+  - pair_id: alienware_18_area_51_vs_asus_v16
+    primary: alienware_18_area_51
+    comparator: asus_v16
+  - pair_id: alienware_18_area_51_vs_hp_omen_16
+    primary: alienware_18_area_51
+    comparator: hp_omen_16
+  - pair_id: alienware_18_area_51_vs_hp_omen_17
+    primary: alienware_18_area_51
+    comparator: hp_omen_17
+  - pair_id: alienware_18_area_51_vs_hp_omen_max_16
+    primary: alienware_18_area_51
+    comparator: hp_omen_max_16
+  - pair_id: alienware_18_area_51_vs_hp_omen_transcend_14
+    primary: alienware_18_area_51
+    comparator: hp_omen_transcend_14
+  - pair_id: alienware_18_area_51_vs_hp_victus_15
+    primary: alienware_18_area_51
+    comparator: hp_victus_15
+  - pair_id: alienware_18_area_51_vs_legion_7i
+    primary: alienware_18_area_51
+    comparator: legion_7i
+  - pair_id: alienware_18_area_51_vs_lenovo_legion_5_15
+    primary: alienware_18_area_51
+    comparator: lenovo_legion_5_15
+  - pair_id: alienware_18_area_51_vs_lenovo_legion_5_pro_16
+    primary: alienware_18_area_51
+    comparator: lenovo_legion_5_pro_16
+  - pair_id: alienware_18_area_51_vs_lenovo_legion_7
+    primary: alienware_18_area_51
+    comparator: lenovo_legion_7
+  - pair_id: alienware_18_area_51_vs_lenovo_legion_7_pro_16
+    primary: alienware_18_area_51
+    comparator: lenovo_legion_7_pro_16
+  - pair_id: alienware_18_area_51_vs_lenovo_legion_9
+    primary: alienware_18_area_51
+    comparator: lenovo_legion_9
+  - pair_id: alienware_18_area_51_vs_lenovo_loq_15
+    primary: alienware_18_area_51
+    comparator: lenovo_loq_15
+  - pair_id: alienware_18_area_51_vs_lenovo_loq_17
+    primary: alienware_18_area_51
+    comparator: lenovo_loq_17
+  - pair_id: alienware_18_area_51_vs_msi_crosshair_16
+    primary: alienware_18_area_51
+    comparator: msi_crosshair_16
+  - pair_id: alienware_18_area_51_vs_msi_crosshair_17
+    primary: alienware_18_area_51
+    comparator: msi_crosshair_17
+  - pair_id: alienware_18_area_51_vs_msi_crosshair_18
+    primary: alienware_18_area_51
+    comparator: msi_crosshair_18
+  - pair_id: alienware_18_area_51_vs_msi_cyborg_15
+    primary: alienware_18_area_51
+    comparator: msi_cyborg_15
+  - pair_id: alienware_18_area_51_vs_msi_katana_15
+    primary: alienware_18_area_51
+    comparator: msi_katana_15
+  - pair_id: alienware_18_area_51_vs_msi_katana_17
+    primary: alienware_18_area_51
+    comparator: msi_katana_17
+  - pair_id: alienware_18_area_51_vs_msi_raider_16
+    primary: alienware_18_area_51
+    comparator: msi_raider_16
+  - pair_id: alienware_18_area_51_vs_msi_raider_18
+    primary: alienware_18_area_51
+    comparator: msi_raider_18
+  - pair_id: alienware_18_area_51_vs_msi_stealth_16
+    primary: alienware_18_area_51
+    comparator: msi_stealth_16
+  - pair_id: alienware_18_area_51_vs_msi_stealth_18
+    primary: alienware_18_area_51
+    comparator: msi_stealth_18
+  - pair_id: alienware_18_area_51_vs_msi_titan_18
+    primary: alienware_18_area_51
+    comparator: msi_titan_18
+  - pair_id: alienware_18_area_51_vs_msi_vector_16
+    primary: alienware_18_area_51
+    comparator: msi_vector_16
+  - pair_id: alienware_18_area_51_vs_msi_vector_17
+    primary: alienware_18_area_51
+    comparator: msi_vector_17
+  - pair_id: alienware_18_area_51_vs_msi_vector_18
+    primary: alienware_18_area_51
+    comparator: msi_vector_18
+  - pair_id: alienware_18_area_51_vs_rog_flow_x16
+    primary: alienware_18_area_51
+    comparator: rog_flow_x16
+  - pair_id: alienware_18_area_51_vs_rog_flow_z13
+    primary: alienware_18_area_51
+    comparator: rog_flow_z13
+  - pair_id: alienware_18_area_51_vs_rog_strix_g16
+    primary: alienware_18_area_51
+    comparator: rog_strix_g16
+  - pair_id: alienware_18_area_51_vs_rog_strix_g17
+    primary: alienware_18_area_51
+    comparator: rog_strix_g17
+  - pair_id: alienware_18_area_51_vs_rog_strix_g18
+    primary: alienware_18_area_51
+    comparator: rog_strix_g18
+  - pair_id: alienware_18_area_51_vs_rog_strix_scar_16
+    primary: alienware_18_area_51
+    comparator: rog_strix_scar_16
+  - pair_id: alienware_18_area_51_vs_rog_strix_scar_18
+    primary: alienware_18_area_51
+    comparator: rog_strix_scar_18
+  - pair_id: alienware_18_area_51_vs_rog_zephyrus_g14
+    primary: alienware_18_area_51
+    comparator: rog_zephyrus_g14
+  - pair_id: alienware_18_area_51_vs_rog_zephyrus_g16
+    primary: alienware_18_area_51
+    comparator: rog_zephyrus_g16

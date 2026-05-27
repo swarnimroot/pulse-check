@@ -292,7 +292,11 @@
       "PowerShell(.venv\\\\Scripts\\\\python.exe -m pytest tests/unit/api/test_app.py -k pair -q 2>&1 | Select-Object -Last 10)",
       "PowerShell(.venv\\\\Scripts\\\\python.exe -m pytest tests/integration/ -v 2>&1 | Select-Object -Last 20)",
       "PowerShell(.venv\\\\Scripts\\\\python.exe -m pytest tests/unit/ -q 2>&1 | Select-Object -Last 5; .venv\\\\Scripts\\\\python.exe -m mypy pulse_check tests scripts 2>&1 | Select-Object -Last 3; .venv\\\\Scripts\\\\python.exe -m ruff check pulse_check tests scripts 2>&1 | Select-Object -Last 3)",
-      "PowerShell(.venv\\\\Scripts\\\\python.exe -m alembic current 2>&1 | Select-Object -Last 5)"
+      "PowerShell(.venv\\\\Scripts\\\\python.exe -m alembic current 2>&1 | Select-Object -Last 5)",
+      "Bash(findstr \":5173 :8765 :8000\")",
+      "Bash(sqlite3 *)",
+      "Bash(xargs grep -l \"reddit\\\\|article\\\\|youtube\")",
+      "Bash(xargs -I {} basename {})"
     ]
   }
 }
