@@ -542,6 +542,7 @@ export function Standalone(): JSX.Element {
         open={drawer.open}
         aspect={drawer.aspect}
         productName={product.display_name}
+        productId={productId}
         mentions={drawer.mentions}
         loading={drawer.loading}
         errorMessage={drawer.errorMessage}

@@ -73,6 +73,9 @@ interface DrawerState {
   open: boolean;
   aspect: string;
   productName: string;
+  // Product the drill is scoped to. Empty for the pooled "Contrast" cite drawer
+  // (no single product) so the drawer falls back to first-tag display.
+  productId: string;
   loading: boolean;
   mentions: MentionView[];
   errorMessage: string | null;
@@ -82,6 +85,7 @@ const INITIAL_DRAWER: DrawerState = {
   open: false,
   aspect: "",
   productName: "",
+  productId: "",
   loading: false,
   mentions: [],
   errorMessage: null,
@@ -238,6 +242,7 @@ export function Pair(): JSX.Element {
         open: true,
         aspect: "Contrast",
         productName: claimText.length > 80 ? `${claimText.slice(0, 80)}…` : claimText,
+        productId: "",
         loading: true,
         mentions: [],
         errorMessage: null,
@@ -267,11 +272,13 @@ export function Pair(): JSX.Element {
       productName: string,
       aspect: string,
       mentionIds: string[],
+      productId: string,
     ): void => {
       setDrawer({
         open: true,
         aspect,
         productName,
+        productId,
         loading: true,
         mentions: [],
         errorMessage: null,
@@ -384,6 +391,7 @@ export function Pair(): JSX.Element {
         open={drawer.open}
         aspect={drawer.aspect}
         productName={drawer.productName}
+        productId={drawer.productId}
         mentions={drawer.mentions}
         loading={drawer.loading}
         errorMessage={drawer.errorMessage}
@@ -440,6 +448,7 @@ interface PairBodyProps {
     productName: string,
     aspect: string,
     mentionIds: string[],
+    productId: string,
   ) => void;
 }
 
@@ -488,6 +497,7 @@ interface PairScorecardProps {
     productName: string,
     aspect: string,
     mentionIds: string[],
+    productId: string,
   ) => void;
 }
 
@@ -541,6 +551,8 @@ function PairScorecard({ pair, onCellClick }: PairScorecardProps): JSX.Element {
         rows={sortedRows}
         primaryName={pair.primary.display_name}
         competitorName={pair.competitor.display_name}
+        primaryId={pair.primary.product_id}
+        competitorId={pair.competitor.product_id}
         onCellClick={onCellClick}
       />
 
@@ -596,10 +608,13 @@ interface PairTableProps {
   rows: PairAspectRow[];
   primaryName: string;
   competitorName: string;
+  primaryId: string;
+  competitorId: string;
   onCellClick: (
     productName: string,
     aspect: string,
     mentionIds: string[],
+    productId: string,
   ) => void;
 }
 
@@ -607,6 +622,8 @@ function PairTable({
   rows,
   primaryName,
   competitorName,
+  primaryId,
+  competitorId,
   onCellClick,
 }: PairTableProps): JSX.Element {
   return (
@@ -627,6 +644,8 @@ function PairTable({
             row={row}
             primaryName={primaryName}
             competitorName={competitorName}
+            primaryId={primaryId}
+            competitorId={competitorId}
             onCellClick={onCellClick}
           />
         ))
@@ -639,10 +658,13 @@ interface PairTableRowProps {
   row: PairAspectRow;
   primaryName: string;
   competitorName: string;
+  primaryId: string;
+  competitorId: string;
   onCellClick: (
     productName: string,
     aspect: string,
     mentionIds: string[],
+    productId: string,
   ) => void;
 }
 
@@ -650,6 +672,8 @@ function PairTableRow({
   row,
   primaryName,
   competitorName,
+  primaryId,
+  competitorId,
   onCellClick,
 }: PairTableRowProps): JSX.Element {
   return (
@@ -658,6 +682,7 @@ function PairTableRow({
         <PairCellChip
           cell={row.primary}
           label={primaryName}
+          productId={primaryId}
           aspect={row.aspect}
           leads={row.leader === "primary"}
           onClick={onCellClick}
@@ -670,6 +695,7 @@ function PairTableRow({
         <PairCellChip
           cell={row.competitor}
           label={competitorName}
+          productId={competitorId}
           aspect={row.aspect}
           leads={row.leader === "competitor"}
           onClick={onCellClick}
@@ -684,14 +710,21 @@ interface PairCellChipProps {
     | { net_sentiment: number; total_mentions: number; mention_ids: string[] }
     | null;
   label: string;
+  productId: string;
   aspect: string;
   leads: boolean;
-  onClick: (productName: string, aspect: string, mentionIds: string[]) => void;
+  onClick: (
+    productName: string,
+    aspect: string,
+    mentionIds: string[],
+    productId: string,
+  ) => void;
 }
 
 function PairCellChip({
   cell,
   label,
+  productId,
   aspect,
   leads,
   onClick,
@@ -716,7 +749,7 @@ function PairCellChip({
   return (
     <button
       type="button"
-      onClick={() => onClick(label, aspect, cell.mention_ids)}
+      onClick={() => onClick(label, aspect, cell.mention_ids, productId)}
       title={`Click to read the ${cell.total_mentions} quote${
         cell.total_mentions === 1 ? "" : "s"
       } behind this score`}

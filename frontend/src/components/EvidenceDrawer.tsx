@@ -29,6 +29,11 @@ export interface EvidenceDrawerProps {
   open: boolean;
   aspect: string;
   productName: string;
+  // Product the drill is scoped to. Threaded into each card as `focusProductId`
+  // so the displayed chip resolves to the right tag when a mention carries the
+  // same aspect for more than one product. Optional for back-compat with the
+  // Showcase fixture caller.
+  productId?: string;
   mentions: MentionView[];
   onClose: () => void;
   // 11.3.c — when Standalone opens the drawer it kicks off a /api/mentions
@@ -44,15 +49,27 @@ function matchesSource(m: MentionView, f: SourceFilter): boolean {
   return m.source_type.toLowerCase().startsWith(f);
 }
 
-function matchesIntensity(m: MentionView, f: IntensityFilter): boolean {
+function matchesIntensity(
+  m: MentionView,
+  f: IntensityFilter,
+  focusAspect: string | undefined,
+): boolean {
   if (f === "all") return true;
-  return m.aspect_tags.some((t) => t.intensity === f);
+  // Scope to the drilled aspect so an intensity filter reflects THIS aspect's
+  // tag, not any tag the mention happens to carry (a "high performance" mention
+  // must not survive a "high thermals" filter). Undefined in pooled contexts
+  // (Contrast cites / Showcase), where any tag's intensity qualifies.
+  const relevant = focusAspect
+    ? m.aspect_tags.filter((t) => t.aspect === focusAspect)
+    : m.aspect_tags;
+  return relevant.some((t) => t.intensity === f);
 }
 
 export function EvidenceDrawer({
   open,
   aspect,
   productName,
+  productId,
   mentions,
   onClose,
   loading = false,
@@ -61,6 +78,13 @@ export function EvidenceDrawer({
   const [source, setSource] = useState<SourceFilter>("all");
   const [intensity, setIntensity] = useState<IntensityFilter>("all");
   const [visible, setVisible] = useState(PAGE_SIZE);
+
+  // Focus is active only when the drill is scoped to a single product. Every
+  // real aspect drill (heatmap cell, Standalone aspect, Pair cell) passes a
+  // productId; pooled contexts (Pair "Contrast" cites, Showcase fixtures) don't,
+  // and there `aspect` is a header label, not a taxonomy aspect — so we leave
+  // focus undefined and the cards fall back to their first (canonical) tag.
+  const focusAspect = productId ? aspect || undefined : undefined;
 
   useEffect(() => {
     if (!open) return;
@@ -78,9 +102,11 @@ export function EvidenceDrawer({
   const filtered = useMemo(
     () =>
       mentions.filter(
-        (m) => matchesSource(m, source) && matchesIntensity(m, intensity),
+        (m) =>
+          matchesSource(m, source) &&
+          matchesIntensity(m, intensity, focusAspect),
       ),
-    [mentions, source, intensity],
+    [mentions, source, intensity, focusAspect],
   );
 
   if (!open) return null;
@@ -185,7 +211,12 @@ export function EvidenceDrawer({
         ) : (
           <div className="flex flex-col gap-2.5">
             {filtered.slice(0, visible).map((m) => (
-              <VerbatimCard key={m.mention_id} mention={m} />
+              <VerbatimCard
+                key={m.mention_id}
+                mention={m}
+                focusAspect={focusAspect}
+                focusProductId={productId}
+              />
             ))}
             {filtered.length > visible && (
               <button

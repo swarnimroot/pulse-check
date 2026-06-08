@@ -48,16 +48,42 @@ function formatDate(iso: string | null): string {
 export interface VerbatimCardProps {
   mention: MentionView;
   className?: string;
+  // Aspect-scoped drill context (heatmap cell / Standalone aspect / Pair cell).
+  // When set, the card shows the tag for THIS aspect — the lens the mention
+  // entered the list through — instead of an arbitrary first tag, so the chip's
+  // polarity matches the cell color the operator clicked. `focusProductId`
+  // further disambiguates when a mention carries the same aspect for more than
+  // one product. Omitted in pooled contexts (CitationPanel / Showcase), where
+  // the card falls back to the (now canonically-ordered) first tag.
+  focusAspect?: string;
+  focusProductId?: string;
 }
 
-export function VerbatimCard({ mention, className }: VerbatimCardProps): JSX.Element {
+export function VerbatimCard({
+  mention,
+  className,
+  focusAspect,
+  focusProductId,
+}: VerbatimCardProps): JSX.Element {
   const [expanded, setExpanded] = useState(false);
   const needsTruncate = mention.raw_text.length > TRUNCATE_AT;
   const quote = expanded || !needsTruncate
     ? mention.raw_text
     : `${mention.raw_text.slice(0, TRUNCATE_AT)}…`;
 
-  const primaryTag = mention.aspect_tags[0];
+  // No focus → pooled context, show the first (canonically-ordered) tag. With a
+  // focus aspect, show that aspect's tag and never fall back to an unrelated
+  // one: an absent match means the mention shouldn't be in this list at all
+  // (guarded by the aggregation↔drawer regression test), so omit the chip
+  // rather than mislabel the quote.
+  const primaryTag =
+    focusAspect === undefined
+      ? mention.aspect_tags[0]
+      : mention.aspect_tags.find(
+          (t) =>
+            t.aspect === focusAspect &&
+            (focusProductId === undefined || t.product_id === focusProductId),
+        );
 
   const showTagRow2 =
     mention.verified ||

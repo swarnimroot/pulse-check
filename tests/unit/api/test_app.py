@@ -618,6 +618,85 @@ def test_mentions_returns_views_in_request_order(
     assert m001["aspect_tags"] == []
 
 
+def test_mentions_returns_aspect_tags_in_canonical_order(
+    app_with_session: FastAPI, seed_session: Session
+) -> None:
+    """A multi-aspect mention's tags come back in Aspect-enum order regardless
+    of insertion order, so `aspect_tags[0]` is deterministic for any consumer
+    that reads the first tag without an explicit focus aspect.
+    """
+    _seed_product(seed_session)
+    _seed_mention(seed_session, mention_id="m_multi", raw_text="multi-aspect verdict")
+    # Insert in reverse-canonical order: display (3), performance (1), thermals (0).
+    for aspect in (Aspect.DISPLAY, Aspect.PERFORMANCE, Aspect.THERMALS):
+        seed_session.add(
+            AspectTag(
+                mention_id="m_multi",
+                product_id="alienware_16_aurora",
+                aspect=aspect,
+                polarity=Polarity.POSITIVE,
+                intensity=Intensity.MEDIUM,
+                taxonomy_version="v0",
+                prompt_version="aspect_classifier_v1",
+                model="claude-haiku-4-5-20251001",
+                temperature=0.0,
+            )
+        )
+    seed_session.commit()
+
+    client = TestClient(app_with_session)
+    body = client.get("/api/mentions", params={"ids": "m_multi"}).json()
+    aspects = [t["aspect"] for t in body["mentions"][0]["aspect_tags"]]
+    assert aspects == ["thermals", "performance", "display"]
+
+
+def test_mentions_returns_only_current_tag_version(
+    app_with_session: FastAPI, seed_session: Session
+) -> None:
+    """A re-tagging pass leaves stale-version tags in the table. The drawer must
+    surface only the current version's tag — the same one the heatmap cell
+    aggregated — so the chip polarity can't disagree with the cell colour.
+    """
+    _seed_product(seed_session)
+    _seed_mention(seed_session, mention_id="m_ver", raw_text="thermals verdict")
+    # Current version: negative (what the cell aggregates).
+    seed_session.add(
+        AspectTag(
+            mention_id="m_ver",
+            product_id="alienware_16_aurora",
+            aspect=Aspect.THERMALS,
+            polarity=Polarity.NEGATIVE,
+            intensity=Intensity.HIGH,
+            taxonomy_version="v0",
+            prompt_version="aspect_classifier_v1",
+            model="claude-haiku-4-5-20251001",
+            temperature=0.0,
+        )
+    )
+    # Stale prior-pass version with the OPPOSITE polarity — must be excluded.
+    seed_session.add(
+        AspectTag(
+            mention_id="m_ver",
+            product_id="alienware_16_aurora",
+            aspect=Aspect.THERMALS,
+            polarity=Polarity.POSITIVE,
+            intensity=Intensity.LOW,
+            taxonomy_version="v0",
+            prompt_version="aspect_classifier_v0",
+            model="claude-haiku-4-5-20251001",
+            temperature=0.0,
+        )
+    )
+    seed_session.commit()
+
+    client = TestClient(app_with_session)
+    body = client.get("/api/mentions", params={"ids": "m_ver"}).json()
+    tags = body["mentions"][0]["aspect_tags"]
+    assert len(tags) == 1
+    assert tags[0]["aspect"] == "thermals"
+    assert tags[0]["polarity"] == "negative"
+
+
 def test_mentions_drops_unknown_ids_silently(
     app_with_session: FastAPI, seed_session: Session
 ) -> None:

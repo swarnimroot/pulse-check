@@ -82,6 +82,16 @@ from pulse_check.storage.models import (
     Product,
 )
 
+# Imported from the submodule (not the `tagging` package) so the API doesn't
+# pull in OllamaClient et al. — these are just the version strings the Stage-B
+# aggregator tags with (see a1.aggregate_a1).
+from pulse_check.tagging.aspect_classifier import (
+    PROMPT_VERSION as ASPECT_PROMPT_VERSION,
+)
+from pulse_check.tagging.aspect_classifier import (
+    TAXONOMY_VERSION as ASPECT_TAXONOMY_VERSION,
+)
+
 # Source-config paths read by `/api/sources`. Operator-curated YAMLs in
 # `configs/`; resolved relative to the repo root (the parent of `pulse_check/`).
 _REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -226,6 +236,14 @@ def _mention_to_view(mention: Mention, tags: list[AspectTag]) -> MentionView:
     source_type = mention.source_type.value
     upvotes_raw = metadata.get("upvotes") if _is_reddit(source_type) else None
     rating_raw = metadata.get("rating") if _is_retailer_review(source_type) else None
+    # Canonical aspect order (Aspect enum declaration order) so `aspect_tags[0]`
+    # is deterministic for any consumer that reads the "first" tag without an
+    # explicit focus aspect (e.g. pooled CitationPanel cards). Within an aspect,
+    # break ties by product_id so multi-product mentions stay stable too.
+    aspect_order = {a: i for i, a in enumerate(Aspect)}
+    ordered_tags = sorted(
+        tags, key=lambda t: (aspect_order.get(t.aspect, len(aspect_order)), t.product_id)
+    )
     return MentionView(
         mention_id=mention.mention_id,
         source_type=source_type,
@@ -244,7 +262,7 @@ def _mention_to_view(mention: Mention, tags: list[AspectTag]) -> MentionView:
                 "intensity": t.intensity.value,
                 "product_id": t.product_id,
             }
-            for t in tags
+            for t in ordered_tags
         ],
         tombstoned_at=mention.tombstoned_at,
         tombstone_reason=mention.tombstone_reason,
@@ -367,8 +385,15 @@ def _build_api_router() -> APIRouter:
         if not ordered:
             return MentionsResponse(mentions=[])
 
+        # Filter to the current tag version so the drawer chip matches the
+        # heatmap cell. The cell's net_sentiment is aggregated from this exact
+        # (taxonomy_version, prompt_version) pair (a1.aggregate_a1); returning
+        # all versions would let a future re-tagging pass surface a stale-version
+        # tag whose polarity disagrees with the cell colour.
         tags_stmt = select(AspectTag).where(
-            AspectTag.mention_id.in_([m.mention_id for m in ordered])
+            AspectTag.mention_id.in_([m.mention_id for m in ordered]),
+            AspectTag.taxonomy_version == ASPECT_TAXONOMY_VERSION,
+            AspectTag.prompt_version == ASPECT_PROMPT_VERSION,
         )
         tags_by_mention: dict[str, list[AspectTag]] = {}
         for tag in session.execute(tags_stmt).scalars():

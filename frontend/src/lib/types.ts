@@ -10,6 +10,10 @@ export interface AspectTag {
   aspect: string;
   polarity: Polarity;
   intensity: Intensity;
+  // Present on every tag the API emits; used to disambiguate the focus tag in
+  // an aspect-scoped EvidenceDrawer drill where a mention can carry tags for
+  // more than one product (e.g. comparison articles).
+  product_id?: string;
 }
 
 export interface MentionView {

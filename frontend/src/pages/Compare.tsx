@@ -35,6 +35,7 @@ interface DrawerState {
   open: boolean;
   aspect: string;
   productName: string;
+  productId: string;
   loading: boolean;
   mentions: MentionView[];
   errorMessage: string | null;
@@ -44,6 +45,7 @@ const INITIAL_DRAWER: DrawerState = {
   open: false,
   aspect: "",
   productName: "",
+  productId: "",
   loading: false,
   mentions: [],
   errorMessage: null,
@@ -615,6 +617,7 @@ export function Compare(): JSX.Element {
         open: true,
         aspect: cell.aspect,
         productName: row.display_name,
+        productId: row.product_id,
         loading: true,
         mentions: [],
         errorMessage: null,
@@ -864,6 +867,7 @@ export function Compare(): JSX.Element {
         open={drawer.open}
         aspect={drawer.aspect}
         productName={drawer.productName}
+        productId={drawer.productId}
         mentions={drawer.mentions}
         loading={drawer.loading}
         errorMessage={drawer.errorMessage}

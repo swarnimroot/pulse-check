@@ -246,10 +246,12 @@ The single most-rendered atom on the page. Section order, top-to-bottom:
 1. **Source mark + source label + channel** + url-out icon (top-right).
 2. **Posted date · author** (muted, 11px).
 3. **Quote** in a left-bordered blockquote, 13px, 1.5 line height. Truncate at 180 chars with show-more / show-less.
-4. **Tag row 1:** aspect-polarity chip + intensity chip.
+4. **Tag row 1:** aspect-polarity chip + intensity chip — **for the drilled aspect.** A mention can carry tags for several aspects (a long article verdict often touches performance + thermals + display). When the card renders inside an aspect-scoped drill (heatmap cell, Standalone aspect, Pair cell), it shows the tag for *that* aspect via the `focusAspect` / `focusProductId` props, so the chip's polarity always matches the cell colour the operator clicked. Without a focus (pooled contexts — Pair "Contrast" cites, Showcase fixtures) it falls back to the first tag, which the API returns in canonical `Aspect`-enum order so that "first" is deterministic. **Do not read `aspect_tags[0]` as "the" aspect in an aspect-scoped surface** — that nondeterminism caused a session-44 bug where a negative thermals cell drilled into positive-looking performance/display chips.
 5. **Tag row 2 (only if data exists):** `verified purchase` (when present) + `↑ <upvotes>` (Reddit only) + `★ <rating>` (retailer only) + **`link dead`** (session 38; when `MentionView.tombstoned_at !== null` — backed by `scripts/verify_mention_links.py` per ARCH §9).
 
 **Locked exclusions per session-13:** no ownership phrase ("owned 6 months"). The session-13 tombstone-marker lock was lifted in session 38 alongside bite #5 (link-rot / tombstoning).
+
+**EvidenceDrawer is aspect-scoped** (session 44): it threads its `aspect` + `productId` into every card as the focus, and scopes its intensity filter to that aspect too (a "high performance" mention must not survive a "high thermals" filter). The drawer treats focus as active only when a `productId` is supplied — pooled callers (Contrast cites) pass none and get first-tag display.
 
 ### 4.9 Skeleton (session 37)
 

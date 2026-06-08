@@ -8,9 +8,34 @@ Running one-page chronicle. Updated **at session close**, when the operator says
 
 Paste at the start of your next session:
 
-> Resume pulse-check session 44. Audit first per `docs/SESSION_LOG.md`. Ultrathink. Subagents.
+> Resume pulse-check session 45. Audit first per `docs/SESSION_LOG.md`. Ultrathink. Subagents.
 
-### Audit checklist (session 43 → 44)
+### Audit checklist (session 44 → 45)
+
+- Use `.venv/Scripts/python.exe` for backend tooling.
+- `pytest tests/unit/` → **716 pass** (was 714; +2 from session 44, both in `tests/unit/api/test_app.py` — `test_mentions_returns_aspect_tags_in_canonical_order` (a multi-aspect mention's tags come back in `Aspect`-enum order regardless of insertion order) + `test_mentions_returns_only_current_tag_version` (a stale `prompt_version` tag with the opposite polarity is filtered out of `/api/mentions`)).
+- `pytest tests/integration/` → **4 pass** (unchanged).
+- `mypy pulse_check/ tests/ scripts/` → clean, **140 source files** (unchanged — session 44 edited existing files only; no new Python source files).
+- `ruff check pulse_check/ tests/ scripts/` → clean.
+- `npm run test:run` (frontend) → **39 pass** (was 33; +6 — 4 in `frontend/src/components/atoms/VerbatimCard.test.tsx` covering focus-aspect-chip / no-focus-first-tag-fallback / `focusProductId`-disambiguation / omit-chip-when-focus-absent; 2 in `frontend/src/components/EvidenceDrawer.test.tsx` covering header-aspect-matches-chip + intensity-filter-scoped-to-drilled-aspect). `npx tsc -b` + `npx vite build` both clean.
+- **Manual check (this session's deliverable):** open the Compare heatmap, drill a red/negative aspect cell (e.g. Alienware 16 Area-51 → Thermals), confirm the drawer chips read that aspect with the polarity matching the cell colour — NOT the mention's first tag. Then open a Pair "Contrast" cite drawer and confirm chips still render (pooled fallback not regressed).
+- **TASKS.md drift check:**
+  - `Status` line reflects the session-44 ship sentence — heatmap aspect-drill fix (drawer/card show the drilled aspect's chip matched on `(aspect, product_id)` · intensity filter scoped · canonical tag ordering) + `/api/mentions` current-version filter (latent re-tagging guard).
+  - `Active` line: **3 exit forks remain unblocked**; test counts 716/4/39; bundle hash `index-bg5S5vGY.js`.
+  - `Last reconciled = 2026-06-08`.
+  - No new Wave deliverable lines (bug fix to the existing heatmap, not a planned deliverable).
+- **ARCH drift check:** §3.3 (`aspect_tags` table) gained a paragraph after the unique-constraint line — both the aggregator and `/api/mentions` read only the current `(taxonomy_version, prompt_version)`, and the drawer sorts a mention's tags into canonical `Aspect` order (session 44). §6.3 / §7 / §13 otherwise unchanged.
+- **DESIGN_SYSTEM drift check:** §4.8 VerbatimCard tag-row-1 entry rewritten — the chip reflects the *drilled* aspect via `focusAspect`/`focusProductId` (not `aspect_tags[0]`); an "EvidenceDrawer is aspect-scoped" note + a "do not read `aspect_tags[0]` as the aspect in an aspect-scoped surface" warning citing the session-44 bug were added.
+- **PRD drift check:** no edits session 44 (bug fix; no scope / audience / success-criteria change).
+- **TESTING drift check:** no methodology changes. Unit 714 → 716 (+2); integration 4 → 4; frontend 33 → 39 (+6). §7 "current 39 tests" + 2 new file entries (`VerbatimCard.test.tsx`, `EvidenceDrawer.test.tsx`).
+- **README drift check:** no edits session 44 (fix is internal correctness; no user-facing feature or runbook change).
+- **Migration head:** `eb05da255474` (unchanged; no schema work session 44).
+- **Config artifacts on disk:** unchanged from session 43 — no scrape / tag / aggregate / brief run session 44. DB mention count **5,061** · `aspect_tags` **5,569** · `aggregates_aspect_sku` for `run_wave5_v1` **502** · pair briefs **240** · tombstones **0**. `frontend/dist/` final bundle **`index-bg5S5vGY.js`** (324.25 KB / 94.53 KB gzipped); CSS `index-BKc13k0v.css` unchanged. Replaces session-43 `index-CDcYfY9A.js`; +0.54 KB raw from the aspect-scoped drawer/card threading.
+- **Operator-confirmed locks from session 44 (do not re-debate without flag):**
+  - **Evidence cards in an aspect-scoped drill show ONLY the drilled aspect's chip** (operator chose "focus aspect only" over "all aspects with focus emphasized"). The card omits the chip rather than fall back to an unrelated tag.
+  - **Focus is keyed on `(aspect, product_id)` and is active only when a `productId` is supplied.** Pooled callers (Pair "Contrast" cites, Showcase fixtures) pass no `productId` → deterministic first-tag fallback.
+
+### Audit checklist (session 43 → 44) — archived, completed in session 44
 
 - Use `.venv/Scripts/python.exe` for backend tooling.
 - `pytest tests/unit/` → **714 pass** (was 707; +7 from session 43 — 2 in `tests/unit/synthesis/test_pair_brief_writer.py` covering `_truncate` short-text-passthrough + long-text-with-ellipsis-marker; 2 in `tests/unit/synthesis/test_brief_writer.py` covering `_truncate_verbatim` short-text-passthrough + long-text-with-ellipsis; 3 in `tests/unit/synthesis/test_anthropic.py` covering `_estimate_cost_usd` Sonnet math + unknown-model-returns-None + INFO-log-line-emitted-with-usage-attr).
@@ -1165,6 +1190,36 @@ Added in session 23:
 ---
 
 ## Session history (newest first)
+
+### 2026-06-08 — session 44: Heatmap aspect-drill bug fixed — the EvidenceDrawer/VerbatimCard showed each quote's first (arbitrary) aspect chip instead of the drilled aspect, so a red/negative Thermals cell drilled into positive-looking `performance`/`display` chips. Fix is display-only (the aggregate was always consistent): drawer threads the drilled `(aspect, productId)` into each card; card renders the matched tag; intensity filter scoped; `_mention_to_view` canonical-orders tags. Plus a latent guard: `/api/mentions` now filters to the current tag version. Verified live in-app. 716 unit · 4 integration · 39 frontend tests green. New bundle `index-bg5S5vGY.js`. No LLM spend (no pipeline run).
+
+**Context entering.** Session opened not on the planned exit forks but on an operator bug report with a screenshot: a Thermals cell on the Compare heatmap was red (negative), yet clicking it opened an evidence drawer full of positive-looking quotes labelled `performance`/`display` — and the drawer for "thermals" was showing non-thermals chips. Operator asked to understand the mechanism before any fix.
+
+**Audit pass (session 43 → 44).** Not run as a formal gate at open (session began on the bug report). Session-43 wrap baseline (714 unit / 4 integration / 33 frontend · mypy 140 · ruff clean · `eb05da255474`) was confirmed implicitly — the pre-fix suite matched it; the post-fix suite is **716 / 4 / 39** green.
+
+**Diagnosis (the "why").** Root cause traced through the stack: the aggregate row for `(product, thermals)` derives both its `net_sentiment` (cell colour) and its `mention_ids` (drawer pool) from the *same* thermals-tag set (`a1.py`), so it is internally consistent — the cell is legitimately red. The bug was purely in display: `/api/mentions` returns *all* of a mention's aspect tags in arbitrary order, and `VerbatimCard` rendered `aspect_tags[0]`. The drawer knew the drilled aspect (it prints it in the header) but never passed it to the card. So a multi-aspect article verdict (thermals-negative + performance-positive + display-positive) showed whichever tag sorted first — typically a positive non-thermals one. One cause, both visible symptoms.
+
+**Decisions (product-level) reached this session.**
+- **D1 — Evidence cards show ONLY the drilled aspect's chip.** Operator chose "focus aspect only" over "show all aspect chips with the focus emphasized" (which would have made the multi-topic nature visible). The card omits the chip rather than fall back to an unrelated tag when the focus aspect has no match.
+- **D2 — Fix the latent version-asymmetry now (option a), not log-and-defer.** Surfaced during verification: `/api/mentions` returned tags across all `(taxonomy_version, prompt_version)` pairs while the cell aggregates one. No live bug (DB holds exactly one version, 5,569 tags), but a future re-tagging pass would reintroduce the cell↔chip mismatch. Operator chose to close it while context was hot.
+
+**Technical housekeeping (operator does not engage).**
+- **TH1 — Shared fix in `VerbatimCard.tsx` + `EvidenceDrawer.tsx`.** Card gained optional `focusAspect` / `focusProductId`; selects the tag matched on `(aspect, product_id)`, omitting when absent, falling back to the first tag only when no focus is given. Drawer threads its `aspect` + new `productId` into every card, and gates focus on `productId` presence so pooled callers stay on first-tag. Intensity filter rewritten to scope to the focus aspect (a high-on-another-aspect mention no longer survives a high-on-this-aspect filter). One change fixes all three drill surfaces (heatmap · Standalone · Pair).
+- **TH2 — Call-sites thread `product_id`.** `Compare.tsx` (drawer state + cell click), `Standalone.tsx` (route `productId`), `Pair.tsx` (drawer state + `openCellDrawer` 4th arg + `primaryId`/`competitorId` down `PairTable` → `PairTableRow` → `PairCellChip`). `types.ts` `AspectTag` gained `product_id`. Pooled `openBriefCiteDrawer` ("Contrast") passes empty `productId` → first-tag fallback preserved.
+- **TH3 — Backend determinism + version filter (`api/main.py`).** `_mention_to_view` now sorts `aspect_tags` by canonical `Aspect`-enum order (tie-break `product_id`) so `aspect_tags[0]` is deterministic. `get_mentions` filters the tags query to `aspect_classifier.TAXONOMY_VERSION` / `PROMPT_VERSION` (imported from the submodule, not the `tagging` package, to avoid pulling `OllamaClient`).
+- **TH4 — Tests.** +1 backend `test_mentions_returns_aspect_tags_in_canonical_order`, +1 `test_mentions_returns_only_current_tag_version`; +4 `VerbatimCard.test.tsx`, +2 `EvidenceDrawer.test.tsx`. Final 716 / 4 / 39 green; mypy 140 clean; ruff clean; tsc + vite build clean. Bundle `index-CDcYfY9A.js` → `index-bg5S5vGY.js` (+0.54 KB raw).
+- **TH5 — Docs.** DESIGN_SYSTEM §4.8 (tag-row-1 chip reflects the drilled aspect + drawer-is-aspect-scoped + `aspect_tags[0]` warning); ARCHITECTURE §3.3 (aggregator + `/api/mentions` read current version, drawer sorts canonically); TESTING §7 (39 tests + 2 new file entries).
+
+**Live findings from session 44 (operator visibility).**
+- **The fix is display-only — no data was ever wrong.** The heatmap colours, the aggregates, the tagging were all correct; only the drawer mislabelled which aspect each quote spoke to. Worth stating plainly because the operator's first read was "this is contradicting information / the data is messed up."
+- **`focusProductId` is load-bearing, not decorative.** The two Notebookcheck quotes in the reported cell are comparison articles tagged for **5 products**; the bug-cell mention #2's *first* thermals tag belonged to a different product. Verified the Alienware-specific thermals tags (neg/neg/pos/neg) reconcile exactly to the cell's −0.50, and the live in-app drawer (driven with Playwright against the running uvicorn) now renders those four chips.
+- **HashRouter + Vite `base:"./"` gotcha (not a regression).** Deep-linking a path-style URL (`/compare`) blanks the page — the SPA uses hash routes (`/#/compare`) and the relative `./assets/*.js` resolves against the sub-path and 404s to the SPA fallback. Only matters for direct deep links / bookmarks; in-app nav and the Tailscale `/pulse-check` root are fine.
+
+**Memory updates.** None. The `aspect_tags[0]`-is-not-the-aspect trap and the version-consistency rule are now captured in DESIGN_SYSTEM §4.8 + ARCHITECTURE §3.3 (repo docs), so no separate memory was warranted.
+
+**Cumulative project LLM spend through session 44.** Unchanged from session 43 — **$0 LLM this session** (no scrape / tag / aggregate / brief run; the work was app + API code + a Playwright verification run).
+
+---
 
 ### 2026-05-27 — session 43: Comparative brief export shipped on Pair page (mirrors standalone) + pair-brief saturation 10 → 200 distinct scope_ids (4 Alienware × 50 competitors) + $54 cost blowup + 800-char verbatim-text truncation + per-call usage logging in `anthropic_client._call`. 714 unit · 4 integration · 33 frontend tests green. New bundle `index-CDcYfY9A.js`. Cumulative session 43 LLM spend ~$56.40 ($54 pre-truncation blowup + $2.40 post-fix completion).
 
