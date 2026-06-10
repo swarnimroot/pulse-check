@@ -8,9 +8,38 @@ Running one-page chronicle. Updated **at session close**, when the operator says
 
 Paste at the start of your next session:
 
-> Resume pulse-check session 45. Audit first per `docs/SESSION_LOG.md`. Ultrathink. Subagents.
+> Resume pulse-check session 46. Audit first per `docs/SESSION_LOG.md`. Ultrathink. Subagents.
 
-### Audit checklist (session 44 → 45)
+### Audit checklist (session 45 → 46)
+
+- Use `.venv/Scripts/python.exe` for backend tooling.
+- `pytest tests/unit/` → **731 pass** (was 716; +15 in `tests/unit/scheduling/test_daily_state.py` — daily-collector state: read/write round-trip, atomic-no-temp-left, missing-file-is-never, schema-version-mismatch-raises, plus gap detection: never-run-is-not-a-gap / healthy-24h-no-gap / missed-day-past-36h-is-a-gap / exactly-threshold-not-a-gap / custom-threshold / fractional `gap_hours`).
+- `pytest tests/integration/` → **4 pass** (unchanged).
+- `mypy pulse_check/ tests/ scripts/` → clean, **143 source files** (was 140; +3 new Python files: `pulse_check/scheduling/daily_state.py`, `scripts/daily_collect.py`, `tests/unit/scheduling/test_daily_state.py`).
+- `ruff check pulse_check/ tests/ scripts/` → clean.
+- `npm run test:run` (frontend) → **39 pass** (unchanged — session 45 was backend/scheduling only, no frontend change; bundle `index-bg5S5vGY.js` unchanged).
+- **Code read-through (this session's deliverable):** read `scripts/daily_collect.py` + `pulse_check/scheduling/daily_state.py`. Confirm: gap WARNING fires before the scrape (so it logs even if the scrape later fails); state is written ONLY after a successful collection (crash never advances the timestamp); re-sweep of the full window is intentional (dedup at ingest makes it correct + gap-safe). `python scripts/daily_collect.py --help` parses. **Do NOT run a live daily collection without operator go** — it's a real network/bandwidth scrape and the operator owns timing vs the other project on this machine.
+- **TASKS.md drift check:**
+  - `Session 45 ships` paragraph present (daily ingestion step 1 + 3-cadence model + design note + locked decisions).
+  - `Active` line: test counts **731/4/39**, **mypy 143 src**, bundle `index-bg5S5vGY.js` unchanged.
+  - `Last reconciled = 2026-06-10`.
+  - Wave 6 gained a `[~]` daily-ingestion line with step-1 shipped + steps 2–4 / first-live-run as nested `[ ]`.
+- **ARCH drift check:** §14 retitled "Refresh cadence — daily collect / weekly analyze / quarterly brief" with a 3-tier table + append-only model paragraph; new §14.1 (daily ingestion — `daily_collect.py` / `daily_state.py` / gap detection / state file / `daily_collector_state_path` / steps-2–4-not-built); existing quarterly content moved under §14.2.
+- **README drift check:** "Quarterly refresh procedure" → "Refresh cadence" (daily/weekly/quarterly breakdown + daily-collect command); non-goal real-time-dashboard line reconciled; `scripts/` layout lists `daily_collect`.
+- **TESTING drift check:** §3 gained a `tests/unit/scheduling/` bullet (both `test_state.py` + `test_daily_state.py`). No methodology change. Unit 716 → 731 (+15); integration/frontend unchanged. (TESTING carries no canonical unit total — counts live here + in TASKS.)
+- **DESIGN_SYSTEM drift check:** no edits (no UI / token / component change session 45).
+- **PRD drift check:** no edits (PRD asserts no operational cadence; nothing to reconcile).
+- **New doc:** `docs/DAILY_INGESTION_DESIGN.md` (locked decisions + step-1-shipped status + steps 2–4 outline).
+- **Migration head:** `eb05da255474` (unchanged; no schema work session 45).
+- **Config artifacts on disk:** unchanged — no scrape / tag / aggregate / brief run session 45. DB mention count **5,061** · `aspect_tags` **5,569** · `aggregates_aspect_sku` for `run_wave5_v1` **502** · pair briefs **240** · tombstones **0**. `data/daily_collector_state.json` does **not** exist yet (no live daily run has fired).
+- **Operator-confirmed locks from session 45 (do not re-debate without flag):**
+  - **Three-cadence model:** daily collect (no LLM) / weekly analyze (delta only) / quarterly brief (unchanged). Brief synthesis stays quarterly; only *collection* moved to daily.
+  - **Append-only, capture-once, never overwrite.** Dedup by `mention_id` (first sighting wins); deleted Reddit posts persist + keep feeding trends; score drift ignored (every mention = 1.0); trends bucket on `published_at`.
+  - **Aggregate trend storage = option A** (per-week snapshot `run_id`, no schema migration). **Weekly aggregate = full corpus-to-date** (no trailing window).
+  - **Daily collector re-sweeps the full configured window** (safe over bandwidth-lean — never misses a gap; dedup makes it correct).
+  - A missed day = permanently lost Reddit data (no backfill); the gap is logged, not recovered.
+
+### Audit checklist (session 44 → 45) — archived, completed in session 45
 
 - Use `.venv/Scripts/python.exe` for backend tooling.
 - `pytest tests/unit/` → **716 pass** (was 714; +2 from session 44, both in `tests/unit/api/test_app.py` — `test_mentions_returns_aspect_tags_in_canonical_order` (a multi-aspect mention's tags come back in `Aspect`-enum order regardless of insertion order) + `test_mentions_returns_only_current_tag_version` (a stale `prompt_version` tag with the opposite polarity is filtered out of `/api/mentions`)).
@@ -1190,6 +1219,34 @@ Added in session 23:
 ---
 
 ## Session history (newest first)
+
+### 2026-06-10 — session 45: Daily ingestion (step 1 of a new 3-tier cadence) shipped after the operator surfaced that raw Reddit data is perishable. Session opened on resume/audit of session 44 (baseline re-verified green) but turned into a design conversation: how products are matched to mentions (deterministic regex, precision-over-recall — aliases in YAML are NOT compiled into patterns), then the generation/year problem (parked as a thinking note: family stays the identity, generation an optional tag), then the core realization — Reddit's "new" feed only pages back ~1000 items, so without daily collection we permanently lose data. Adopted a 3-cadence model (daily collect / weekly analyze / quarterly brief), wrote `docs/DAILY_INGESTION_DESIGN.md`, locked decisions, and built step 1. 731 unit · 4 integration · 39 frontend green; mypy 143 src; ruff clean. No schema/migration, no LLM run, no frontend change. No live daily run yet (operator-gated).
+
+**Context entering.** Resumed after session-44 wrap (3 exit forks unblocked, no deferred items). Audit baseline re-run via subagent: 716 unit / 4 integration / 39 frontend / mypy 140 / ruff clean — all green, no drift. Instead of picking an exit fork, the operator opened a line of questioning about product matching that escalated into an architecture decision.
+
+**Decisions (product-level) reached this session.**
+- **D1 — Adopt a three-cadence model.** Daily collect (scrape + store raw, no LLM) / weekly analyze (classify + aspect-tag the delta + recompute aggregates) / quarterly brief (Sonnet narrative, unchanged). Driver: raw Reddit data is perishable; collection must run daily even though synthesis drift is slow enough to stay quarterly. This *splits* the prior quarterly-only lock rather than reversing it — the "months not weeks" logic still governs the brief layer.
+- **D2 — Append-only, capture-once, never overwrite.** Dedup by `mention_id` (first sighting wins); deleted Reddit posts persist and keep feeding trends; score drift ignored (every mention = 1.0); trends bucket on `published_at`. Operator drove this directly ("why overwrite? a deleted mention is still saved and feeds the trend") — and was right; it's simpler than the drift-tracking model first floated.
+- **D3 — Aggregate trend storage = option A (per-week snapshot `run_id`), no schema migration. Weekly aggregate = full corpus-to-date** (no trailing window).
+- **D4 — Daily collector re-sweeps the full configured window.** Safe over bandwidth-lean: dedup at ingest makes re-sweeping correct, and it never misses a gap. Operator accepted longer runtime in exchange for zero data loss.
+- **D5 — Generation/year handling parked as a thinking note (not built).** Products have 2024/2025/2026 variants; most casual mentions omit the year and spec-inference only fires when specs are stated. Decision: family stays the product identity; generation becomes an optional tag (explicit-year → high confidence; spec-implied → inferred; else `unknown`), sliceable as a filter, never required to keep a mention. Config sketch shown; no code, no schema.
+
+**Technical housekeeping (operator does not engage).**
+- **TH1 — `pulse_check/scheduling/daily_state.py`.** `DailyCollectorState` (frozen dataclass: `last_run_at` / `last_run_id` / `last_new_mentions`) mirroring the quarterly `state.py` discipline: `SCHEMA_VERSION=1`, atomic `tempfile.mkstemp` + `os.replace` write, `read_state` raises on version mismatch, `.never()` cold start. Gap helpers `gap_hours` + `has_gap` (`GAP_THRESHOLD_HOURS=36.0`; strictly-greater-than counts as a gap; never-run returns False).
+- **TH2 — `scripts/daily_collect.py`.** Thin wrapper over `run_scrape` mirroring `scripts/scrape.py` (same `--run-config`, `load_run`, `session_scope`, stats logging). Adds: gap WARNING logged *before* the scrape (fires even if the scrape later fails); state written *only after* a successful collection (crash never advances the timestamp). No LLM.
+- **TH3 — `Settings.daily_collector_state_path`** (alias `DAILY_COLLECTOR_STATE_PATH`, default `data/daily_collector_state.json`), parallel to `refresh_state_path`.
+- **TH4 — Tests.** +15 in `tests/unit/scheduling/test_daily_state.py` (read/write/round-trip/parent-dir/versioned-payload/no-temp-left/version-mismatch + `gap_hours` fractional + `has_gap` never/healthy-24h/missed-day-49h/exactly-threshold/custom-threshold). Final 731 / 4 / 39 green; mypy 143 (was 140, +3 files); ruff clean; CLI `--help` parses.
+- **TH5 — Docs.** New `docs/DAILY_INGESTION_DESIGN.md` (locked decisions + step-1-shipped + steps-2–4 outline). ARCHITECTURE §14 retitled to the 3-cadence model (3-tier table + append-only paragraph) + new §14.1 daily ingestion / §14.2 quarterly skeleton. README "Quarterly refresh procedure" → "Refresh cadence" with daily/weekly/quarterly breakdown + daily-collect command + non-goal + scripts-list. TASKS Session-45-ships paragraph + Active 731/4/39 + 143 src + Last reconciled 2026-06-10 + Wave-6 `[~]` daily-ingestion line. TESTING §3 new `tests/unit/scheduling/` area.
+- **TH6 — Memory.** Updated `feedback_quarterly_cadence.md` + its MEMORY.md index line: the quarterly lock is split, not reversed — brief layer stays quarterly, collection moved to daily. No new memory file (the design note is the durable record).
+
+**Live findings from session 45 (operator visibility).**
+- **Product matching is precision-over-recall, and aliases do nothing.** Attribution is deterministic case-insensitive regex (`attribution_patterns`) against fetched text — no fuzzy/LLM. The `aliases:` lists in the product YAML are informational only; they are never compiled into patterns. So "ASUS G16" / "ROG G16" / bare "G16" for the Strix G16 are silently missed, collision-heavy families use tight lookarounds, and ambiguous 2-product lines drop rather than guess. This is upstream of the ~51.7% untagged-mention finding. Closing the gap (compiling aliases) is a precision/recall retune, re-runnable via the secondary-attribution sweep with no re-scrape — noted, not done.
+- **The architecture was already ~80% ready for daily/append-only.** Mentions are keyed by stable `mention_id` with if-exists-skip dedup (already append-only); both `published_at` and `first_seen_at` are stored; aspect tagging is already incremental (skips already-tagged pairs). The real gap is aggregates: today they're overwritten in place under a single reused `run_id` with no time dimension — hence option A (per-week snapshot ids) for step 2.
+- **No live run fired.** Step 1 is built + unit-verified but `data/daily_collector_state.json` does not exist yet; the first real collection is operator-scheduled (network/bandwidth; must be timed to avoid contention with the other project on this machine).
+
+**Cumulative project LLM spend through session 45.** Unchanged from session 43 — **$0 LLM this session** (no scrape / tag / aggregate / brief run; collection step built but not fired).
+
+---
 
 ### 2026-06-08 — session 44: Heatmap aspect-drill bug fixed — the EvidenceDrawer/VerbatimCard showed each quote's first (arbitrary) aspect chip instead of the drilled aspect, so a red/negative Thermals cell drilled into positive-looking `performance`/`display` chips. Fix is display-only (the aggregate was always consistent): drawer threads the drilled `(aspect, productId)` into each card; card renders the matched tag; intensity filter scoped; `_mention_to_view` canonical-orders tags. Plus a latent guard: `/api/mentions` now filters to the current tag version. Verified live in-app. 716 unit · 4 integration · 39 frontend tests green. New bundle `index-bg5S5vGY.js`. No LLM spend (no pipeline run).
 

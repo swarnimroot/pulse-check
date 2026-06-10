@@ -47,6 +47,9 @@ class Settings(BaseSettings):
     refresh_state_path: str = Field(
         default="data/refresh_state.json", alias="REFRESH_STATE_PATH"
     )
+    daily_collector_state_path: str = Field(
+        default="data/daily_collector_state.json", alias="DAILY_COLLECTOR_STATE_PATH"
+    )
 
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
     log_file: str = Field(default="data/pulse_check.log", alias="LOG_FILE")

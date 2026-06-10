@@ -723,7 +723,33 @@ Each script is idempotent — re-running after partial failure picks up where it
 
 ---
 
-## 14. Quarterly refresh skeleton
+## 14. Refresh cadence — daily collect / weekly analyze / quarterly brief
+
+Session 45 split the operational cadence into three decoupled tiers (full rationale + locked decisions in [`docs/DAILY_INGESTION_DESIGN.md`](DAILY_INGESTION_DESIGN.md)). The driver: **raw Reddit data is perishable** — only ~1000 items page back in a subreddit's "new" feed, gone in days, with no backfill. So collection must run daily even though synthesis stays quarterly.
+
+| Tier | Cadence | Does what | Cost |
+|---|---|---|---|
+| **Daily collect** | daily | Scrape + store raw posts/comments, all sources, append-only | Cheap — no LLM, bandwidth only |
+| **Weekly analyze** | weekly | Classify + aspect-tag only new mentions + recompute aggregate snapshot | Moderate — LLM on the delta only |
+| **Quarterly brief** | quarterly / on-demand | Regenerate briefs (Sonnet narrative layer) | Expensive — only when data has materially moved |
+
+The append-only model: a mention's text + original timestamp never change, so trends fall out of `published_at` bucketing for free; a deleted Reddit post stays in our DB and keeps feeding the trend; re-seen live posts are deduped by `mention_id` (first sighting wins, never overwritten). Score drift is ignored by design (every mention = 1.0).
+
+### 14.1 Daily ingestion (session 45)
+
+Shipped: `scripts/daily_collect.py` + `pulse_check/scheduling/daily_state.py`. A thin wrapper over the existing `run_scrape` path — no LLM, collection only.
+
+**Entry point.** `python scripts/daily_collect.py --run-config configs/run_wave5_v1.yaml`. Reads daily-collector state, scrapes the full configured window (dedup at ingest makes re-sweeping correct — the safe choice that never misses a gap), then writes state on success.
+
+**Gap detection.** Before scraping, compares the prior run's timestamp to now; if the gap exceeds `GAP_THRESHOLD_HOURS` (36h — tolerates run-time jitter without flagging a healthy daily cadence) it logs a loud WARNING. A missed day means perishable Reddit data is unrecoverable, so the gap is recorded, not recovered. A never-run system is a cold start, not a gap.
+
+**State file at `data/daily_collector_state.json`.** Single-row JSON keyed on `schema_version: 1`, fields `last_run_at` / `last_run_id` / `last_new_mentions`. Written atomically (`tempfile.mkstemp` + `os.replace`) **only after a successful collection** — a crash leaves the timestamp unadvanced so the next run still reports the gap. Mirrors the quarterly `refresh_state.json` discipline below.
+
+**Path env-overrideable.** `Settings.daily_collector_state_path` (alias `DAILY_COLLECTOR_STATE_PATH`) defaults to `data/daily_collector_state.json`. Tests pass an explicit path into `read_state` / `write_state`.
+
+**Not yet built (steps 2–4 of the cadence model).** Per-week aggregate snapshots (option A — time-stamped `run_id`, no migration), a weekly-analyze entry point, and the trend read path (API + UI). The operator owns scheduling (local Windows Task Scheduler) and times the daily job to avoid contention with the other project on this machine.
+
+### 14.2 Quarterly refresh skeleton
 
 Added session 39 as a "skeleton" — the wiring exists but the first live quarterly run has not fired. Lives at `scripts/refresh.py` + `pulse_check/scheduling/state.py`.
 

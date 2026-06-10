@@ -29,7 +29,7 @@ Product-agnostic engine. Alienware gaming laptops are the first demo product set
 See [`docs/PRD.md` §4.2 Non-goals](docs/PRD.md). Highlights:
 
 - Not a consumer-facing buying tool.
-- Not a real-time monitoring dashboard (v1 runs analyses on demand; quarterly refresh is the operational cadence).
+- Not a real-time monitoring dashboard. Collection runs **daily** (raw Reddit data is perishable — it ages out of the "new" feed within days), but the expensive *analysis* cadence stays quarterly. See [Refresh cadence](#refresh-cadence) and [`docs/DAILY_INGESTION_DESIGN.md`](docs/DAILY_INGESTION_DESIGN.md).
 - Not a general brand-sentiment tool; every analysis is product-set-scoped.
 - No mobile, no multi-user auth. (PDF / HTML / Markdown export of A1 standalone briefs and pair contrast briefs is shipped — sessions 35–43 — via the in-app `Export brief` and `Export comparison` buttons.)
 
@@ -144,9 +144,22 @@ A frontend or backend change requires re-running `serve_public.py` (the build st
 
 ---
 
-## Quarterly refresh procedure
+## Refresh cadence
 
-The operational cadence is **quarterly** — public-voice drift on PC laptops is months, not weeks, so a quarterly refresh catches every review cycle worth catching without burning operator review time on cosmetic deltas. Estimated steady-state: ~$15–25 per refresh in LLM spend (~$60–100/year) + ~2–3 hours of operator review time per refresh. Monthly cadence multiplies review time for marginal new signal; weekly is mostly noise.
+As of session 45 the cadence is **three decoupled tiers** (rationale + locked decisions in [`docs/DAILY_INGESTION_DESIGN.md`](docs/DAILY_INGESTION_DESIGN.md)):
+
+- **Daily collect** — `scripts/daily_collect.py` scrapes + stores raw mentions (no LLM). Runs daily because raw Reddit data is perishable: only ~1000 items page back in a sub's "new" feed, gone in days, no backfill. Append-only and deduped by `mention_id`; a missed day logs a loud gap warning (unrecoverable).
+- **Weekly analyze** — classify + aspect-tag only the new mentions + recompute aggregates. *(Steps 2–4 not yet built; see the design note.)*
+- **Quarterly brief** — regenerate the Sonnet narrative briefs. This is where the "months not weeks" logic still holds: public-voice drift on PC laptops is slow, so brief synthesis + operator review stay quarterly. Estimated ~$15–25 LLM + ~2–3 hours review per refresh (~$60–100/year). Monthly multiplies review time for marginal signal; the cheap daily *collection* is what changed, not the expensive *synthesis*.
+
+Daily collection:
+
+```powershell
+# Scrape + store only (no LLM). Schedule daily via Windows Task Scheduler.
+.venv\Scripts\python scripts/daily_collect.py --run-config configs/run_wave5_v1.yaml
+```
+
+Quarterly synthesis:
 
 ```powershell
 # 1. Re-scrape — incremental; cached HTTP responses + dedup on mention_id mean
@@ -195,8 +208,9 @@ pulse-check/
 ├── pulse_check/             # Python package (config, scraping, storage, tagging,
 │                            #   synthesis, aggregation, eval, llm_cache, api)
 ├── frontend/                # Vite + React + TS + Tailwind + shadcn/ui
-├── scripts/                 # CLI entry points (scrape, tag, synthesize, eval,
-│                            #   run_stage_a, run_stage_b, serve, serve_public)
+├── scripts/                 # CLI entry points (scrape, daily_collect, tag,
+│                            #   synthesize, eval, run_stage_a, run_stage_b,
+│                            #   serve, serve_public)
 ├── configs/                 # product-set / pair-plan / run-config YAMLs
 ├── alembic/                 # schema migrations
 ├── data/                    # local persistent state (gitignored):

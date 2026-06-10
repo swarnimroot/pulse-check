@@ -47,6 +47,7 @@ Coverage priorities (highest value first):
 - **`tests/unit/llm_cache/`** — key construction, hit/miss, prompt_version bump produces new rows without evicting old, no silent key collisions.
 - **`tests/unit/tagging/prompts/`** — snapshot tests on prompt strings (so no silent prompt drift between wave merges). Each prompt carries a `PROMPT_VERSION` constant; snapshot compares against a committed reference.
 - **`tests/unit/synthesis/citation_parser/`** — Sonnet's structured output parsed correctly; malformed outputs raise typed errors the caller can handle.
+- **`tests/unit/scheduling/`** — cadence state files. `test_state.py` (quarterly refresh: read/write/atomic, `is_due`, `days_since_refresh`). `test_daily_state.py` (session 45 daily collector: schema-versioned atomic JSON round-trip + gap detection — never-run is a cold start not a gap, healthy 24h cadence has no gap, missed day past the 36h threshold flags). Both fail loud on schema-version mismatch and only advance state on success.
 
 Mocking strategy: LLM clients are mocked with `unittest.mock` in unit tests. Real calls happen only in eval tests.
 
