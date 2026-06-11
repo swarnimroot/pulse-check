@@ -913,3 +913,78 @@ def test_dist_present_api_routes_still_work(fake_frontend_dist: Path) -> None:  
     response = client.get("/api/health")
     assert response.status_code == 200
     assert response.json()["status"] == "ok"
+
+
+# ---------------------------------------------------------------------------
+# /api/trend (weekly-snapshot time series)
+# ---------------------------------------------------------------------------
+
+
+def test_trend_404_when_product_missing(app_with_session: FastAPI) -> None:
+    client = TestClient(app_with_session)
+    response = client.get("/api/trend/does_not_exist")
+    assert response.status_code == 404
+
+
+def test_trend_empty_when_no_aggregates(
+    app_with_session: FastAPI, seed_session: Session
+) -> None:
+    _seed_product(seed_session, product_id="alienware_16_aurora")
+    seed_session.commit()
+
+    client = TestClient(app_with_session)
+    body = client.get("/api/trend/alienware_16_aurora").json()
+    assert body["product_id"] == "alienware_16_aurora"
+    assert body["snapshots"] == []
+
+
+def test_trend_orders_snapshots_oldest_first_and_groups_by_run(
+    app_with_session: FastAPI, seed_session: Session
+) -> None:
+    _seed_product(seed_session, product_id="alienware_16_aurora")
+    # Two weekly snapshots, seeded out of chronological order on purpose.
+    later = _seed_aggregate(
+        seed_session,
+        run_id="run_2026_w24",
+        aspect=Aspect.THERMALS,
+        total_mentions=12,
+        net_sentiment=-0.2,
+    )
+    later.computed_at = datetime(2026, 6, 10, tzinfo=UTC)
+    earlier = _seed_aggregate(
+        seed_session,
+        run_id="run_2026_w23",
+        aspect=Aspect.THERMALS,
+        total_mentions=8,
+        net_sentiment=-0.5,
+    )
+    earlier.computed_at = datetime(2026, 6, 3, tzinfo=UTC)
+    seed_session.commit()
+
+    client = TestClient(app_with_session)
+    body = client.get("/api/trend/alienware_16_aurora").json()
+
+    snaps = body["snapshots"]
+    assert [s["run_id"] for s in snaps] == ["run_2026_w23", "run_2026_w24"]
+    # Each snapshot carries its aspect point with volume + sentiment.
+    assert snaps[0]["aspects"][0]["aspect"] == Aspect.THERMALS.value
+    assert snaps[0]["aspects"][0]["total_mentions"] == 8
+    assert snaps[1]["aspects"][0]["net_sentiment"] == -0.2
+
+
+def test_trend_orders_aspects_by_enum_within_snapshot(
+    app_with_session: FastAPI, seed_session: Session
+) -> None:
+    _seed_product(seed_session, product_id="alienware_16_aurora")
+    # Seed two aspects in reverse enum order under one snapshot.
+    all_aspects = list(Aspect)
+    first_enum, second_enum = all_aspects[0], all_aspects[1]
+    _seed_aggregate(seed_session, run_id="run_2026_w24", aspect=second_enum)
+    _seed_aggregate(seed_session, run_id="run_2026_w24", aspect=first_enum)
+    seed_session.commit()
+
+    client = TestClient(app_with_session)
+    body = client.get("/api/trend/alienware_16_aurora").json()
+
+    aspects = [p["aspect"] for p in body["snapshots"][0]["aspects"]]
+    assert aspects == [first_enum.value, second_enum.value]

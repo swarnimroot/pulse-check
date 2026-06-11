@@ -3,8 +3,12 @@
 **Status:** Decisions locked by operator (session 45, 2026-06-10). **Step 1 (daily
 collector) shipped session 45** — `scripts/daily_collect.py` +
 `pulse_check/scheduling/daily_state.py` + `Settings.daily_collector_state_path` + 15
-unit tests; first live run is operator-gated. Steps 2–4 (per-week aggregate snapshots ·
-weekly-analyze entry point · trend read path) not yet built. See ARCHITECTURE §14.1.
+unit tests; first live run is operator-gated. **Steps 2–4 shipped session 46** —
+`scripts/weekly_analyze.py` (weekly-analyze entry point) +
+`pulse_check/scheduling/weekly_snapshot.py` (`snapshot_run_id` + `ensure_run_row`;
+option A per-week snapshot ids, no migration) + `GET /api/trend/{product_id}` (trend
+read path, backend only — UI deferred until weekly snapshots accumulate) + 10 unit
+tests. First live weekly run is operator-gated. See ARCHITECTURE §14.1.
 **Why this exists:** the pilot was designed as a quarterly batch. This note proposes
 shifting to a *standing pipeline* so we stop losing Reddit data. It contradicts the
 prior "quarterly cadence / reject rolling-data dependency" locks, so per the doc
@@ -76,10 +80,17 @@ Four real pieces of work, smallest to largest:
    the other project on this machine (GPU/network/Reddit-rate-limit contention is the
    operator's to stagger).
 
-2. **Weekly analysis entry point.** Runs aspect tagging (already incremental) + an
-   aggregate snapshot. Skips brief synthesis by default.
+2. **Weekly analysis entry point.** *(Shipped session 46 — `scripts/weekly_analyze.py`.)*
+   Runs aspect tagging (already incremental) + an aggregate snapshot. Skips brief
+   synthesis by default. Tagging defaults to **Qwen/ollama** (the volume tagger per
+   CLAUDE.md routing); `--provider anthropic` switches to Haiku. `--as-of YYYY-MM-DD`
+   overrides the snapshot week for backfill / deterministic re-runs. No separate
+   weekly-state file — the snapshot `run_id`s *are* the run trail, so weekly
+   gap-detection is deferred as YAGNI (unlike the daily tier, where the perishable feed
+   makes a gap unrecoverable and worth flagging).
 
-3. **Time-bucketed aggregates — the one genuine schema decision.** Today
+3. **Time-bucketed aggregates — the one genuine schema decision.** *(Shipped session 46
+   — `pulse_check/scheduling/weekly_snapshot.py`, option A.)* Today
    `aggregates_aspect_sku` is keyed by a single reused `run_id` and **overwritten in
    place** (delete-then-insert), with no date dimension. To read trends we need the
    aggregate history to persist across weeks instead of being clobbered. Two options:
@@ -93,12 +104,27 @@ Four real pieces of work, smallest to largest:
      widen the unique constraint to `(run_id, product_id, aspect, period)`. More
      explicit, but a migration and touches the aggregation + API read paths.
 
-   *Decision needed from operator.* Recommendation: **(A)** — least disruptive, ships
-   the trend capability without a schema migration.
+   *Resolved: operator chose **(A)** (locked decision 2).* Implemented as
+   `snapshot_run_id(when) → run_YYYY_wNN` (ISO week) + `ensure_run_row` (creates the
+   backing `runs` FK row each week — SQLite doesn't enforce the FK but Postgres will).
+   `aggregate_a1` is reused unchanged; its delete-then-insert is already scoped to
+   `(run_id, product_id)`, so a per-week id leaves prior weeks intact.
 
-4. **No scheduler is added in-repo.** There is no active cron today (only a manual
-   quarterly dry-run chain, `scripts/refresh.py`). The operator runs the daily/weekly
-   jobs via local Windows Task Scheduler and owns the timing. We provide the commands.
+   **Trend read path (step 4).** `GET /api/trend/{product_id}` returns the sequence of
+   snapshots oldest-first by `computed_at`, each carrying per-aspect `total_mentions` +
+   `net_sentiment`. It includes **all** of a product's aggregate snapshots — the pilot
+   `run_wave5_v1` becomes the first trend point — rather than filtering to
+   weekly-pattern ids, which keeps the read honest and avoids brittle id-format
+   matching. Backend only; a charting UI is deferred until several weekly snapshots
+   accumulate (a single snapshot plots one dot).
+
+4. **Scheduler artifacts in-repo (session 46).** `scripts/daily_collect.{ps1,xml}` +
+   `scripts/weekly_analyze.{ps1,xml}` — Windows Task Scheduler wrapper + import template
+   pairs mirroring the quarterly `refresh_quarterly.*`. Registered live on the operator
+   machine: **daily collect 05:00 daily** (scrape-only, no GPU — overlap-irrelevant);
+   **weekly analyze 07:00 Sunday** (Qwen on the shared GPU — staggered 8h past the other
+   project's 23:00 LLM run, which lasts ~3–6h, so the two never contend for the GPU). The
+   operator owns the timing; the `.xml` files carry `PLACEHOLDER_*` slots for portability.
 
 ## 6. Accepted limitations *(implementation — skippable)*
 
@@ -128,3 +154,30 @@ Four real pieces of work, smallest to largest:
    weekly run writes under a time-stamped id and prior weeks are untouched.
 3. **Weekly aggregate = full corpus-to-date** (no trailing window). Every weekly snapshot
    rolls up all mentions accumulated so far.
+
+---
+
+## Collection-layer fixes (session 46)
+
+Building the daily collector surfaced two source-access problems and one
+operational gotcha. Full mechanics in ARCHITECTURE §5.
+
+- **Reddit JSON API is dead for us → switched to `.rss`.** Reddit 403-blocks the
+  unauthenticated JSON endpoints for our IP (no UA/TLS/curl_cffi workaround;
+  OAuth registration closed). New `.rss` fetchers (`reddit_rss` /
+  `reddit_comments_rss`) get posts **and** comments via the public Atom feeds
+  over plain httpx + a browser UA. Comment-inheritance preserved. Comment
+  deepening is capped at the 50 newest posts/run (reddit 429s the `.rss`
+  endpoint after ~100 requests) and self-paced ~1 s/request.
+- **YouTube now actually transcribes caption-less videos.** Enabled the
+  `audio_fallback` path (yt-dlp + faster-whisper, CPU) so PoToken-gated /
+  caption-less videos yield a whisper transcript instead of being dropped.
+  Video selection now matches title **+ description**. A pre-fetch dedup skips
+  already-transcribed videos so daily re-sweeps don't re-run whisper. CPU-only —
+  no GPU contention with the weekly Qwen pass or another project's GPU job.
+- **Scheduler queue is persistent — clear it when changing fetchers.** The
+  Scheduler's `data/scheduler_state.db` retains pending jobs across runs. After
+  switching reddit from JSON to `.rss`, stale JSON jobs lingered and their 403s
+  tripped a domain-wide backoff that skipped the new jobs. Delete
+  `data/scheduler_state.db` once after a fetcher-source change; it's a transient
+  job queue (the corpus lives in the main DB) and is rebuilt each run.

@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  pulse-check daily ingestion collector.
+
+  Runs scripts/daily_collect.ps1 every day at 05:00 local time. Staggered off
+  the operator's other project (which runs at 23:00 CDT) to avoid Reddit
+  rate-limit / network contention; daily collect uses no GPU. The collection
+  is scrape-only (no LLM) and idempotent, so the scheduled job runs it for
+  real (no dry-run gate, unlike the quarterly refresh).
+
+  Imports into Windows Task Scheduler. Before import:
+    1. Replace PLACEHOLDER_REPO_ROOT with the absolute path to the
+       pulse-check working copy (e.g. C:\Users\you\pulse-check).
+    2. Replace PLACEHOLDER_DOMAIN\PLACEHOLDER_USER with the Windows user
+       account the job should run under (e.g. WORKSTATION\swarnim).
+    3. Save the file with UTF-8 encoding (matches the declaration above).
+
+  Import command (Admin PowerShell):
+    Register-ScheduledTask -Xml (Get-Content -Path "PLACEHOLDER_REPO_ROOT\scripts\daily_collect.xml" -Raw) -TaskName "pulse-check daily collect" -Force
+
+  Each run's log lands under data/daily_collect_log/collect_<timestamp>.log.
+  The machine must be on at 05:00; StartWhenAvailable catches up a missed run
+  the next time the machine is available, and daily_collect.py logs a GAP
+  WARNING when it detects a skipped day.
+
+  Trigger: 05:00 every day.
+-->
+<Task version="1.4" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
+  <RegistrationInfo>
+    <Description>pulse-check daily ingestion collector. Scrape-only (no LLM); runs nightly at 05:00 local, staggered off the 23:00 other-project job. Logs to data/daily_collect_log/.</Description>
+    <Author>pulse-check operator</Author>
+    <URI>\pulse-check\daily-collect</URI>
+  </RegistrationInfo>
+  <Triggers>
+    <CalendarTrigger>
+      <StartBoundary>2026-06-11T05:00:00</StartBoundary>
+      <Enabled>true</Enabled>
+      <ScheduleByDay>
+        <DaysInterval>1</DaysInterval>
+      </ScheduleByDay>
+    </CalendarTrigger>
+  </Triggers>
+  <Principals>
+    <Principal id="Author">
+      <UserId>PLACEHOLDER_DOMAIN\PLACEHOLDER_USER</UserId>
+      <LogonType>InteractiveToken</LogonType>
+      <RunLevel>LeastPrivilege</RunLevel>
+    </Principal>
+  </Principals>
+  <Settings>
+    <MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>
+    <DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>
+    <StopIfGoingOnBatteries>false</StopIfGoingOnBatteries>
+    <AllowHardTerminate>true</AllowHardTerminate>
+    <StartWhenAvailable>true</StartWhenAvailable>
+    <RunOnlyIfNetworkAvailable>true</RunOnlyIfNetworkAvailable>
+    <IdleSettings>
+      <StopOnIdleEnd>false</StopOnIdleEnd>
+      <RestartOnIdle>false</RestartOnIdle>
+    </IdleSettings>
+    <AllowStartOnDemand>true</AllowStartOnDemand>
+    <Enabled>true</Enabled>
+    <Hidden>false</Hidden>
+    <RunOnlyIfIdle>false</RunOnlyIfIdle>
+    <WakeToRun>false</WakeToRun>
+    <ExecutionTimeLimit>PT3H</ExecutionTimeLimit>
+    <Priority>7</Priority>
+  </Settings>
+  <Actions Context="Author">
+    <Exec>
+      <Command>powershell.exe</Command>
+      <Arguments>-NoProfile -ExecutionPolicy Bypass -File "PLACEHOLDER_REPO_ROOT\scripts\daily_collect.ps1"</Arguments>
+      <WorkingDirectory>PLACEHOLDER_REPO_ROOT</WorkingDirectory>
+    </Exec>
+  </Actions>
+</Task>

@@ -23,6 +23,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Sequence
 from pathlib import Path
+from urllib.parse import parse_qs, urlparse
 
 from scrapers_lib import ProductSnapshot, RawMention, Scheduler
 
@@ -58,6 +59,14 @@ from pulse_check.storage.enums import AttributionType, SourceType
 from pulse_check.storage.models import Mention, MentionAttribution, Product
 
 log = logging.getLogger(__name__)
+
+# Max reddit comment-followups (per-post `.rss` fetches) per run. Reddit
+# rate-limits its public `.rss` endpoint with a 429 after ~100 requests/run, so
+# the per-run reddit budget (≈12 listing feeds + this) must stay under that.
+# Deepening only the newest posts keeps daily fresh-discussion capture while
+# leaving full historical deepening to the occasional quarterly pass. Tune via
+# the `cap` arg if Reddit's tolerance changes.
+REDDIT_COMMENT_FOLLOWUP_CAP = 50
 
 
 def run_scrape(
@@ -105,7 +114,9 @@ def run_scrape(
     try:
         sw = run_config.source_windows
         if sw.rss is not None and sw.rss.enabled and rss_sources is not None:
-            _enqueue_rss_discovered(scheduler, product_set, rss_sources, sw.rss)
+            _enqueue_rss_discovered(
+                scheduler, session, product_set, rss_sources, sw.rss
+            )
         _enqueue_all_sources(scheduler, run_config, product_set)
         if (
             sw.article is not None
@@ -188,22 +199,16 @@ def _enqueue_all_sources(
 
     if sw.reddit is not None and sw.reddit.enabled and all_anchors:
         for subreddit in sw.reddit.subreddits:
-            # /new — recent posts (catches breaking discussions, fresh reviews).
+            # Reddit 403-blocks the .json API for our IP; the .rss listing feed
+            # is the live path (recent posts; RSS has no sort/time_filter).
+            # Historical depth is already in the corpus from the backfill — the
+            # daily cadence only needs fresh posts. See scrapers_lib.tier1.reddit.
             scheduler.enqueue(
                 url=_reddit_url(subreddit),
-                source="reddit",
+                source="reddit_rss",
                 anchors=all_anchors,
             )
-            # /top?t=year — substantive year-over-year posts; far higher
-            # product-mention density than /new on low-volume subs.
-            scheduler.enqueue(
-                url=_reddit_url(subreddit),
-                source="reddit",
-                anchors=all_anchors,
-                sort="top",
-                time_filter="year",
-            )
-            count += 2
+            count += 1
 
     if sw.bestbuy_reviews is not None and sw.bestbuy_reviews.enabled:
         for product in product_set.products:
@@ -254,6 +259,11 @@ def _enqueue_all_sources(
                     url=video_url,
                     source="youtube",
                     anchors=[anchor],
+                    # YouTube captions are PoToken-gated for ~half of videos;
+                    # enable the yt-dlp + faster-whisper (CPU) audio fallback so
+                    # caption-less videos still yield a transcript instead of
+                    # being silently dropped.
+                    audio_fallback=True,
                 )
                 count += 1
 
@@ -330,8 +340,50 @@ def _enqueue_discovered_urls(
     return count
 
 
+def _youtube_video_id(url: str) -> str | None:
+    """Best-effort 11-char video id from a watch / youtu.be / embed / shorts URL.
+
+    Returns ``None`` when the URL isn't a recognizable YouTube video link.
+    """
+    p = urlparse(url)
+    host = (p.hostname or "").lower()
+    if host in ("youtu.be", "www.youtu.be"):
+        vid = p.path.strip("/").split("/")[0] if p.path else ""
+        return vid or None
+    if "youtube" in host:
+        qs = parse_qs(p.query)
+        if qs.get("v"):
+            return qs["v"][0]
+        parts = p.path.strip("/").split("/")
+        if len(parts) >= 2 and parts[0] in ("embed", "shorts", "v"):
+            return parts[1]
+    return None
+
+
+def _video_id_from_chunk_mention_id(mention_id: str) -> str:
+    """Recover the video id from a ``youtube_<vid>_chunk_<n>`` mention id.
+
+    Mirrors ``scrapers_lib.core.attribution.youtube_chunk_id``. Dialect-free
+    (string ops) so it works without JSON-extract on ``metadata_``.
+    """
+    return mention_id.removeprefix("youtube_").rsplit("_chunk_", 1)[0]
+
+
+def _transcribed_youtube_video_ids(session: Session) -> set[str]:
+    """Video ids already transcribed into the corpus (``youtube_chunk`` mentions)."""
+    return {
+        _video_id_from_chunk_mention_id(mid)
+        for mid in session.execute(
+            select(Mention.mention_id).where(
+                Mention.source_type == SourceType.YOUTUBE_CHUNK
+            )
+        ).scalars()
+    }
+
+
 def _enqueue_rss_discovered(
     scheduler: Scheduler,
+    session: Session,
     product_set: ProductSet,
     rss_sources: RSSSources,
     rss_window: RSSWindow,
@@ -341,41 +393,81 @@ def _enqueue_rss_discovered(
     Each `DiscoveredItem` becomes one scheduler job; `target_source`
     determines the fetcher (`youtube` for channel-feed video URLs,
     `article` for review-site article URLs). Returns the job count.
+
+    **YouTube pre-fetch dedup.** Transcription is expensive (yt-dlp download +
+    faster-whisper on CPU, ~30 s-3 min/video), and the corpus dedups only at
+    *ingest* — after the fetch. Re-sweeping the same recent videos every day
+    would re-run whisper on already-transcribed videos for nothing. So a
+    discovered YouTube video whose id is already in the corpus is skipped before
+    enqueue. Articles are cheap HTTP re-fetches, so they aren't deduped here.
     """
     all_anchors = to_anchors(product_set)
     if not all_anchors:
         log.info("rss_discovery: no anchors built; skipping")
         return 0
 
+    transcribed = _transcribed_youtube_video_ids(session)
     items, _stats = discover(rss_sources, rss_window)
+    enqueued = 0
+    skipped_seen = 0
     for item in items:
+        if item.target_source == "youtube":
+            vid = _youtube_video_id(item.url)
+            if vid is not None and vid in transcribed:
+                skipped_seen += 1
+                continue
+            # Enable the yt-dlp + faster-whisper (CPU) audio fallback so
+            # caption-less / PoToken-gated videos still yield a transcript
+            # instead of being silently dropped.
+            extra: dict[str, object] = {"audio_fallback": True}
+        else:
+            extra = {}
         scheduler.enqueue(
             url=item.url,
             source=item.target_source,
             anchors=all_anchors,
+            **extra,
         )
-    log.info("rss_discovery: enqueued %d jobs", len(items))
-    return len(items)
+        enqueued += 1
+    log.info(
+        "rss_discovery: enqueued %d jobs (skipped %d already-transcribed youtube videos)",
+        enqueued,
+        skipped_seen,
+    )
+    return enqueued
 
 
 def _enqueue_reddit_comment_followups(
-    scheduler: Scheduler, session: Session, product_set: ProductSet
+    scheduler: Scheduler,
+    session: Session,
+    product_set: ProductSet,
+    *,
+    cap: int = REDDIT_COMMENT_FOLLOWUP_CAP,
 ) -> int:
-    """Enqueue `fetch_reddit_comments` for every distinct source_url of
-    primary-attributed reddit_post mentions in the DB. Returns the job count.
+    """Enqueue `fetch_reddit_comments_rss` for the most-recent primary-attributed
+    reddit_post source_urls in the DB (newest first, capped). Returns the count.
 
     Anchors are passed identical to the listing pass so each comment runs
     through scrapers-lib's per-item regex attribution (`_fan_out`); a comment
     discussing a different product than the parent post lands attributed
     correctly on its own merit. Idempotent at the ingest layer (mention_id
     upsert), so re-running is safe.
+
+    **Capped + recency-ordered (daily-cadence fix).** Reddit rate-limits its
+    public `.rss` endpoint (429 after ~100 requests/run), and deepening every
+    historical post each day is both rate-fatal and wasteful — old posts'
+    comments are already in the corpus. So we deepen only the `cap` newest
+    posts (by `published_at`), which keeps the per-run reddit request budget
+    under the 429 ceiling and prioritizes fresh discussion. Older posts are
+    covered by the occasional full pass (quarterly refresh). The skip count is
+    logged, never silent.
     """
     all_anchors = to_anchors(product_set)
     if not all_anchors:
         return 0
 
     rows = session.execute(
-        select(Mention.source_url)
+        select(Mention.source_url, Mention.published_at)
         .join(MentionAttribution, MentionAttribution.mention_id == Mention.mention_id)
         .where(
             Mention.source_type == SourceType.REDDIT_POST,
@@ -384,17 +476,37 @@ def _enqueue_reddit_comment_followups(
         .distinct()
     ).all()
 
-    count = 0
-    for (url,) in rows:
+    # Dedup by url (a multi-product post yields multiple attribution rows),
+    # keeping newest first. `published_at` may be None → sort it oldest.
+    seen: set[str] = set()
+    ordered_urls: list[str] = []
+    for url, _pub in sorted(
+        rows,
+        key=lambda r: r[1].timestamp() if r[1] else 0.0,
+        reverse=True,
+    ):
+        if url in seen:
+            continue
+        seen.add(url)
+        ordered_urls.append(url)
+
+    capped = ordered_urls[:cap]
+    for url in capped:
         scheduler.enqueue(
             url=url,
-            source="reddit_comments",
+            source="reddit_comments_rss",
             anchors=all_anchors,
             # Bypass per-comment regex; pulse-check inherits parent-post
             # primary attribution as SECONDARY via apply_comment_inheritance.
             emit_all_comments=True,
         )
-        count += 1
 
-    log.info("enqueued %d reddit comment-fetch followups", count)
-    return count
+    log.info(
+        "enqueued %d reddit comment-fetch followups (newest-first; %d eligible, "
+        "%d skipped by cap=%d)",
+        len(capped),
+        len(ordered_urls),
+        max(0, len(ordered_urls) - len(capped)),
+        cap,
+    )
+    return len(capped)

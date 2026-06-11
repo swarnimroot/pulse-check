@@ -133,6 +133,53 @@ class BriefView(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# Trend (weekly-snapshot time series) — daily-ingestion cadence, step 4
+# ---------------------------------------------------------------------------
+
+
+class TrendAspectPoint(BaseModel):
+    """One aspect's value at a single weekly snapshot.
+
+    Minimal by design — the trend read path plots movement over time, so it
+    carries only the two fields a line chart needs (volume + sentiment). Full
+    per-aspect detail lives on `/api/product/{id}` for the latest snapshot.
+    """
+
+    aspect: str
+    total_mentions: int
+    net_sentiment: float
+
+
+class TrendSnapshot(BaseModel):
+    """All of a product's aspect rows for one snapshot `run_id`.
+
+    `computed_at` is the snapshot's representative timestamp (the latest
+    `computed_at` across this product's rows in the run) — what the time axis
+    is keyed on.
+    """
+
+    run_id: str
+    computed_at: datetime
+    aspects: list[TrendAspectPoint]
+
+
+class TrendResponse(BaseModel):
+    """Payload behind `/api/trend/{product_id}`.
+
+    `snapshots` is every aggregate snapshot this product has, oldest first
+    (chronological by `computed_at`). Each distinct `run_id` is one point on
+    the time axis — the pilot run plus each weekly snapshot written by
+    `scripts/weekly_analyze.py`. Empty list when the product has no aggregates
+    yet. No UI consumes this yet (read path shipped ahead of the chart).
+    """
+
+    product_id: str
+    display_name: str
+    snapshots: list[TrendSnapshot]
+    generated_at: datetime
+
+
+# ---------------------------------------------------------------------------
 # Compare (cross-product heatmap) — bite 32.a
 # ---------------------------------------------------------------------------
 

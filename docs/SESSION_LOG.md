@@ -8,9 +8,37 @@ Running one-page chronicle. Updated **at session close**, when the operator says
 
 Paste at the start of your next session:
 
-> Resume pulse-check session 46. Audit first per `docs/SESSION_LOG.md`. Ultrathink. Subagents.
+> Resume pulse-check session 47. Audit first per `docs/SESSION_LOG.md`. Ultrathink. Subagents.
 
-### Audit checklist (session 45 → 46)
+### Audit checklist (session 46 → 47)
+
+- Use `.venv/Scripts/python.exe` for backend tooling.
+- `pytest tests/unit/` → **749 pass** (was 735 actual at session-46 open; +14: `tests/unit/scheduling/test_weekly_snapshot.py` 6 [snapshot-id ISO-week format/pad/stability/year-boundary + `ensure_run_row` insert/no-op], trend api 4 in `test_app.py` [404 / empty / oldest-first grouping / aspect-enum order], `test_rss_discovery.py` +2 [youtube matches on description; article ignores body-only], `test_orchestrator.py` +2 [comment-followup cap keeps newest; rss-discovered skips already-transcribed youtube]).
+- `pytest tests/integration/` → **4 pass** (unchanged).
+- **scrapers-lib** (sibling, editable): `pytest ../scrapers-lib/tests/tier1/test_reddit.py ../scrapers-lib/tests/tier1/test_reddit_rss.py` → **63 pass** (57 existing + 6 new RSS). Note scrapers-lib's own full `mypy scrapers_lib` is *not* clean at baseline (32 pre-existing errors); reddit.py adds only the same feedparser-import-untyped pattern `rss.py` already has.
+- `mypy pulse_check/ tests/ scripts/` → clean, **146 source files** (unchanged from session 45's steps-2–4; reddit RSS work was all in scrapers-lib + edits to existing pulse-check files).
+- `ruff check pulse_check/ tests/ scripts/` → clean.
+- `npm run test:run` (frontend) → **39 pass** (unchanged — no frontend change session 46; bundle `index-bg5S5vGY.js` unchanged).
+- **Code read-through (this session's deliverables):**
+  - `scrapers_lib/tier1/reddit.py` — the `.rss` path (`fetch_reddit_listing_rss` / `fetch_reddit_comments_rss` + parsers): posts+comments structured, `parent_id` threading, `[deleted]`/`[removed]` skipped, ~1 s self-throttle. Legacy JSON fetchers retained but not enqueued.
+  - `pulse_check/scraping/orchestrator.py` — reddit listing → `reddit_rss` (1 job/sub), comment followups → `reddit_comments_rss` recency-ordered + `REDDIT_COMMENT_FOLLOWUP_CAP=50`; youtube enqueues pass `audio_fallback=True`; `_enqueue_rss_discovered` pre-fetch dedup of already-transcribed videos. NO scheduler `RateLimiter` (incompatible with `until_empty`).
+  - `scripts/daily_collect.{ps1,xml}` + `scripts/weekly_analyze.{ps1,xml}` — wrappers use `$ErrorActionPreference = "Continue"` + `$LASTEXITCODE` (the `Stop` default kills on Python's first stderr line).
+  - `scripts/weekly_analyze.py` + `pulse_check/scheduling/weekly_snapshot.py` + `GET /api/trend/{id}`.
+- **VERIFY THE FIRST SCHEDULED RUNS FIRED (the deferred live exercise).** This is the top priority for session 47 — the daily 05:00 + weekly Sun 07:00 crons are the first full in-pipeline runs. Read the newest logs under `data/daily_collect_log/` and `data/weekly_analyze_log/` and confirm: reddit `.rss` returned 200s with **no 429 / no domain backoff** (cap working), youtube **whisper audio-fallback transcribed** caption-less videos (look for `youtube-audio: loading faster-whisper` + snippet yields), comment-inheritance produced attributions, and `data/daily_collector_state.json` advanced. If a 429 still appears, lower `REDDIT_COMMENT_FOLLOWUP_CAP`.
+- **Do NOT manually fire a full collection** unless verifying a fix — the crons own it; a manual run competes with the schedule and re-whispers.
+- **TASKS.md drift check:** `Active` line **749/4/39**, mypy 146, `scrapers-lib[youtube-audio]` dep noted; Wave 6 collection-layer `[x]` + drop-`r/OmenByHP` `[ ]` + Trend-UI `[ ]`; `Last reconciled = 2026-06-10`.
+- **ARCH drift check:** §5 has the reddit-`.rss`-transport + comment-cap paragraph and the youtube-whisper/dedup paragraph (and the `fetch_reddit_comments_rss` reference, not the old `fetch_reddit_comments`); §14.1 covers weekly-analyze + snapshot + `/api/trend`.
+- **DAILY_INGESTION_DESIGN drift check:** status banner says steps 2–4 shipped; §5 items 2–3 marked shipped; "Collection-layer fixes (session 46)" section present (reddit `.rss` / youtube whisper / clear-`scheduler_state.db` learning).
+- **pyproject:** `scrapers-lib[youtube-audio]>=1.4.0` (pulls yt-dlp + faster-whisper). README "Refresh cadence" + prereqs note the audio extra.
+- **Migration head:** `eb05da255474` (unchanged; no schema work session 46).
+- **Operator-confirmed locks from session 46 (do not re-debate without flag):**
+  - **Reddit = `.rss` only.** JSON API is permanently 403-blocked for our IP (curl_cffi too; OAuth closed). `.rss` gets posts + comments. Comment deepening capped at 50 newest posts/run + ~1 s throttle (reddit 429s `.rss` after ~100 req/run).
+  - **YouTube = captions + whisper audio fallback** (CPU, no GPU contention). Select on title+description. Pre-fetch dedup skips already-transcribed videos.
+  - **Schedule:** daily collect 05:00 daily (no GPU), weekly analyze 07:00 Sunday (Qwen, staggered 8 h past the other project's 23:00 GPU run). The constraint is GPU/LLM overlap, not network.
+  - **Clear `data/scheduler_state.db` after any fetcher-source change** (persistent queue retains stale jobs whose failures trip domain backoff). Cleared at session-46 end.
+  - **`r/OmenByHP`** is restricted (403) — drop from config (queued, not yet done).
+
+### Audit checklist (session 45 → 46) — archived, completed in session 46
 
 - Use `.venv/Scripts/python.exe` for backend tooling.
 - `pytest tests/unit/` → **731 pass** (was 716; +15 in `tests/unit/scheduling/test_daily_state.py` — daily-collector state: read/write round-trip, atomic-no-temp-left, missing-file-is-never, schema-version-mismatch-raises, plus gap detection: never-run-is-not-a-gap / healthy-24h-no-gap / missed-day-past-36h-is-a-gap / exactly-threshold-not-a-gap / custom-threshold / fractional `gap_hours`).
@@ -1219,6 +1247,39 @@ Added in session 23:
 ---
 
 ## Session history (newest first)
+
+### 2026-06-10 — session 46: Daily-ingestion steps 2–4 shipped + scheduler registered, then the live collector exposed that the whole Reddit + YouTube collection layer needed rebuilding. Opened on the session-45 audit (green), built weekly-analyze / per-week snapshot / trend API, registered the daily+weekly Windows tasks (caught a PowerShell wrapper bug live), then a smoke run revealed only 26 mentions — Reddit's JSON API is now 403-blocked for our IP and YouTube was dropping caption-less videos. Diagnosed both, rebuilt Reddit on `.rss` (posts + comments + inheritance preserved, capped + throttled to dodge 429s), and enabled YouTube yt-dlp+whisper audio transcription (CPU, with title/description selection + pre-fetch dedup). 749 unit · 4 integration · 39 frontend green; scrapers-lib 63 reddit tests green; mypy 146 src; ruff clean. No schema/migration. Live-verified: reddit new=477 + inheritance new=842; whisper smoke 247 snippets. First full scheduled run is tomorrow's 5 AM cron (operator chose to let the cron be the first in-pipeline exercise).
+
+**Context entering.** Resumed after session-45 wrap. Audit baseline re-run via subagent: 735 unit (the session-45 checklist's "731" undercounted) / 4 integration / mypy 146 / 39 frontend — all green. Operator directed completing the *entire* daily-ingestion workflow (steps 2–4) before any exit fork. That finished cleanly, then the operator asked to wire up the schedule, and a smoke run turned the session into a collection-layer rebuild.
+
+**Decisions (product-level) reached this session.**
+- **D1 — Step 4 (trend) = backend read path only.** `GET /api/trend/{id}` ships; the chart UI is deferred until several weekly snapshots accumulate (one snapshot plots one dot). Operator chose API-first.
+- **D2 — Reddit: rebuild on `.rss` with comments.** The operator first picked "browser-grade `.json` (curl_cffi)" — but live diagnostics proved the JSON API is hard-403'd for our IP no matter the transport (curl_cffi made it *worse*), while the `.rss` Atom feeds return 200 over plain httpx + a browser UA, **including per-post comment feeds**. Operator then chose the full Reddit-RSS-with-comments rebuild over RSS-listings-only (which would have dropped comment-inheritance) and over OAuth (registration closed; gaming-chatter's app was rejected).
+- **D3 — YouTube: enable whisper + select on title/description + dedup.** Operator directive: actually transcribe videos (not just captions) via yt-dlp + faster-whisper, select by title+description relevance, and (added after I flagged it) skip already-transcribed videos so the daily re-sweep doesn't re-whisper.
+- **D4 — Schedule: daily collect 05:00 daily, weekly analyze 07:00 Sunday.** The blocker is **LLM/GPU overlap** (not network) with the operator's other 23:00 project; daily collect uses no GPU so its slot is unconstrained, weekly analyze (Qwen) is staggered 8 h past the 23:00 run (which lasts ~3–6 h). Operator picked the times.
+- **D5 — Comment-followup cap = 50 newest posts/run.** Reddit 429s `.rss` after ~100 requests/run; deepening every historical post daily is rate-fatal + wasteful, so the daily pass deepens only the newest 50 (older posts rely on the quarterly full pass).
+
+**Technical housekeeping (operator does not engage).**
+- **TH1 — Steps 2–4.** `scripts/weekly_analyze.py` (incremental Qwen tagging + per-week aggregate snapshot, skips briefs; `--provider` / `--as-of`); `pulse_check/scheduling/weekly_snapshot.py` (`snapshot_run_id` → `run_YYYY_wNN` ISO week + `ensure_run_row` for the FK); `GET /api/trend/{id}` + `Trend*` schemas (all snapshots oldest-first, per-aspect volume+sentiment). No migration (option A).
+- **TH2 — Scheduler artifacts + registration.** `scripts/daily_collect.{ps1,xml}` + `scripts/weekly_analyze.{ps1,xml}` mirroring `refresh_quarterly.*`; both tasks registered live (`Register-ScheduledTask`, UTF-16 in-memory to dodge the encoding error). **Wrapper bug caught by the smoke run:** `$ErrorActionPreference = "Stop"` turned Python's first stderr log line into a terminating `NativeCommandError` → script died before the scrape. Fixed to `Continue` + `$LASTEXITCODE` in both wrappers (the quarterly wrapper shares the pattern but is dry-run/stdout so incidentally safe — flagged, not changed).
+- **TH3 — Reddit `.rss` fetchers (scrapers-lib `tier1/reddit.py`).** New `@register("reddit_rss")` + `@register("reddit_comments_rss")` parsing Atom via feedparser into the same structured `RawMention` shapes (same `reddit_post_id`/`reddit_comment_id` + `parent_id` threading → corpus dedups, inheritance unchanged). Browser-UA httpx; `[deleted]`/`[removed]` skipped; ~1 s self-throttle (`_RSS_THROTTLE_SECONDS`). Reverted the dead curl_cffi `_fetch_json` change and the scheduler `RateLimiter` (incompatible with `run_worker(until_empty)` — a rate-limited job reads as "queue empty" and ends the drain). +6 tests in `tests/tier1/test_reddit_rss.py` (57→63).
+- **TH4 — Orchestrator wiring.** Reddit listing → `reddit_rss` (1 job/sub, dropped `/top?t=year`); comment followups → `reddit_comments_rss`, recency-ordered + capped (`REDDIT_COMMENT_FOLLOWUP_CAP=50`). YouTube enqueues pass `audio_fallback=True`; `_enqueue_rss_discovered` gained a `session` arg + pre-fetch dedup (`_transcribed_youtube_video_ids` parses `youtube_<vid>_chunk_<n>` ids, dialect-free). `rss_discovery` matches title **+ description** for YouTube (articles title-only).
+- **TH5 — Deps.** `yt-dlp` + `faster-whisper` installed; `pyproject.toml` now declares `scrapers-lib[youtube-audio]`. (Pulled numpy 2.x + click 8.4 — full suite confirms no breakage.) Whisper runs CPU/int8, no ffmpeg (PyAV decodes).
+- **TH6 — Tests.** Final **749 unit** (was 735; +14: weekly_snapshot 6, trend api 4, rss_discovery description 2, orchestrator cap+dedup 2) / 4 integration / 39 frontend; scrapers-lib **63** reddit; mypy 146 src; ruff clean.
+- **TH7 — Docs.** ARCHITECTURE §5 (reddit `.rss` transport + cap + youtube whisper/dedup; fixed stale `fetch_reddit_comments` → `_rss`), §14.1 (weekly-analyze + snapshot + trend); DAILY_INGESTION_DESIGN steps-2–4-shipped + new "Collection-layer fixes" section (incl. the clear-`scheduler_state.db`-on-fetcher-change learning); TASKS (749 counts + collection-layer deliverable + drop-OmenByHP item + Trend-UI follow-on); pyproject extra; TESTING `test_weekly_snapshot.py`.
+
+**Live findings from session 46 (operator visibility).**
+- **Reddit's JSON API is permanently dead for us; `.rss` is the path.** `403 Blocked` on `/new.json` + `/comments/<id>.json` regardless of UA/TLS/curl_cffi; `.rss` (listing + per-post comment feeds) returns 200 over plain httpx + a Chrome UA. curl_cffi's fingerprint is itself gated on `.rss`. Sibling `gaming-chatter` survives because it only ever used `.rss` (posts, no comments — its API app was rejected). We kept comments by parsing the per-post comment `.rss`.
+- **YouTube WAS already transcribing — via captions.** The operator's "it's only using titles" suspicion was wrong: 135 caption chunks from 18 videos were already stored. The real gap was caption-less videos being silently dropped; `audio_fallback` (whisper) now covers them. Runs on CPU → no GPU contention with the weekly Qwen pass or the other project.
+- **The scheduler queue is persistent and bit us.** Stale `.json` comment jobs from mid-session test runs lingered in `data/scheduler_state.db` and their 403s tripped a domain-wide backoff that skipped the new `.rss` jobs. Lesson (now documented): clear `scheduler_state.db` after a fetcher-source change. Cleared it at session end so tomorrow's 5 AM cron starts fresh.
+- **`r/OmenByHP` is a restricted sub** (consistent 403 while all 11 other subs 200) — queued for removal from the run config.
+- **Live yields proving the rebuild:** reddit `new=477` + comment-inheritance `new=842`; the comment-followup pass hit a 429 at ~100 requests (→ the cap); whisper smoke transcribed a real review into 247 snippets.
+
+**Memory updates.** None — the durable facts (Reddit JSON dead → `.rss`; clear `scheduler_state.db` on fetcher change; YouTube whisper is CPU/no-GPU) are captured in ARCHITECTURE §5 + DAILY_INGESTION_DESIGN. Relates to existing [[project_reddit_rate_limit_dominates_corpus]].
+
+**Cumulative project LLM spend through session 46.** **$0 billable LLM this session** — daily collect is no-LLM, weekly analyze wasn't run live, whisper is local CPU (free). No Sonnet/Haiku/Qwen billed calls.
+
+---
 
 ### 2026-06-10 — session 45: Daily ingestion (step 1 of a new 3-tier cadence) shipped after the operator surfaced that raw Reddit data is perishable. Session opened on resume/audit of session 44 (baseline re-verified green) but turned into a design conversation: how products are matched to mentions (deterministic regex, precision-over-recall — aliases in YAML are NOT compiled into patterns), then the generation/year problem (parked as a thinking note: family stays the identity, generation an optional tag), then the core realization — Reddit's "new" feed only pages back ~1000 items, so without daily collection we permanently lose data. Adopted a 3-cadence model (daily collect / weekly analyze / quarterly brief), wrote `docs/DAILY_INGESTION_DESIGN.md`, locked decisions, and built step 1. 731 unit · 4 integration · 39 frontend green; mypy 143 src; ruff clean. No schema/migration, no LLM run, no frontend change. No live daily run yet (operator-gated).
 

@@ -97,6 +97,8 @@ class _RSSEntry(Protocol):
     @property
     def source_title(self) -> str | None: ...
     @property
+    def raw_text(self) -> str | None: ...
+    @property
     def published_at(self) -> datetime | None: ...
 
 
@@ -153,7 +155,15 @@ def discover(
         for entry in entries:
             items_seen += 1
             title = entry.source_title or ""
-            if not _passes_title_filter(title, keywords_lower):
+            # For YouTube, judge relevance on title + description so a video with
+            # a generic title but laptop-heavy description still qualifies (and
+            # we don't spend whisper on off-topic clips). Articles stay
+            # title-only — matching full article bodies would over-match on
+            # generic keywords like "vs".
+            match_text = (
+                f"{title}\n{entry.raw_text or ''}" if target == "youtube" else title
+            )
+            if not _passes_title_filter(match_text, keywords_lower):
                 continue
             items_after_title += 1
             if not _passes_window_filter(entry.published_at, cutoff):

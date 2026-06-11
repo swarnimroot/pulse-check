@@ -45,6 +45,7 @@ class _StubEntry:
     source_url: str
     source_title: str | None
     published_at: datetime | None
+    raw_text: str | None = None
 
 
 def _yt(rss_url: str = "https://yt.example/feed1") -> YouTubeChannelSource:
@@ -105,6 +106,50 @@ def test_discover_title_filter_keeps_substring_match() -> None:
     assert stats.items_after_title_filter == 2
     assert stats.items_after_window_filter == 2
     assert all(i.target_source == "youtube" for i in items)
+
+
+def test_discover_youtube_matches_on_description_not_just_title() -> None:
+    # A YouTube video whose title misses every keyword but whose description
+    # mentions one should still be kept (so we don't drop relevant clips with
+    # generic titles before whisper transcription).
+    entries = [
+        _StubEntry(
+            "https://yt.example/v/1",
+            "My new setup tour",  # title has no keyword
+            None,
+            raw_text="My new setup tour\nFull review of the Alienware laptop inside.",
+        )
+    ]
+    items, stats = discover(
+        _src(keywords=["review"], yt=[_yt()]),
+        RSSWindow(enabled=True),
+        feed_fetcher=MagicMock(return_value=entries),
+        html_fetcher=MagicMock(),
+        now=_NOW,
+    )
+    assert [i.url for i in items] == ["https://yt.example/v/1"]
+    assert stats.items_after_title_filter == 1
+
+
+def test_discover_article_ignores_body_only_match() -> None:
+    # Articles stay title-only: a body keyword must NOT pull in an article whose
+    # title misses the keyword (avoids over-matching long article bodies).
+    entries = [
+        _StubEntry(
+            "https://art.example/a/1",
+            "Quarterly earnings roundup",
+            None,
+            raw_text="... contains the word review deep in the body ...",
+        )
+    ]
+    items, _ = discover(
+        _src(keywords=["review"], yt=[], art=[_art()]),
+        RSSWindow(enabled=True),
+        feed_fetcher=MagicMock(return_value=entries),
+        html_fetcher=MagicMock(),
+        now=_NOW,
+    )
+    assert items == []
 
 
 def test_discover_title_filter_is_case_insensitive() -> None:

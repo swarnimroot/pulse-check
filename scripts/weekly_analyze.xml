@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  pulse-check weekly analysis (Qwen aspect tagging + aggregate snapshot).
+
+  Runs scripts/weekly_analyze.ps1 once a week. This is the LLM/GPU job of the
+  daily-ingestion cadence — it must NOT overlap the other project's nightly
+  LLM run, which uses the same GPU. Default trigger: Sunday 07:00 local, eight
+  hours after the other project's 23:00 run (which runs ~3-6h); adjust if that
+  run lasts longer.
+
+  Imports into Windows Task Scheduler. Before import:
+    1. Replace PLACEHOLDER_REPO_ROOT with the absolute path to the
+       pulse-check working copy (e.g. C:\Users\you\pulse-check).
+    2. Replace PLACEHOLDER_DOMAIN\PLACEHOLDER_USER with the Windows user
+       account the job should run under (e.g. WORKSTATION\swarnim).
+    3. Save the file with UTF-8 encoding (matches the declaration above).
+
+  Import command (Admin PowerShell):
+    Register-ScheduledTask -Xml (Get-Content -Path "PLACEHOLDER_REPO_ROOT\scripts\weekly_analyze.xml" -Raw) -TaskName "pulse-check weekly analyze" -Force
+
+  Each run's log lands under data/weekly_analyze_log/analyze_<timestamp>.log.
+  The first run tags the whole untagged backlog (longest GPU session); later
+  runs only tag that week's delta. Briefs are NOT synthesized here (quarterly).
+
+  Trigger: 07:00 every Sunday.
+-->
+<Task version="1.4" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
+  <RegistrationInfo>
+    <Description>pulse-check weekly analysis. Qwen aspect tagging (shared GPU) + per-week aggregate snapshot; no briefs. Runs Sunday 07:00 local, staggered off the 23:00 other-project LLM run. Logs to data/weekly_analyze_log/.</Description>
+    <Author>pulse-check operator</Author>
+    <URI>\pulse-check\weekly-analyze</URI>
+  </RegistrationInfo>
+  <Triggers>
+    <CalendarTrigger>
+      <StartBoundary>2026-06-14T07:00:00</StartBoundary>
+      <Enabled>true</Enabled>
+      <ScheduleByWeek>
+        <DaysOfWeek>
+          <Sunday />
+        </DaysOfWeek>
+        <WeeksInterval>1</WeeksInterval>
+      </ScheduleByWeek>
+    </CalendarTrigger>
+  </Triggers>
+  <Principals>
+    <Principal id="Author">
+      <UserId>PLACEHOLDER_DOMAIN\PLACEHOLDER_USER</UserId>
+      <LogonType>InteractiveToken</LogonType>
+      <RunLevel>LeastPrivilege</RunLevel>
+    </Principal>
+  </Principals>
+  <Settings>
+    <MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>
+    <DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>
+    <StopIfGoingOnBatteries>false</StopIfGoingOnBatteries>
+    <AllowHardTerminate>true</AllowHardTerminate>
+    <StartWhenAvailable>true</StartWhenAvailable>
+    <RunOnlyIfNetworkAvailable>true</RunOnlyIfNetworkAvailable>
+    <IdleSettings>
+      <StopOnIdleEnd>false</StopOnIdleEnd>
+      <RestartOnIdle>false</RestartOnIdle>
+    </IdleSettings>
+    <AllowStartOnDemand>true</AllowStartOnDemand>
+    <Enabled>true</Enabled>
+    <Hidden>false</Hidden>
+    <RunOnlyIfIdle>false</RunOnlyIfIdle>
+    <WakeToRun>false</WakeToRun>
+    <ExecutionTimeLimit>PT6H</ExecutionTimeLimit>
+    <Priority>7</Priority>
+  </Settings>
+  <Actions Context="Author">
+    <Exec>
+      <Command>powershell.exe</Command>
+      <Arguments>-NoProfile -ExecutionPolicy Bypass -File "PLACEHOLDER_REPO_ROOT\scripts\weekly_analyze.ps1"</Arguments>
+      <WorkingDirectory>PLACEHOLDER_REPO_ROOT</WorkingDirectory>
+    </Exec>
+  </Actions>
+</Task>

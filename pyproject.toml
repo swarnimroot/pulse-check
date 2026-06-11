@@ -17,7 +17,10 @@ dependencies = [
   "pydantic-settings>=2.2,<3",
   "pyyaml>=6.0",
   "httpx>=0.27",
-  "scrapers-lib>=1.4.0",
+  # [youtube-audio] pulls yt-dlp + faster-whisper for the CPU audio-fallback
+  # transcription path (caption-less / PoToken-gated videos). Required since the
+  # daily-ingestion YouTube path enables audio_fallback by default.
+  "scrapers-lib[youtube-audio]>=1.4.0",
   "anthropic>=0.40",
   "fastapi>=0.115",
   "uvicorn[standard]>=0.30",

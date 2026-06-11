@@ -7,7 +7,7 @@ Covers two slices:
    sampler depends on (Patch 1 was production code, Patch 2 was these tests).
 
 2. `_enqueue_reddit_comment_followups` — bite 6.2-revised. Verifies that the
-   helper enqueues one `reddit_comments` job per distinct source_url of
+   helper enqueues one `reddit_comments_rss` job per distinct source_url of
    primary-attributed reddit_post mentions in the DB, dedups multi-product
    URLs, ignores secondary attributions and non-reddit-post mentions, and
    no-ops when the product set has no buildable anchors or the DB has no
@@ -88,6 +88,7 @@ def _seed_mention(
     mention_id: str,
     source_type: SourceType,
     source_url: str,
+    published_at: datetime = datetime(2026, 1, 1, tzinfo=UTC),
 ) -> None:
     session.add(
         Mention(
@@ -95,7 +96,7 @@ def _seed_mention(
             source_type=source_type,
             source_url=source_url,
             raw_text=f"text for {mention_id}",
-            published_at=datetime(2026, 1, 1, tzinfo=UTC),
+            published_at=published_at,
         )
     )
 
@@ -212,9 +213,48 @@ def test_enqueues_one_job_per_distinct_primary_reddit_post_url(
         "https://www.reddit.com/r/Alienware/comments/bbb/",
     }
     for c in scheduler.enqueue.call_args_list:
-        assert c.kwargs["source"] == "reddit_comments"
+        assert c.kwargs["source"] == "reddit_comments_rss"
         assert len(c.kwargs["anchors"]) == 1
         assert c.kwargs["anchors"][0].anchor_id == "alienware_16_aurora"
+
+
+def test_comment_followups_cap_keeps_newest_posts(
+    session: Session, scheduler: MagicMock
+) -> None:
+    # Three primary reddit posts of different ages; cap=2 must keep the two
+    # newest (reddit .rss rate-limits, so daily deepening is bounded + recent).
+    _seed_product(session, "alienware_16_aurora")
+    ages = {
+        "old": datetime(2026, 1, 1, tzinfo=UTC),
+        "mid": datetime(2026, 2, 1, tzinfo=UTC),
+        "new": datetime(2026, 3, 1, tzinfo=UTC),
+    }
+    for key, pub in ages.items():
+        _seed_mention(
+            session,
+            mention_id=f"reddit_post_{key}",
+            source_type=SourceType.REDDIT_POST,
+            source_url=f"https://www.reddit.com/r/Alienware/comments/{key}/",
+            published_at=pub,
+        )
+        _seed_attr(
+            session,
+            mention_id=f"reddit_post_{key}",
+            product_id="alienware_16_aurora",
+            attribution_type=AttributionType.PRIMARY,
+        )
+    session.commit()
+
+    count = _enqueue_reddit_comment_followups(
+        scheduler, session, _ps(_pc("alienware_16_aurora")), cap=2
+    )
+
+    assert count == 2
+    enqueued_urls = {c.kwargs["url"] for c in scheduler.enqueue.call_args_list}
+    assert enqueued_urls == {
+        "https://www.reddit.com/r/Alienware/comments/new/",
+        "https://www.reddit.com/r/Alienware/comments/mid/",
+    }  # the oldest is dropped by the cap
 
 
 def test_returns_zero_when_no_primary_reddit_posts(
@@ -374,6 +414,7 @@ def _rss_sources_for_orch_test() -> RSSSources:
 
 def test_enqueue_rss_discovered_enqueues_with_all_product_anchors(
     monkeypatch: pytest.MonkeyPatch,
+    session: Session,
 ) -> None:
     scheduler = MagicMock()
     ps = _ps(_pc("alienware_16_aurora"), _pc("rog_strix_g16"))
@@ -411,7 +452,7 @@ def test_enqueue_rss_discovered_enqueues_with_all_product_anchors(
     )
 
     count = _enqueue_rss_discovered(
-        scheduler, ps, _rss_sources_for_orch_test(), RSSWindow(enabled=True)
+        scheduler, session, ps, _rss_sources_for_orch_test(), RSSWindow(enabled=True)
     )
 
     assert count == 2
@@ -428,16 +469,79 @@ def test_enqueue_rss_discovered_enqueues_with_all_product_anchors(
         }
 
 
-def test_enqueue_rss_discovered_noop_when_no_buildable_anchors() -> None:
+def test_enqueue_rss_discovered_noop_when_no_buildable_anchors(
+    session: Session,
+) -> None:
     scheduler = MagicMock()
     ps = _ps(_pc("alienware_16_aurora", primary=[]))  # no patterns → no anchor
 
     count = _enqueue_rss_discovered(
-        scheduler, ps, _rss_sources_for_orch_test(), RSSWindow(enabled=True)
+        scheduler, session, ps, _rss_sources_for_orch_test(), RSSWindow(enabled=True)
     )
 
     assert count == 0
     scheduler.enqueue.assert_not_called()
+
+
+def test_enqueue_rss_discovered_skips_already_transcribed_youtube(
+    monkeypatch: pytest.MonkeyPatch,
+    session: Session,
+) -> None:
+    # A YouTube video already transcribed into the corpus must not be
+    # re-enqueued (whisper is expensive; dedup is only at ingest otherwise).
+    scheduler = MagicMock()
+    _seed_product(session, "alienware_16_aurora")
+    _seed_mention(
+        session,
+        mention_id="youtube_SEENvideo01_chunk_0",  # video id SEENvideo01
+        source_type=SourceType.YOUTUBE_CHUNK,
+        source_url="https://www.youtube.com/watch?v=SEENvideo01&t=12s",
+    )
+    session.commit()
+
+    from pulse_check.scraping import orchestrator as orch
+    from pulse_check.scraping.rss_discovery import DiscoveredItem, DiscoveryStats
+
+    fake_items = [
+        DiscoveredItem(
+            url="https://www.youtube.com/watch?v=SEENvideo01",  # already transcribed
+            title="review seen",
+            published_at=None,
+            target_source="youtube",
+            origin_feed="https://yt.example/feed",
+        ),
+        DiscoveredItem(
+            url="https://www.youtube.com/watch?v=NEWvideo0002",  # new
+            title="review new",
+            published_at=None,
+            target_source="youtube",
+            origin_feed="https://yt.example/feed",
+        ),
+    ]
+    stats = DiscoveryStats(
+        feeds_polled=1,
+        feeds_with_zero_entries=0,
+        feeds_recovered_by_html_fallback=0,
+        items_seen=2,
+        items_after_title_filter=2,
+        items_after_window_filter=2,
+    )
+    monkeypatch.setattr(orch, "discover", lambda *_a, **_k: (fake_items, stats))
+
+    count = _enqueue_rss_discovered(
+        scheduler,
+        session,
+        _ps(_pc("alienware_16_aurora")),
+        _rss_sources_for_orch_test(),
+        RSSWindow(enabled=True),
+    )
+
+    # Only the new video is enqueued; the seen one is skipped + carries audio_fallback.
+    assert count == 1
+    assert scheduler.enqueue.call_count == 1
+    call = scheduler.enqueue.call_args_list[0]
+    assert call.kwargs["url"] == "https://www.youtube.com/watch?v=NEWvideo0002"
+    assert call.kwargs["audio_fallback"] is True
 
 
 # ---------------------------------------------------------------------------

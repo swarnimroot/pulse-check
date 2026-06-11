@@ -40,7 +40,7 @@ See [`docs/PRD.md` §4.2 Non-goals](docs/PRD.md). Highlights:
 - **Python 3.12**, PowerShell or git-bash on Windows
 - **Node.js 20+** + `npm`
 - **[Anthropic API key](https://console.anthropic.com)** — Haiku for tagging, Sonnet for briefs
-- **[scrapers-lib](../scrapers-lib) ≥ 1.4.0** installed editable in the same Python environment
+- **[scrapers-lib](../scrapers-lib) ≥ 1.4.0** installed editable in the same Python environment (the `[youtube-audio]` extra — `yt-dlp` + `faster-whisper` — is required and pulled automatically; it powers CPU transcription of caption-less YouTube videos, int8/no-ffmpeg, with the `small.en` model auto-downloading on first use)
 - **(Optional) [Ollama](https://ollama.com)** with `qwen2.5:7b-q4_K_M` pulled — for the Qwen local-tagging path. Haiku is the default production path on the v1 demo set; Qwen support is plumbed but not active by default.
 - **(Optional) [Tailscale Funnel](https://tailscale.com/kb/1223/funnel)** — for sharing the running webapp on a public URL without exposing your machine directly. Maps `/pulse-check` → `localhost:8765`.
 
@@ -55,7 +55,7 @@ python -m venv .venv
 
 # Install pulse-check (editable) + scrapers-lib (editable from sibling dir)
 pip install -e .
-pip install -e ../scrapers-lib
+pip install -e "../scrapers-lib[youtube-audio]"   # editable + yt-dlp/faster-whisper extra
 playwright install chromium      # for scrapers-lib Tier 2/3 sources
 
 # Frontend

@@ -17,6 +17,7 @@ Routes (all under ``/api`` prefix):
 - ``GET /api/product/{product_id}``    — product detail + per-aspect aggregate rows.
 - ``GET /api/mentions?ids=<csv>``      — verbatim cards by mention-id list.
 - ``GET /api/brief/{brief_id}``        — persisted §6.3 brief narrative.
+- ``GET /api/trend/{product_id}``      — per-aspect sentiment/volume across snapshots.
 - ``GET /api/pairs``                   — stub; A2 ships in Wave 3.
 
 Static SPA (only mounted when ``frontend/dist/`` exists):
@@ -69,6 +70,9 @@ from pulse_check.api.schemas import (
     RunMeta,
     SourceEntry,
     SourcesResponse,
+    TrendAspectPoint,
+    TrendResponse,
+    TrendSnapshot,
 )
 from pulse_check.config.loader import ConfigError, load_rss_sources, load_run_config
 from pulse_check.settings import get_settings
@@ -358,6 +362,69 @@ def _build_api_router() -> APIRouter:
                 last_refreshed=latest_computed_at,
             ),
             latest_brief_id=latest_brief_id,
+        )
+
+    @router.get("/trend/{product_id}", response_model=TrendResponse)
+    def get_trend(
+        product_id: str,
+        session: SessionDep,
+    ) -> TrendResponse:
+        """Per-aspect net-sentiment / volume time series across snapshots.
+
+        Each distinct ``run_id`` with aggregate rows for this product is one
+        point on the time axis — the pilot run plus each weekly snapshot from
+        ``scripts/weekly_analyze.py`` (daily-ingestion cadence, step 4).
+        Snapshots are returned oldest-first by ``computed_at``. No UI consumes
+        this yet; the read path ships ahead of the chart.
+        """
+        product = session.get(Product, product_id)
+        if product is None:
+            raise HTTPException(status_code=404, detail=f"product not found: {product_id}")
+
+        rows = list(
+            session.execute(
+                select(AggregateAspectSku)
+                .where(AggregateAspectSku.product_id == product_id)
+                .order_by(AggregateAspectSku.run_id, AggregateAspectSku.aspect)
+            )
+            .scalars()
+            .all()
+        )
+
+        aspect_order = {a: i for i, a in enumerate(Aspect)}
+        by_run: dict[str, list[AggregateAspectSku]] = {}
+        for agg in rows:
+            by_run.setdefault(agg.run_id, []).append(agg)
+
+        snapshots: list[TrendSnapshot] = []
+        for run_id, aggs in by_run.items():
+            computed_at = max(
+                (a.computed_at for a in aggs if a.computed_at),
+                default=datetime.now(UTC),
+            )
+            points = [
+                TrendAspectPoint(
+                    aspect=a.aspect.value,
+                    total_mentions=a.total_mentions,
+                    net_sentiment=a.net_sentiment,
+                )
+                for a in sorted(
+                    aggs,
+                    key=lambda x: aspect_order.get(x.aspect, len(aspect_order)),
+                )
+            ]
+            snapshots.append(
+                TrendSnapshot(run_id=run_id, computed_at=computed_at, aspects=points)
+            )
+
+        # Oldest first; run_id breaks ties when two snapshots share a timestamp.
+        snapshots.sort(key=lambda s: (s.computed_at, s.run_id))
+
+        return TrendResponse(
+            product_id=product.product_id,
+            display_name=product.display_name,
+            snapshots=snapshots,
+            generated_at=datetime.now(UTC),
         )
 
     @router.get("/mentions", response_model=MentionsResponse)
