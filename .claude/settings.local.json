@@ -318,7 +318,18 @@
       "PowerShell(try { $r = Invoke-RestMethod -Uri \"http://127.0.0.1:8765/api/trend/alienware_16_aurora\" -TimeoutSec 10; \"snapshots: $\\($r.snapshots.Count\\)\"; foreach \\($s in $r.snapshots\\) { \"  run_id=$\\($s.run_id\\) computed=$\\($s.computed_at\\) aspects=$\\($s.aspects.Count\\)\" }; if \\($r.snapshots.Count -gt 0\\) { $t = $r.snapshots[-1].aspects | Where-Object { $_.aspect -eq 'thermals' }; \"  thermals: net=$\\($t.net_sentiment\\) vol=$\\($t.total_mentions\\)\" } } catch { \"ERROR: $\\($_.Exception.Message\\)\" })",
       "PowerShell($ports = @\\(8765, 5173\\); foreach \\($p in $ports\\) { $c = Get-NetTCPConnection -LocalPort $p -State Listen -ErrorAction SilentlyContinue; if \\($c\\) { \"port $p : LISTENING \\(pid $\\($c.OwningProcess | Select-Object -First 1\\)\\)\" } else { \"port $p : free\" } })",
       "PowerShell($ok=$false; for \\($i=0; $i -lt 20; $i++\\) { try { $r = Invoke-RestMethod -Uri \"http://127.0.0.1:8765/api/trend/alienware_16_aurora\" -TimeoutSec 3; \"snapshots returned: $\\($r.snapshots.Count\\)\"; foreach \\($s in $r.snapshots\\) { \"  run_id=$\\($s.run_id\\) aspects=$\\($s.aspects.Count\\)\" }; $ok=$true; break } catch { Start-Sleep -Milliseconds 1500 } }; if \\(-not $ok\\) { \"backend not ready yet after retries\" })",
-      "Bash(echo \"TSC_EXIT=$?\")"
+      "Bash(echo \"TSC_EXIT=$?\")",
+      "PowerShell(& .\\\\.venv\\\\Scripts\\\\Activate.ps1; python -m pytest tests/unit/ -q 2>&1 | Select-Object -Last 15)",
+      "PowerShell(& .\\\\.venv\\\\Scripts\\\\Activate.ps1; python -m pytest tests/integration/ -q 2>&1 | Select-Object -Last 10)",
+      "PowerShell(mypy *)",
+      "PowerShell(ruff check *)",
+      "WebFetch(domain:www.dell.com)",
+      "Bash(Select-String -NotMatch \"INFO|WARNING|DEBUG\")",
+      "Bash(echo \"exit=$?\")",
+      "Bash(cp configs/product_set_gaming_laptops_2026.yaml /tmp/ps_test.yaml)",
+      "Bash(echo \"ruff exit=$?\")",
+      "Bash(echo \"mypy exit=$?\")",
+      "Bash(findstr /V \"INFO WARNING DEBUG\")"
     ]
   }
 }

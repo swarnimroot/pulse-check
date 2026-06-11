@@ -390,6 +390,10 @@ taxonomy_version: v0
 
 New source = add a new top-level entry under `source_windows` with its own `enabled`, `backfill_months`, and source-specific fields; no schema change required. Per-source backfill windows are independent — thin-signal sources can run at 12 months while dense ones stay at 3.
 
+### 4.5 Adding a new product
+
+New product = a new block under `products:` in the product-set YAML. The supported path is `scripts/add_product.py`, not hand-editing regex: pass `--name` (and optional `--url` product pages), and it derives collision-anchored `primary` patterns from the name (`\b`-anchored, lowercased to match the matcher in `anchors.py`) plus zero-collision `secondary` patterns from any SKU tokens in the URLs, previews the match count against the stored corpus exactly as the secondary pass does (§5), and appends the Pydantic-validated block on approval (reverting the file if the appended block fails to reload). Merge Intel/AMD chip variants into a single product. The new product is back-attributed over the existing corpus by the next secondary-attribution pass with no re-scrape; aggregation + a Sonnet brief follow via `run_stage_b.py`. A brand-new SKU with no historical chatter yields an near-empty corpus until forward collection accrues — defer its brief until there is signal.
+
 ---
 
 ## 5. Attribution strategy

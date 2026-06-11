@@ -73,6 +73,22 @@ products:
         - "\\b18\\s+area[-\\s]?51\\b"
     urls: {}
 
+  # Intel (DA15260) + AMD (DA15265) variants MERGED per D13/D14 — one product.
+  # Bare "15" too generic; primary requires the "alienware" qualifier. SKU
+  # numbers (zero-collision) go in the secondary pass.
+  - product_id: alienware_15
+    display_name: "Alienware 15"
+    brand: "Alienware"
+    aliases:
+      - "Alienware 15"
+      - "AW15"
+    attribution_patterns:
+      primary:
+        - "\\balienware\\s+15\\b"
+      secondary:
+        - "\\bda1526[05]\\b"
+    urls: {}
+
   # -------------------------------------------------------------------------
   # ASUS — ROG line (9): Strix G + Strix Scar + Zephyrus + Flow
   # COLLISION GROUP: Strix G16 / Strix Scar 16 / Zephyrus G16 all 16-inch ROG.

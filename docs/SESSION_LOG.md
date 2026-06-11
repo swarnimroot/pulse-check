@@ -8,9 +8,31 @@ Running one-page chronicle. Updated **at session close**, when the operator says
 
 Paste at the start of your next session:
 
-> Resume pulse-check session 48. Audit first per `docs/SESSION_LOG.md`. Ultrathink. Subagents.
+> Resume pulse-check session 49. Audit first per `docs/SESSION_LOG.md`. Ultrathink. Subagents.
 
-### Audit checklist (session 47 → 48)
+### Audit checklist (session 48 → 49)
+
+- Use `.venv/Scripts/python.exe` for backend tooling.
+- `pytest tests/unit/` → **761 pass** (was 748 at session-47 close; +13 in `tests/unit/scripts/test_add_product.py` covering the new onboarding script's pure helpers + append round-trip. The demo-config count assertion in `test_loader.py` was bumped 59 → 60 — same test, not a new one).
+- `pytest tests/integration/` → **4 pass** (unchanged).
+- `mypy pulse_check/ tests/ scripts/` → clean, **148 source files** (was 146; +2: `scripts/add_product.py` + `tests/unit/scripts/test_add_product.py`).
+- `ruff check pulse_check/ tests/ scripts/` → clean.
+- `npm run test:run` (frontend) → **51 pass** (unchanged — no frontend change session 48; bundle `index-BtspTJgn.js` unchanged).
+- scrapers-lib unchanged session 48 (63 reddit tests still green; no scrapers-lib edits).
+- **STILL PENDING — VERIFY THE FIRST WEEKLY CRON FIRED (Sun 6/14 07:00).** Carried forward from session 47; session 48 ran on 2026-06-11 so it had not yet fired. Top priority once 6/14 passes: read the newest log under `data/weekly_analyze_log/` and confirm incremental Qwen tagging ran, a `run_2026_w24` snapshot was written (FULL tagging — overwrites session-47's `--skip-tagging` aggregation-only snapshot, same ISO week, idempotent), no GPU-contention errors, exit 0. Then load `/trend`, pick a product, confirm the weekly point renders. A genuine **2-point** line needs the following Sunday (6/21 = w25).
+- **Do NOT manually run a full `weekly_analyze`** (Qwen hits the shared GPU) outside the Sunday slot unless verifying a fix — use `--skip-tagging` for aggregation-only.
+- **Code read-through (session-48 deliverable):**
+  - `scripts/add_product.py` — name → `primary` regex (lowercase, `\b`-anchored) + URL-SKU → `secondary`; `preview_matches` builds an anchor via `to_anchor_with_secondary` and runs `attribute_regex_all` over every `Mention.raw_text` (identical semantics to the secondary pass — the preview count is authoritative); `append_to_yaml` text-appends then reloads via `load_product_set` and reverts the file on failure. Pure helpers are unit-tested; preview + append are exercised against the live corpus.
+  - `configs/product_set_gaming_laptops_2026.yaml` — new `alienware_15` block (primary `\balienware\s+15\b`; secondary `\bda1526[05]\b`; Intel+AMD merged). **Config-only / going-forward — NOT in `run_wave5_v1`, has no aggregates or brief; do not be surprised it is absent from the UI.**
+- **TASKS drift check:** `Active` **761/4/51**, mypy 148, bundle `index-BtspTJgn.js`; `Session 48 ships` paragraph present; Wave 6 has the `add_product.py` `[x]` line; first-weekly-run still `[ ]`; `Last reconciled = 2026-06-11`.
+- **README / ARCH / TESTING drift check:** README "Add a product to the config" subsection under Run-a-pilot; ARCH §4.5 "Adding a new product"; TESTING §3 `tests/unit/scripts/` bullet.
+- **Migration head:** `eb05da255474` (unchanged; no schema session 47/48).
+- **Operator-confirmed locks (do not re-debate without flag):**
+  - **`add_product.py` is the supported path for new products** — don't hand-edit attribution regex. Merge Intel/AMD chip variants into one product (D13/D14).
+  - **Defer a new SKU's brief until it has genuine corpus chatter** — `alienware_15`'s preview showed only 2 noise hits (the 2018 Alienware 15 + an "Alienware 15 Area-51" phrasing collision), so no brief was run.
+  - (Carried from session 47) `/api/trend` = weekly run_ids only · Trend chart = hand-rolled zero-dep SVG · Month/Year rollup net = volume-weighted · Trend layout = Option B.
+
+### Audit checklist (session 47 → 48) — archived, completed in session 48
 
 - Use `.venv/Scripts/python.exe` for backend tooling.
 - `pytest tests/unit/` → **748 pass** (was 745 at session-47 open; +3: trend run_id filter in `test_app.py` [`test_trend_excludes_non_weekly_run_ids`], `is_weekly_run_id` accept/reject ×2 in `test_weekly_snapshot.py`).
@@ -1275,6 +1297,32 @@ Added in session 23:
 ---
 
 ## Session history (newest first)
+
+### 2026-06-11 — session 48: `add_product.py` onboarding tool built + first product (`alienware_15`) added going-forward. Opened with a clean regression baseline (748/4/51, no drift). Brainstormed an in-UI "add a product" flow (sketched L1 config-builder → L2 guided-onboarding → L3 LLM-assisted levels) but the operator dropped the UI feature in favor of a simple repeatable dev path. Fetched the two Dell product pages (Intel DA15260 + AMD DA15265 — same laptop), added `alienware_15` to the product set (chip variants merged per D13/D14), then built `scripts/add_product.py` (name + URL → proposed collision-anchored regex + live corpus-match preview → validated YAML append). The preview revealed the new SKU has **no genuine chatter yet** — 2 hits, both noise — so no brief was run: config-only / going-forward. 761 unit · 4 integration · 51 frontend · mypy 148 · ruff clean. No schema/migration. $0 billable project LLM.
+
+**Context entering.** Resumed after session-47 wrap; audit-first. The session-47 top item (verify the first weekly cron, Sun 6/14) is calendar-blocked — today is 6/11 — so it carries forward. Ran the regression baseline (clean, zero drift), then the operator asked for a way to add a new product.
+
+**Decisions (product-level) reached this session.**
+- **D1 — No in-UI add-product flow; build a dev CLI instead.** Brainstormed a UI onboarding wizard but the operator decided against a UI feature and asked for a simple, repeatable dev path plus a way to remember it exists.
+- **D2 — `alienware_15` is config-only / going-forward, no brief.** The corpus preview surfaced only 2 matches, both noise (the 2018 Alienware 15 with a GTX 1080 + an "Alienware 15 Area-51" phrasing collision). The new 2025 SKU has no historical chatter, so a Sonnet brief would synthesize nothing. Revisit after forward collection accrues. (The 2018 and 2025 laptops share the name; no regex separates them — only a recency floor could.)
+- **D3 — Intel + AMD variants merged into one product** (existing D13/D14 convention): DA15260 (Intel) + DA15265 (AMD) → one `alienware_15`.
+- **D4 — Discoverability via memory, not a UI affordance.** Operator asked "how will I remember to invoke this?" — answer is `project_add_product_script.md` (so a future session surfaces the script when the operator says "add a product") + a README runbook subsection.
+
+**Technical housekeeping (operator does not engage).**
+- **TH1 — `scripts/add_product.py`.** Pure helpers: `slugify`, `name_to_primary_pattern` (lowercase, `\b`-anchored), `sku_secondary_patterns` (model tokens from URL paths), `build_product` (Pydantic-validated `ProductConfig`, id/brand inference + overrides), `render_block` (YAML list item, double-escaped backslashes). I/O: `preview_matches` builds an anchor via `to_anchor_with_secondary` and runs `attribute_regex_all` over every `Mention.raw_text` (identical semantics to the secondary-attribution pass — preview count is authoritative); `append_to_yaml` text-appends then reloads via `load_product_set` and reverts on failure. ASCII-only console output (Windows cp1252-safe); `--yes` for non-interactive.
+- **TH2 — `alienware_15` config block** in `configs/product_set_gaming_laptops_2026.yaml` (primary `\balienware\s+15\b`; secondary `\bda1526[05]\b`; `urls: {}`).
+- **TH3 — Tests.** +13 in `tests/unit/scripts/test_add_product.py` (slugify · primary-pattern · sku-secondary · build-product · render-block · append round-trip · revert-on-invalid-reload). Demo-config product-count assertion bumped 59 → 60 in `test_loader.py` (same test). 761 unit total; mypy 148 src (+2: the script + its test).
+- **TH4 — Docs.** README "Add a product to the config" subsection (under Run a pilot); ARCHITECTURE §4.5 "Adding a new product"; TESTING §3 `tests/unit/scripts/` bullet; TASKS `Session 48 ships` paragraph + `Active` 761/4/51 + mypy 148 + Wave 6 `add_product.py` `[x]` line.
+
+**Live findings from session 48 (operator visibility).**
+- **The new Alienware 15 has ~zero historical corpus signal.** Preview over the ~5k-mention corpus returned 2 matches, both noise (2018 model + "Area-51" phrasing). The secondary SKU patterns (`da15260` / `da15265`) had **0** corpus hits — model numbers rarely appear in chatter — but are zero-collision and will cleanly tag any going-forward mention that cites them. Expected for a brand-new SKU; the lever for the legacy/collision hits would be a recency floor at aggregation time, not the pattern.
+- **The preview machinery is validated against the live DB.** A throwaway "Razer Blade 16" run returned 18 real corpus hits with sensible snippets, confirming `attribute_regex_all`-over-corpus matches production semantics.
+
+**Memory updates.** New `project_add_product_script.md` (+ MEMORY.md index line) — use `add_product.py`, don't hand-edit regex; merge chip variants; defer the brief until a new SKU has signal. Relates to [[project_pulse_check_v1]] (secondary pass back-attributes the existing corpus, no re-scrape).
+
+**Cumulative project LLM spend through session 48.** **$0 billable project LLM this session** — the preview is local regex over SQLite; no Sonnet/Haiku/Qwen batch ran. (Page fetches went through the Claude Code WebFetch harness, not project-billed pipeline calls.)
+
+---
 
 ### 2026-06-11 — session 47: Trend UI shipped end-to-end (Wave 6 follow-on), `/api/trend` filtered to weekly run_ids, and the session-46 deferred live exercise — verifying the first scheduled crons — came back clean. Opened on the session-46 audit: the daily 05:00 cron had fired clean (425 new mentions, 0×429, comment-cap + inheritance working, `daily_collector_state.json` advanced); weekly correctly not yet fired (Thursday). Reconciled a unit-count over-count (session 46 claimed 749; true baseline 745). Dropped `r/OmenByHP` (restricted 403) + cleared `scheduler_state.db` after the config change. Then built the Trend page (Company→Product cascade · aspect chips · Week/Month/Year toggle · zero-dep SVG chart), mocked both layout options as an interactive HTML page for operator sign-off (Option B chosen), fixed a white-screen render-race crash the operator hit on first use, filtered `/api/trend` to weekly run_ids, and verified live via an aggregation-only `run_2026_w24` snapshot. 748 unit · 4 integration · 51 frontend · mypy 146 · ruff clean. No schema/migration. $0 billable LLM (verification snapshot was aggregation-only; chart is frontend).
 

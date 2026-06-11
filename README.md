@@ -118,6 +118,19 @@ If you need to re-run a single stage (e.g. regenerate briefs after a prompt-vers
 .venv\Scripts\python scripts/run_stage_b.py --skip-tagging --skip-aggregation --include-stage-a-briefs
 ```
 
+### Add a product to the config
+
+`scripts/add_product.py` onboards a new product without hand-editing the regex. Give it the product name and (optionally) its product-page URL(s); it proposes collision-anchored attribution patterns from the name plus any SKU numbers found in the URLs, **previews how many existing corpus mentions those patterns would match** (so you catch over- or under-matching before committing), and on approval appends the validated block to the product-set YAML.
+
+```powershell
+.venv\Scripts\python scripts/add_product.py --name "Alienware 15" `
+    --url https://www.dell.com/.../alienware-da15260-gaming-laptop `
+    --url https://www.dell.com/.../alienware-da15265-gaming-laptop
+# --brand / --id override the inferred values; --yes skips the confirm prompt.
+```
+
+It does not scrape, tag, or synthesize. The next run's secondary-attribution pass back-attributes the existing corpus to the new product (no re-scrape needed); a Sonnet brief only appears after `run_stage_b.py` is run for it. Merge Intel/AMD chip variants into one product (one config block, one pattern set).
+
 ---
 
 ## View the results

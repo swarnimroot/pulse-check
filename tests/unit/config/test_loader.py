@@ -139,7 +139,8 @@ def test_demo_configs_parse_structurally() -> None:
     demo_run = _REPO_ROOT / "configs" / "run_demo_2026_04.yaml"
     run, product_set, pair_plan, rss_sources = load_run(demo_run)
     assert run.run_id == "demo_2026_04"
-    assert len(product_set.products) == 59
+    # 60 since session 48 (alienware_15 added going-forward via add_product.py).
+    assert len(product_set.products) == 60
     assert len(pair_plan.pairs) == 10
     assert rss_sources is None
 
