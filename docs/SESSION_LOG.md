@@ -8,9 +8,37 @@ Running one-page chronicle. Updated **at session close**, when the operator says
 
 Paste at the start of your next session:
 
-> Resume pulse-check session 47. Audit first per `docs/SESSION_LOG.md`. Ultrathink. Subagents.
+> Resume pulse-check session 48. Audit first per `docs/SESSION_LOG.md`. Ultrathink. Subagents.
 
-### Audit checklist (session 46 → 47)
+### Audit checklist (session 47 → 48)
+
+- Use `.venv/Scripts/python.exe` for backend tooling.
+- `pytest tests/unit/` → **748 pass** (was 745 at session-47 open; +3: trend run_id filter in `test_app.py` [`test_trend_excludes_non_weekly_run_ids`], `is_weekly_run_id` accept/reject ×2 in `test_weekly_snapshot.py`).
+- `pytest tests/integration/` → **4 pass** (unchanged).
+- `mypy pulse_check/ tests/ scripts/` → clean, **146 source files** (unchanged — Trend work was frontend + one new predicate in an existing module).
+- `ruff check pulse_check/ tests/ scripts/` → clean.
+- `npm run test:run` (frontend) → **51 pass** (was 39; +12: 8 `src/lib/trendRollup.test.ts` + 4 `src/components/TrendChart.test.tsx`).
+- `npx tsc -b` → exit 0; `npx vite build` → bundle `index-BtspTJgn.js` (335.90 KB / 97.54 KB gz).
+- scrapers-lib unchanged session 47 (63 reddit tests still green; no scrapers-lib edits).
+- **Code read-through (session-47 deliverables):**
+  - `frontend/src/pages/Trend.tsx` — Company→Product cascade (off `brand`), aspect chips, Week/Month/Year toggle. **White-screen fix:** active aspect derived at render time (`activeAspect = aspects.includes(aspect) ? aspect : aspects[0]`) + empty-bucket guard, NOT the effect-synced state (the effect runs post-render → one render with `aspect===""` → empty rollup → `last.net` threw).
+  - `frontend/src/lib/trendRollup.ts` — `rollupAspect` (week passthrough; month/year **volume-weighted** net + summed vol; skips 0-mention weeks), `availableAspects` (canonical order), `weekLabelFromRunId`.
+  - `frontend/src/components/TrendChart.tsx` — zero-dep SVG; density thresholds (value labels ≤18 buckets, vol nums ≤24, x-ticks ≤26).
+  - `pulse_check/scheduling/weekly_snapshot.py` `is_weekly_run_id()` (regex `^run_\d{4}_w\d{2}$`) + `pulse_check/api/main.py` `/trend` route filters with it.
+- **VERIFY THE FIRST WEEKLY CRON FIRED (Sun 6/14 07:00).** Top priority — the first genuine weekly-analyze run. Read the newest log under `data/weekly_analyze_log/` and confirm: incremental Qwen tagging ran on new mentions, a `run_2026_w24` snapshot was written (FULL tagging this time — overwrites session-47's aggregation-only `--skip-tagging` snapshot, same ISO week, idempotent), no GPU-contention errors, exit 0. Then load `/trend`, pick a product, confirm the weekly point renders. NOTE: a genuine **2-point** line needs the *following* Sunday (6/21 = w25) — w24 is one bucket until then.
+- **Do NOT manually run a full `weekly_analyze`** (Qwen tagging hits the shared GPU) outside the Sunday slot unless verifying a fix — use `--skip-tagging` for aggregation-only.
+- **TASKS drift check:** `Active` **748/4/51**, mypy 146, bundle `index-BtspTJgn.js`; Wave 6 Trend-UI `[x]` + drop-OmenByHP `[x]` + step-4 weekly-filter note; first-daily-run verified `[x]` / first-weekly-run `[ ]`; `Last reconciled = 2026-06-11`.
+- **ARCH drift check:** §14.1 Trend-read-path bullet = weekly-only filter (**REVERSED** tag) + Trend UI consumes it; snapshot-id bullet mentions `is_weekly_run_id`.
+- **DESIGN_SYSTEM drift check:** §5.8 TrendChart + §6.5 Trend screen present; Showcase renumbered §6.6, WelcomeModal §6.7.
+- **README drift check:** "four exec-oriented views" + Trend bullet + four home cards + weekly-analyze cadence line (no longer "Steps 2–4 not yet built").
+- **Migration head:** `eb05da255474` (unchanged; no schema session 47).
+- **Operator-confirmed locks from session 47 (do not re-debate without flag):**
+  - **`/api/trend` = weekly run_ids only.** Pilot `run_wave5_v1` + `smoke_test` deliberately excluded so the axis is genuine weekly cadence.
+  - **Trend chart = hand-rolled SVG, zero-dep.** `recharts` rejected.
+  - **Month/Year rollup net = volume-weighted** (every mention = 1.0; a quiet week never outweighs a busy one).
+  - **Trend layout = Option B** (single big chart + aspect picker), chosen over small-multiples after the operator reviewed an interactive HTML mockup.
+
+### Audit checklist (session 46 → 47) — archived, completed in session 47
 
 - Use `.venv/Scripts/python.exe` for backend tooling.
 - `pytest tests/unit/` → **749 pass** (was 735 actual at session-46 open; +14: `tests/unit/scheduling/test_weekly_snapshot.py` 6 [snapshot-id ISO-week format/pad/stability/year-boundary + `ensure_run_row` insert/no-op], trend api 4 in `test_app.py` [404 / empty / oldest-first grouping / aspect-enum order], `test_rss_discovery.py` +2 [youtube matches on description; article ignores body-only], `test_orchestrator.py` +2 [comment-followup cap keeps newest; rss-discovered skips already-transcribed youtube]).
@@ -1247,6 +1275,37 @@ Added in session 23:
 ---
 
 ## Session history (newest first)
+
+### 2026-06-11 — session 47: Trend UI shipped end-to-end (Wave 6 follow-on), `/api/trend` filtered to weekly run_ids, and the session-46 deferred live exercise — verifying the first scheduled crons — came back clean. Opened on the session-46 audit: the daily 05:00 cron had fired clean (425 new mentions, 0×429, comment-cap + inheritance working, `daily_collector_state.json` advanced); weekly correctly not yet fired (Thursday). Reconciled a unit-count over-count (session 46 claimed 749; true baseline 745). Dropped `r/OmenByHP` (restricted 403) + cleared `scheduler_state.db` after the config change. Then built the Trend page (Company→Product cascade · aspect chips · Week/Month/Year toggle · zero-dep SVG chart), mocked both layout options as an interactive HTML page for operator sign-off (Option B chosen), fixed a white-screen render-race crash the operator hit on first use, filtered `/api/trend` to weekly run_ids, and verified live via an aggregation-only `run_2026_w24` snapshot. 748 unit · 4 integration · 51 frontend · mypy 146 · ruff clean. No schema/migration. $0 billable LLM (verification snapshot was aggregation-only; chart is frontend).
+
+**Context entering.** Resumed after session-46 wrap; audit-first per the handoff. The session-46 #1 directive was to verify the first scheduled crons fired — done (daily clean; weekly pends Sun 6/14). Operator then picked the Trend UI as the forward build (the weekly tier had a backend read path but no surface).
+
+**Decisions (product-level) reached this session.**
+- **D1 — Trend layout = Option B (single big chart + aspect picker)**, not small-multiples. Operator decided after reviewing an interactive HTML mockup (`mockups/trend_layouts.html`) rendering both with realistic data.
+- **D2 — Week/Month/Year granularity toggle.** Operator asked for it after seeing that 30–60 raw weekly points would cram. Month/Year roll the weekly snapshots up client-side; net sentiment is **volume-weighted** (faithful to "every mention = 1.0" — a 2-mention week can't outweigh a 40-mention week).
+- **D3 — Two cascading dropdowns (Company → Product)**, operator request. Built off the real `brand` field on `/api/products` (6 brands / 59 products) — not id-prefix derivation (ASUS spans `rog_*`/`asus_*`, Lenovo has a bare `legion_7i`).
+- **D4 — `/api/trend` filters to weekly run_ids only.** Operator: filter out non-weekly. Excludes the pilot `run_wave5_v1` + `smoke_test` so the trend axis reflects genuine weekly cadence. This is a documented behavior reversal (ARCH §14.1 REVERSED).
+- **D5 — Chart = hand-rolled SVG, zero new dependency.** `recharts` rejected; follows the `Sparkline` atom convention.
+
+**Technical housekeeping (operator does not engage).**
+- **TH1 — Trend frontend.** `lib/types.ts` `Trend*` mirror of `schemas.py`; `api.trend(productId)`; `lib/trendRollup.ts` (pure: `rollupAspect` week/month/year, volume-weighted net + summed vol, skips 0-mention weeks; `availableAspects` canonical order; `weekLabelFromRunId`); `components/TrendChart.tsx` (zero-dep SVG, sentiment line + per-point value-label pills + volume bars, density-graceful); `pages/Trend.tsx`; `/trend` route in `App.tsx` + 4th home card in `About.tsx` (`grid-cols-3` → `grid-cols-4`).
+- **TH2 — White-screen fix.** Selecting a product blanked the screen: React effects run *after* render, so for one render the selected-aspect state was still `""` → `rollupAspect(snapshots, "", gran)` returned `[]` → `buckets[last].net` threw. Fixed by deriving `activeAspect` at render time + an empty-bucket guard behind it.
+- **TH3 — Backend run_id filter.** `is_weekly_run_id()` (regex `^run_\d{4}_w\d{2}$`) added beside `snapshot_run_id` in `weekly_snapshot.py` (format lives in one place); `/api/trend` skips non-matching run_ids. ARCH §14.1 carries the REVERSED annotation.
+- **TH4 — Verification snapshot.** `python scripts/weekly_analyze.py --run-config configs/run_wave5_v1.yaml --skip-tagging` materialized `run_2026_w24` (502 aspect-groups upserted, aggregation only — no Qwen, no GPU) so the chart renders a real point pre-cron. API confirmed exactly 1 weekly snapshot returned (pilot + smoke filtered out). Sunday's cron will overwrite w24 with the full-tagging version (same ISO week, idempotent).
+- **TH5 — Tests + count reconciliation.** +12 frontend (8 `trendRollup` + 4 `TrendChart`) = 51; +3 backend (1 `/trend` filter + 2 `is_weekly_run_id`) = 748. The session-46 wrap's "749 unit" was an arithmetic over-count of the baseline (true chain 731→745); corrected in TASKS + this entry.
+- **TH6 — Config + state.** Dropped `OmenByHP` from `configs/run_wave5_v1.yaml` (sub list 12 → 11); cleared `data/scheduler_state.db` after the source change (session-46 lock — stale queued jobs trip domain backoff).
+- **TH7 — Docs.** TASKS (session 46 + 47 ship paragraphs · counts 748/4/51 · bundle `index-BtspTJgn.js` · Wave 6 Trend-UI `[x]` + drop-OmenByHP `[x]` + step-4 filter/UI note + first-daily-run verified); ARCH §14.1 (REVERSED filter + Trend UI consumer + `is_weekly_run_id`); DESIGN_SYSTEM §5.8 TrendChart + §6.5 Trend (Showcase/WelcomeModal renumbered §6.6/§6.7); README (four views + Trend bullet + four home cards + weekly-analyze cadence line). New `mockups/trend_layouts.html` kept in-tree as the operator decision aid.
+
+**Live findings from session 47 (operator visibility).**
+- **The first daily cron fired clean — session-46's deferred live exercise passed.** 05:00 Task Scheduler run (`LastTaskResult 0x0`): 425 new mentions, 138 dedup-existing, attributions primary=78 / secondary=46 / inherited=465, 0×429, comment-cap (50) held; only error the standing `r/OmenByHP` 403 (now dropped). Confirmed independent of the server — the cron writes SQLite directly; no uvicorn needed.
+- **Pre-cron trend data is pilot + smoke only.** Every product's aggregates carry `run_wave5_v1` (+ sometimes `smoke_test`); neither is a weekly snapshot, so post-filter the trend is empty until the weekly cron — which is why the aggregation-only `run_2026_w24` snapshot was needed to verify the chart today.
+- **Whisper still unexercised-in-cron.** The 05:00 daily run found no new caption-less videos (all already transcribed), so the whisper path ran but transcribed nothing — no errors, just no work for it.
+
+**Memory updates.** None new — the durable facts (trend = weekly run_ids only; rollup net is volume-weighted; trend chart is zero-dep SVG) live in ARCHITECTURE §14.1 + DESIGN_SYSTEM §5.8/§6.5. Relates to existing [[feedback_register_avoid_casual]] (measured naming) and [[quarterly_cadence]] tiers.
+
+**Cumulative project LLM spend through session 47.** **$0 billable LLM this session** — Trend UI is frontend; the verification snapshot was pure-Python aggregation (`--skip-tagging`); the daily cron is no-LLM. No Sonnet/Haiku/Qwen billed calls.
+
+---
 
 ### 2026-06-10 — session 46: Daily-ingestion steps 2–4 shipped + scheduler registered, then the live collector exposed that the whole Reddit + YouTube collection layer needed rebuilding. Opened on the session-45 audit (green), built weekly-analyze / per-week snapshot / trend API, registered the daily+weekly Windows tasks (caught a PowerShell wrapper bug live), then a smoke run revealed only 26 mentions — Reddit's JSON API is now 403-blocked for our IP and YouTube was dropping caption-less videos. Diagnosed both, rebuilt Reddit on `.rss` (posts + comments + inheritance preserved, capped + throttled to dodge 429s), and enabled YouTube yt-dlp+whisper audio transcription (CPU, with title/description selection + pre-fetch dedup). 749 unit · 4 integration · 39 frontend green; scrapers-lib 63 reddit tests green; mypy 146 src; ruff clean. No schema/migration. Live-verified: reddit new=477 + inheritance new=842; whisper smoke 247 snippets. First full scheduled run is tomorrow's 5 AM cron (operator chose to let the cron be the first in-pipeline exercise).
 

@@ -972,6 +972,29 @@ def test_trend_orders_snapshots_oldest_first_and_groups_by_run(
     assert snaps[1]["aspects"][0]["net_sentiment"] == -0.2
 
 
+def test_trend_excludes_non_weekly_run_ids(
+    app_with_session: FastAPI, seed_session: Session
+) -> None:
+    _seed_product(seed_session, product_id="alienware_16_aurora")
+    # A genuine weekly snapshot plus the pilot run and an ad-hoc smoke id —
+    # only the weekly one belongs on the trend axis.
+    _seed_aggregate(
+        seed_session, run_id="run_2026_w24", aspect=Aspect.THERMALS, total_mentions=12
+    )
+    _seed_aggregate(
+        seed_session, run_id="wave5_v1", aspect=Aspect.THERMALS, total_mentions=99
+    )
+    _seed_aggregate(
+        seed_session, run_id="smoke_test", aspect=Aspect.THERMALS, total_mentions=1
+    )
+    seed_session.commit()
+
+    client = TestClient(app_with_session)
+    body = client.get("/api/trend/alienware_16_aurora").json()
+
+    assert [s["run_id"] for s in body["snapshots"]] == ["run_2026_w24"]
+
+
 def test_trend_orders_aspects_by_enum_within_snapshot(
     app_with_session: FastAPI, seed_session: Session
 ) -> None:

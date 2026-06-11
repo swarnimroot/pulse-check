@@ -75,6 +75,7 @@ from pulse_check.api.schemas import (
     TrendSnapshot,
 )
 from pulse_check.config.loader import ConfigError, load_rss_sources, load_run_config
+from pulse_check.scheduling.weekly_snapshot import is_weekly_run_id
 from pulse_check.settings import get_settings
 from pulse_check.storage.enums import Aspect, ContentType, ScopeType
 from pulse_check.storage.models import (
@@ -394,6 +395,11 @@ def _build_api_router() -> APIRouter:
         aspect_order = {a: i for i, a in enumerate(Aspect)}
         by_run: dict[str, list[AggregateAspectSku]] = {}
         for agg in rows:
+            # Trend axis = weekly snapshots only. The pilot run (wave5_v1) and
+            # ad-hoc ids (smoke_test) carry aggregate rows too, but they aren't
+            # part of the week-over-week cadence and would pollute the chart.
+            if not is_weekly_run_id(agg.run_id):
+                continue
             by_run.setdefault(agg.run_id, []).append(agg)
 
         snapshots: list[TrendSnapshot] = []

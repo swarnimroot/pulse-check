@@ -360,6 +360,10 @@ Custom dropdown (not native `<select>`). Click-toggle list anchored to the trigg
 
 **Hidden v1 per session-13.** Re-add when there's a real workflow demand.
 
+### 5.8 TrendChart (the trend line)
+
+Shipped session 47. Net-sentiment line + mention-volume bars over time buckets — hand-rolled inline SVG (no chart dependency; the §4.7 Sparkline convention at full size). Sentiment on a fixed `[-1, +1]` axis (`--aw-accent` polyline 2px, per-point value-label pills in accent over a `--aw-surface` chip); volume as light bars behind (`--aw-accent-soft` fill + accent hairline). Pure/presentational — props are pre-rolled `{label, net, vol}` buckets. Density-graceful: per-point value labels drop above 18 buckets, volume numbers above 24, x-axis labels thin to ≤26 ticks. The Trend page owns the fetch + the Week/Month/Year rollup (`lib/trendRollup.ts`).
+
 ---
 
 ## 6. Screen inventory
@@ -413,11 +417,15 @@ Shipped session 32, redesigned session 33. Two `PickerColumn` sides — no auto-
 
 `PairScorecard` body: three `CountTile`s (`Primary leads N` / `Ties N` / `Competitor leads N`) above a single combined `PairTable` sorted by combined `total_mentions` (talked-about signal; tiebreaker = canonical aspect order). Each row: `[P1 score | Aspect | P2 score]`. `PairCellChip` on the leader column gets a 2px accent ring (`ring-2 ring-accent ring-offset-1`).
 
-### 6.5 Showcase (dev-only QA route)
+### 6.5 Trend (`#/trend`) — per-aspect sentiment over time
+
+Shipped session 47. Wave 6 follow-on to the daily-ingestion trend read path. Header: a single `Select` pair (Company → Product) — no auto-pick, same cascade pattern as Pair/Standalone. Once a product is chosen, fetches `GET /api/trend/{product_id}` (weekly snapshots only) and renders one aspect at a time: aspect-picker chips + a **Week / Month / Year** segmented toggle above a `TrendChart` (§5.8). Month/Year roll the weekly snapshots up client-side (volume summed, net sentiment volume-weighted — faithful to "every mention = 1.0"). Summary row below: latest net · latest volume · period-over-period delta. Empty-state when the product has no weekly snapshots yet (pre-cron only the pilot run exists, which the endpoint filters out); explicit single-point note when exactly one. No evidence drill — trend points carry no `mention_ids`.
+
+### 6.6 Showcase (dev-only QA route)
 
 `frontend/src/pages/Showcase.tsx` — visual-QA page rendering every atom and composite against fixture data. Not wired into the production navigation; reachable only by manually loading `#/showcase` during frontend development. Kept in-tree so a designer can eyeball every atom/composite without spinning up the full pipeline. (Session-39 audit: noted in §6 inventory after missing from §6.1–§6.4 since session 32 introduction.)
 
-### 6.6 WelcomeModal (overlay on `#/` fresh visits)
+### 6.7 WelcomeModal (overlay on `#/` fresh visits)
 
 `frontend/src/components/WelcomeModal.tsx` — overlay shown on every fresh App mount that lands on `#/`. In-app navigation does NOT re-trigger; state is captured once via `useState(() => location.pathname === "/")` in `App.tsx`. F5 / new tab / direct URL re-mounts App and re-opens.
 

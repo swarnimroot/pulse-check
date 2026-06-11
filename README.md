@@ -2,11 +2,12 @@
 
 **Status:** v1 pilot artifact substantively complete &nbsp;·&nbsp; **Demo run:** `run_wave5_v1` (53 of 59 gaming laptops briefed)
 
-A product-listening pilot engine for PC manufacturers. Takes a configured set of products, pulls public commentary about each (Reddit, retailer reviews, YouTube, gaming press), and produces a webapp with three exec-oriented views:
+A product-listening pilot engine for PC manufacturers. Takes a configured set of products, pulls public commentary about each (Reddit, retailer reviews, YouTube, gaming press), and produces a webapp with four exec-oriented views:
 
 - **Standalone voice** — per-product aspect scorecard showing what buyers and reviewers consistently praise or complain about, with a Sonnet-written brief that cites real mention IDs.
 - **Head-to-head comparison** — pick any two tracked products; see aspect-by-aspect where each one leads on net sentiment, with the underlying quotes one click away.
 - **Cross-product heatmap** — every tracked product across every aspect on one screen, tinted by sentiment, every cell drillable to verbatims.
+- **Trend over time** — pick a product and watch net sentiment and discussion volume move per aspect across weekly snapshots, zoomable by week, month, or year.
 
 Product-agnostic engine. Alienware gaming laptops are the first demo product set; the same engine runs any product set through the same analysis.
 
@@ -128,7 +129,7 @@ Two serving modes:
 | **Unified (recommended)** | `python scripts/serve_public.py` | Builds the SPA into `frontend/dist/` and runs one FastAPI process on `:8765` that serves both `/api/*` and the SPA at every other path. | Demo, public share, the path Tailscale Funnel maps to `/pulse-check`. |
 | **Dev (split)** | `python scripts/serve.py` | Vite dev server on `:5173` + FastAPI on `:8000`. Hot reload on the frontend. | Frontend development. |
 
-The webapp lands on the home page with three card surfaces (Standalone / Head-to-head / Heatmap), a one-line run-metadata strip, an expandable Sources accordion, and an expandable "Under the hood" pipeline explainer. Every drill-down opens an Evidence drawer with verbatim quotes pulled from the DB.
+The webapp lands on the home page with four card surfaces (Standalone / Head-to-head / Heatmap / Trend over time), a one-line run-metadata strip, an expandable Sources accordion, and an expandable "Under the hood" pipeline explainer. Every drill-down opens an Evidence drawer with verbatim quotes pulled from the DB.
 
 ### Public deployment via Tailscale Funnel
 
@@ -149,7 +150,7 @@ A frontend or backend change requires re-running `serve_public.py` (the build st
 As of session 45 the cadence is **three decoupled tiers** (rationale + locked decisions in [`docs/DAILY_INGESTION_DESIGN.md`](docs/DAILY_INGESTION_DESIGN.md)):
 
 - **Daily collect** — `scripts/daily_collect.py` scrapes + stores raw mentions (no LLM). Runs daily because raw Reddit data is perishable: only ~1000 items page back in a sub's "new" feed, gone in days, no backfill. Append-only and deduped by `mention_id`; a missed day logs a loud gap warning (unrecoverable).
-- **Weekly analyze** — classify + aspect-tag only the new mentions + recompute aggregates. *(Steps 2–4 not yet built; see the design note.)*
+- **Weekly analyze** — `scripts/weekly_analyze.py` classifies + aspect-tags only the new mentions, then writes a per-week aggregate **snapshot** (Qwen-local tagging + pure-Python aggregation; no brief synthesis). The sequence of snapshots is the **Trend over time** view (`/trend`). *(Shipped sessions 46–47.)*
 - **Quarterly brief** — regenerate the Sonnet narrative briefs. This is where the "months not weeks" logic still holds: public-voice drift on PC laptops is slow, so brief synthesis + operator review stay quarterly. Estimated ~$15–25 LLM + ~2–3 hours review per refresh (~$60–100/year). Monthly multiplies review time for marginal signal; the cheap daily *collection* is what changed, not the expensive *synthesis*.
 
 Daily collection:

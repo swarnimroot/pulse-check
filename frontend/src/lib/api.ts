@@ -19,6 +19,7 @@ import type {
   ProductDetail,
   ProductSummary,
   SourcesResponse,
+  TrendResponse,
 } from "@/lib/types";
 
 // Default to a relative URL so the API resolves against the document base URL
@@ -92,6 +93,8 @@ export const api = {
     apiFetch<ProductsResponse>("/products"),
   productById: (productId: string): Promise<ProductDetail> =>
     apiFetch<ProductDetail>(`/product/${encodeURIComponent(productId)}`),
+  trend: (productId: string): Promise<TrendResponse> =>
+    apiFetch<TrendResponse>(`/trend/${encodeURIComponent(productId)}`),
   brief: (briefId: number): Promise<BriefView> =>
     apiFetch<BriefView>(`/brief/${briefId}`),
   // Empty `ids` would 400 server-side; callers short-circuit instead of

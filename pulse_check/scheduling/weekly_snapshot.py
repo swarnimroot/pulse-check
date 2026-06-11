@@ -18,12 +18,28 @@ Postgres (the future cloud target) will, so the row is created up front.
 
 from __future__ import annotations
 
+import re
 from datetime import datetime
 from typing import Any
 
 from sqlalchemy.orm import Session
 
 from pulse_check.storage.models import Run
+
+# Matches the ids produced by ``snapshot_run_id`` (e.g. ``run_2026_w24``). Used
+# to distinguish genuine weekly snapshots from the pilot run and one-off
+# ``smoke_test`` ids when building the trend time series.
+_WEEKLY_RUN_ID_RE = re.compile(r"^run_\d{4}_w\d{2}$")
+
+
+def is_weekly_run_id(run_id: str) -> bool:
+    """True when ``run_id`` is a weekly-snapshot id (``run_<year>_w<NN>``).
+
+    The trend endpoint keys its time axis on weekly snapshots only; the pilot
+    run (``wave5_v1``) and ad-hoc ids (``smoke_test``) are excluded so the chart
+    reflects the real week-over-week cadence rather than test pollution.
+    """
+    return bool(_WEEKLY_RUN_ID_RE.match(run_id))
 
 
 def snapshot_run_id(when: datetime) -> str:

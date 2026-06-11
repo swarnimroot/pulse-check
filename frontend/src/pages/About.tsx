@@ -96,7 +96,7 @@ export function About(): JSX.Element {
           </p>
         </header>
 
-        <section className="grid grid-cols-3 gap-4">
+        <section className="grid grid-cols-4 gap-4">
           <HomeCard
             eyebrow="Per product"
             title="Standalone voice"
@@ -117,6 +117,13 @@ export function About(): JSX.Element {
             blurb="Every tracked product across every aspect on one screen. Tinted by sentiment, click any cell to drill into verbatims."
             cta="Open heatmap"
             to="/compare"
+          />
+          <HomeCard
+            eyebrow="Over time"
+            title="Trend over time"
+            blurb="Pick a product and watch sentiment and discussion volume move per aspect across weekly snapshots, zoomable by week, month, or year."
+            cta="Open trend"
+            to="/trend"
           />
         </section>
 

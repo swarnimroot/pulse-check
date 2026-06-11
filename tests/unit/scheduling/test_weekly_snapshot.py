@@ -14,7 +14,11 @@ from datetime import UTC, datetime
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from pulse_check.scheduling.weekly_snapshot import ensure_run_row, snapshot_run_id
+from pulse_check.scheduling.weekly_snapshot import (
+    ensure_run_row,
+    is_weekly_run_id,
+    snapshot_run_id,
+)
 from pulse_check.storage.models import Run
 
 _TAX = "v0"
@@ -40,6 +44,19 @@ def test_snapshot_run_id_is_stable_within_a_week() -> None:
 def test_snapshot_run_id_uses_iso_year_at_boundary() -> None:
     # 2027-01-01 falls in ISO week 53 of ISO year 2026, not 2027.
     assert snapshot_run_id(datetime(2027, 1, 1, tzinfo=UTC)) == "run_2026_w53"
+
+
+def test_is_weekly_run_id_accepts_snapshot_ids() -> None:
+    assert is_weekly_run_id("run_2026_w24") is True
+    assert is_weekly_run_id("run_2026_w02") is True
+    assert is_weekly_run_id("run_2026_w53") is True
+    # Round-trips against the producer.
+    assert is_weekly_run_id(snapshot_run_id(datetime(2026, 6, 8, tzinfo=UTC))) is True
+
+
+def test_is_weekly_run_id_rejects_non_weekly_ids() -> None:
+    for run_id in ("wave5_v1", "smoke_test", "run_2026", "run_2026_w2", "run_w24", ""):
+        assert is_weekly_run_id(run_id) is False
 
 
 def test_ensure_run_row_inserts_when_absent(session: Session) -> None:

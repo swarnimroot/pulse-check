@@ -206,6 +206,30 @@ export interface PairResponse {
   latest_pair_brief_id: number | null;
 }
 
+// /api/trend/{product_id} — per-aspect sentiment & volume across weekly
+// snapshots (one snapshot per run_id). Deliberately minimal — only the two
+// fields a line chart needs; full per-aspect detail lives on /api/product/{id}.
+export interface TrendAspectPoint {
+  aspect: string;
+  total_mentions: number;
+  net_sentiment: number;
+}
+
+export interface TrendSnapshot {
+  run_id: string;
+  computed_at: string;
+  aspects: TrendAspectPoint[];
+}
+
+export interface TrendResponse {
+  product_id: string;
+  display_name: string;
+  // Oldest-first by (computed_at, run_id). Empty when the product has no
+  // aggregates yet.
+  snapshots: TrendSnapshot[];
+  generated_at: string;
+}
+
 // /api/sources — operator-curated source list for the home page accordion.
 export interface SourceEntry {
   name: string;

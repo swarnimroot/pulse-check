@@ -296,7 +296,29 @@
       "Bash(findstr \":5173 :8765 :8000\")",
       "Bash(sqlite3 *)",
       "Bash(xargs grep -l \"reddit\\\\|article\\\\|youtube\")",
-      "Bash(xargs -I {} basename {})"
+      "Bash(xargs -I {} basename {})",
+      "PowerShell(git status --short; \"----HEAD----\"; git log --oneline -1)",
+      "PowerShell(& .\\\\.venv\\\\Scripts\\\\python.exe -m alembic heads)",
+      "PowerShell(& .\\\\.venv\\\\Scripts\\\\python.exe -m pytest tests/unit/ -q 2>&1 | Select-Object -Last 5)",
+      "PowerShell(& .\\\\.venv\\\\Scripts\\\\python.exe -m pytest tests/integration/ -q 2>&1 | Select-Object -Last 5)",
+      "PowerShell(& .\\\\.venv\\\\Scripts\\\\python.exe -m mypy pulse_check/ tests/ scripts/ 2>&1 | Select-Object -Last 5)",
+      "PowerShell(& .\\\\.venv\\\\Scripts\\\\python.exe -m ruff check pulse_check/ tests/ scripts/ 2>&1 | Select-Object -Last 5)",
+      "Bash(py -m pip show pydantic_settings)",
+      "PowerShell(& \"C:\\\\Users\\\\AW-testing\\\\Downloads\\\\Workspace\\\\pulse-check\\\\scripts\\\\daily_collect.ps1\")",
+      "Bash(xargs grep -l \"reddit\\\\|youtube\")",
+      "Skill(schedule)",
+      "Bash(iconv -f UTF-16 -t UTF-8 \"data/daily_collect_log/collect_20260611_050001.log\")",
+      "Bash(bc)",
+      "PowerShell($db = \"C:\\\\Users\\\\AW-testing\\\\Downloads\\\\Workspace\\\\pulse-check\\\\data\\\\scheduler_state.db\"; if \\(Test-Path $db\\) { Remove-Item $db -Force; Write-Output \"Cleared: $db\" } else { Write-Output \"Not present \\(already clean\\): $db\" })",
+      "PowerShell(Start-Process \"C:\\\\Users\\\\AW-testing\\\\Downloads\\\\Workspace\\\\pulse-check\\\\mockups\\\\trend_layouts.html\"; Write-Output \"Opened in default browser.\")",
+      "PowerShell(Start-Process \"C:\\\\Users\\\\AW-testing\\\\Downloads\\\\Workspace\\\\pulse-check\\\\mockups\\\\trend_layouts.html\"; Write-Output \"Reopened.\")",
+      "PowerShell(Set-Location \"C:\\\\Users\\\\AW-testing\\\\Downloads\\\\Workspace\\\\pulse-check\\\\frontend\"; npx tsc -b 2>&1 | Select-Object -Last 20; Write-Output \"--- tsc exit: $LASTEXITCODE ---\"; npx vite build 2>&1 | Select-Object -Last 12)",
+      "PowerShell(Set-Location \"C:\\\\Users\\\\AW-testing\\\\Downloads\\\\Workspace\\\\pulse-check\\\\frontend\"; npx tsc -b 2>&1 | Select-Object -Last 8; Write-Output \"--- tsc exit: $LASTEXITCODE ---\"; npx vite build 2>&1 | Select-Object -Last 8)",
+      "PowerShell(try { $r = Invoke-RestMethod -Uri \"http://127.0.0.1:8765/api/trend/alienware_16_aurora\" -TimeoutSec 10; \"product: $\\($r.display_name\\)\"; \"snapshots: $\\($r.snapshots.Count\\)\"; if \\($r.snapshots.Count -gt 0\\) { $s = $r.snapshots[0]; \"first run_id: $\\($s.run_id\\)\"; \"first computed_at: $\\($s.computed_at\\)\"; \"aspects in first: $\\($s.aspects.Count\\)\"; \"sample aspect: $\\($s.aspects[0].aspect\\) net=$\\($s.aspects[0].net_sentiment\\) vol=$\\($s.aspects[0].total_mentions\\)\" } } catch { \"ERROR: $\\($_.Exception.Message\\)\" })",
+      "PowerShell(try { $r = Invoke-RestMethod -Uri \"http://127.0.0.1:8765/api/trend/alienware_16_aurora\" -TimeoutSec 10; \"snapshots: $\\($r.snapshots.Count\\)\"; foreach \\($s in $r.snapshots\\) { \"  run_id=$\\($s.run_id\\) computed=$\\($s.computed_at\\) aspects=$\\($s.aspects.Count\\)\" }; if \\($r.snapshots.Count -gt 0\\) { $t = $r.snapshots[-1].aspects | Where-Object { $_.aspect -eq 'thermals' }; \"  thermals: net=$\\($t.net_sentiment\\) vol=$\\($t.total_mentions\\)\" } } catch { \"ERROR: $\\($_.Exception.Message\\)\" })",
+      "PowerShell($ports = @\\(8765, 5173\\); foreach \\($p in $ports\\) { $c = Get-NetTCPConnection -LocalPort $p -State Listen -ErrorAction SilentlyContinue; if \\($c\\) { \"port $p : LISTENING \\(pid $\\($c.OwningProcess | Select-Object -First 1\\)\\)\" } else { \"port $p : free\" } })",
+      "PowerShell($ok=$false; for \\($i=0; $i -lt 20; $i++\\) { try { $r = Invoke-RestMethod -Uri \"http://127.0.0.1:8765/api/trend/alienware_16_aurora\" -TimeoutSec 3; \"snapshots returned: $\\($r.snapshots.Count\\)\"; foreach \\($s in $r.snapshots\\) { \"  run_id=$\\($s.run_id\\) aspects=$\\($s.aspects.Count\\)\" }; $ok=$true; break } catch { Start-Sleep -Milliseconds 1500 } }; if \\(-not $ok\\) { \"backend not ready yet after retries\" })",
+      "Bash(echo \"TSC_EXIT=$?\")"
     ]
   }
 }

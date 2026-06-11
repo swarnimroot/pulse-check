@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Trend page — Option B (granularity toggle)</title>
+<style>
+  :root {
+    --accent: #5F00F8;
+    --accent-soft: #efe7ff;
+    --surface: #ffffff;
+    --surface-alt: #f7f7f9;
+    --border: #e4e4ea;
+    --fg: #1a1a1f;
+    --fg-muted: #6b6b76;
+    --pos: #1a8a55;
+    --neg: #c0392b;
+    --neutral: #8a8a94;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--surface-alt); color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 14px; line-height: 1.45;
+  }
+  .tabular { font-variant-numeric: tabular-nums; }
+  main { max-width: 1400px; margin: 0 auto; padding: 32px; }
+  .eyebrow { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--fg-muted); }
+  h1 { font-size: 20px; font-weight: 600; margin: 4px 0 2px; }
+  h2 { font-size: 15px; font-weight: 600; margin: 0; }
+  .sub { color: var(--fg-muted); font-size: 13px; }
+  .toolbar { display: flex; align-items: center; gap: 12px; margin: 18px 0 8px; }
+  select { font: inherit; padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--fg); }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,.04); }
+  .big-wrap { padding: 18px 20px 22px; margin-top: 12px; }
+  .row { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+
+  /* segmented granularity toggle */
+  .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 7px; overflow: hidden; }
+  .seg button { font: inherit; font-size: 12px; font-weight: 600; padding: 6px 14px; border: none; background: var(--surface); color: var(--fg-muted); cursor: pointer; border-right: 1px solid var(--border); }
+  .seg button:last-child { border-right: none; }
+  .seg button.active { background: var(--accent); color: #fff; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 14px 0 18px; }
+  .chip { font-size: 12px; padding: 4px 10px; border-radius: 999px; cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--fg-muted); }
+  .chip.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .big-meta { display: flex; gap: 28px; margin-top: 14px; font-size: 13px; }
+  .big-meta b { font-size: 18px; font-weight: 600; }
+  .net-pos { color: var(--pos); } .net-neg { color: var(--neg); } .net-neu { color: var(--neutral); }
+  .legend { display: flex; gap: 16px; font-size: 12px; color: var(--fg-muted); margin-top: 6px; }
+  .legend i { display: inline-block; width: 18px; height: 0; border-top: 2px solid var(--accent); vertical-align: middle; margin-right: 5px; }
+  .legend .vbar { border: none; width: 12px; height: 10px; background: var(--accent-soft); border: 1px solid var(--accent); border-radius: 2px; }
+  .gran-note { font-size: 12px; color: var(--fg-muted); margin-top: 4px; }
+</style>
+</head>
+<body>
+<main>
+  <div class="eyebrow">Pulse-check · weekly trend</div>
+  <h1>Trend — Alienware 16 Aurora</h1>
+  <div class="sub">Option B · single chart + aspect picker · <b>60 weeks of mock data</b> to show granularity rollup</div>
+  <div class="toolbar">
+    <label class="sub" for="prod">Product</label>
+    <select id="prod"><option>Alienware 16 Aurora</option><option>Alienware m18 R2</option><option>Dell G16</option></select>
+  </div>
+
+  <div class="card big-wrap">
+    <div class="row">
+      <div>
+        <h2 id="bTitle">thermals</h2>
+        <div class="sub">net sentiment &amp; mention volume over time</div>
+      </div>
+      <div style="text-align:right">
+        <div class="seg" id="seg">
+          <button data-g="week">Week</button>
+          <button data-g="month" class="active">Month</button>
+          <button data-g="year">Year</button>
+        </div>
+        <div class="gran-note" id="granNote"></div>
+      </div>
+    </div>
+
+    <div class="chips" id="chips"></div>
+    <div id="bigChart"></div>
+    <div class="legend"><span><i></i>net sentiment (−1…+1)</span><span><i class="vbar"></i>mention volume</span></div>
+    <div class="big-meta">
+      <div>latest net <b id="bNet" class="tabular">—</b></div>
+      <div>latest volume <b id="bVol" class="tabular">—</b></div>
+      <div>period delta <b id="bDelta" class="tabular">—</b></div>
+    </div>
+  </div>
+
+  <p class="gran-note" style="margin-top:18px">
+    <b>How rollup works:</b> the backend stores one snapshot per ISO week. Month/Year views aggregate those weeks into
+    calendar buckets — volume is summed, and net sentiment is the <b>volume-weighted</b> mean (faithful to "every mention = 1.0";
+    a quiet week never outweighs a busy one). Try <b>Week</b> to see why 60 raw points need bucketing. Live data fills in over time
+    (first weekly run Sun 6/14); Year only becomes meaningful after ~12+ months.
+  </p>
+</main>
+
+<script>
+// ---- generate 60 weeks of dated mock data, deterministic walk ----
+const N = 60;
+const BASE = new Date(Date.UTC(2025, 3, 21)); // Mon 2025-04-21, week 0
+function weekDate(i){ const d = new Date(BASE); d.setUTCDate(d.getUTCDate() + i*7); return d; }
+
+let seed = 12345;
+function rnd(){ seed = (seed*1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; }
+
+const ASPECTS = ["thermals","battery","display","keyboard","build_quality","performance","value","ports","audio","display_glare","software"];
+const CENTER = { thermals:-0.4, battery:0.25, display:0.1, keyboard:0.3, build_quality:0.5, performance:0.6, value:-0.25, ports:0.0, audio:-0.05, display_glare:-0.3, software:-0.45 };
+
+// DATA[aspect] = [{date, net, vol}] x60
+const DATA = {};
+for (const a of ASPECTS){
+  const arr = []; let net = CENTER[a];
+  for (let i=0;i<N;i++){
+    net = Math.max(-1, Math.min(1, net + (rnd()-0.5)*0.25));
+    const vol = Math.max(1, Math.round(3 + rnd()*12 + (a==="thermals"||a==="performance"?5:0)));
+    arr.push({ date: weekDate(i), net: +net.toFixed(2), vol });
+  }
+  DATA[a] = arr;
+}
+
+function netClass(v){ return v>0.05?"net-pos":v<-0.05?"net-neg":"net-neu"; }
+function fmt(v){ return (v>=0?"+":"−") + Math.abs(v).toFixed(2); }
+function arrow(v){ return (v>0.001?"▲ ":v<-0.001?"▼ ":"= ") + fmt(v); }
+const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+// ---- rollup: weekly points -> buckets by granularity ----
+function rollup(points, gran){
+  if (gran==="week") return points.map(p=>({ label: weekLabel(p.date), net: p.net, vol: p.vol }));
+  const map = new Map();
+  for (const p of points){
+    const key = gran==="month" ? `${p.date.getUTCFullYear()}-${p.date.getUTCMonth()}` : `${p.date.getUTCFullYear()}`;
+    if (!map.has(key)) map.set(key, { wsum:0, vol:0, y:p.date.getUTCFullYear(), m:p.date.getUTCMonth() });
+    const b = map.get(key); b.wsum += p.net*p.vol; b.vol += p.vol;
+  }
+  return [...map.values()].map(b=>({
+    label: gran==="month" ? `${MONTHS[b.m]} '${String(b.y).slice(2)}` : `${b.y}`,
+    net: b.vol ? +(b.wsum/b.vol).toFixed(2) : 0,
+    vol: b.vol,
+  }));
+}
+function weekLabel(d){
+  // ISO week number
+  const t = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+  const day = (t.getUTCDay()+6)%7; t.setUTCDate(t.getUTCDate()-day+3);
+  const firstThu = new Date(Date.UTC(t.getUTCFullYear(),0,4));
+  const wk = 1 + Math.round(((t-firstThu)/86400000 - 3 + ((firstThu.getUTCDay()+6)%7))/7);
+  return "w"+String(wk).padStart(2,"0");
+}
+
+// ---- chart ----
+function bigChart(buckets){
+  const W=980, H=260, padL=42, padR=16, padT=18, padB=46;
+  const n = buckets.length;
+  const iw = W-padL-padR, ih = H-padT-padB;
+  const x = i => n===1 ? padL+iw/2 : padL + i*iw/(n-1);
+  const yNet = v => padT + (ih/2) - v*(ih/2);
+  const maxVol = Math.max(...buckets.map(b=>b.vol), 1);
+  const barW = Math.max(4, Math.min(26, iw/n - 6));
+  const showLabels = n <= 18;          // hide per-point sentiment labels when too dense
+  const showVolNums = n <= 24;
+  const xEvery = n > 26 ? Math.ceil(n/26) : 1;
+
+  const yTicks = [1,0,-1].map(t=>`
+    <line x1="${padL}" y1="${yNet(t)}" x2="${W-padR}" y2="${yNet(t)}" stroke="${t===0?'var(--fg-muted)':'var(--border)'}" stroke-width="1" stroke-dasharray="${t===0?'0':'2 3'}"/>
+    <text x="${padL-8}" y="${yNet(t)+3}" text-anchor="end" font-size="10" fill="var(--fg-muted)">${t>0?'+1':t<0?'−1':'0'}</text>`).join("");
+
+  const bars = buckets.map((b,i)=>{
+    const bh = (b.vol/maxVol)*(ih*0.55);
+    const vn = showVolNums ? `<text x="${x(i)}" y="${padT+ih-bh-4}" text-anchor="middle" font-size="9" fill="var(--fg-muted)">${b.vol}</text>` : "";
+    return `<rect x="${(x(i)-barW/2).toFixed(1)}" y="${(padT+ih-bh).toFixed(1)}" width="${barW.toFixed(1)}" height="${bh.toFixed(1)}" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="0.5" rx="2"/>${vn}`;
+  }).join("");
+
+  const pts = buckets.map((b,i)=>`${x(i).toFixed(1)},${yNet(b.net).toFixed(1)}`).join(" ");
+  const dots = buckets.map((b,i)=>{
+    const lbl = showLabels ? (()=>{ const above=b.net<=0.6; const ly=above?yNet(b.net)-9:yNet(b.net)+15;
+      return `<rect x="${x(i)-15}" y="${ly-9}" width="30" height="13" rx="3" fill="var(--surface)" opacity="0.85"/>
+              <text x="${x(i)}" y="${ly}" text-anchor="middle" font-size="10" font-weight="600" fill="var(--accent)">${fmt(b.net)}</text>`; })() : "";
+    return `${lbl}<circle cx="${x(i)}" cy="${yNet(b.net)}" r="${n>30?2:3}" fill="var(--accent)"/>`;
+  }).join("");
+
+  const xLabels = buckets.map((b,i)=> (i%xEvery===0) ? `<text x="${x(i)}" y="${H-padB+18}" text-anchor="middle" font-size="10" fill="var(--fg-muted)">${b.label}</text>` : "").join("");
+
+  return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" style="max-width:100%">
+    ${yTicks}${bars}
+    <polyline points="${pts}" fill="none" stroke="var(--accent)" stroke-width="${n>30?1.5:2}" stroke-linejoin="round"/>
+    ${dots}${xLabels}
+  </svg>`;
+}
+
+// ---- state + render ----
+let current = "thermals";
+let gran = "month";
+const chipsEl = document.getElementById("chips");
+const segEl = document.getElementById("seg");
+
+function render(){
+  segEl.querySelectorAll("button").forEach(b=>b.classList.toggle("active", b.dataset.g===gran));
+  chipsEl.innerHTML = ASPECTS.map(a=>`<span class="chip ${a===current?'active':''}" data-a="${a}">${a}</span>`).join("");
+  const buckets = rollup(DATA[current], gran);
+  document.getElementById("bigChart").innerHTML = bigChart(buckets);
+  document.getElementById("bTitle").textContent = current;
+  document.getElementById("granNote").textContent = `${buckets.length} ${gran==='week'?'weeks':gran==='month'?'months':'years'} shown`;
+
+  const last = buckets[buckets.length-1], prev = buckets[buckets.length-2];
+  const netEl = document.getElementById("bNet"); netEl.textContent = fmt(last.net); netEl.className = netClass(last.net)+" tabular";
+  document.getElementById("bVol").textContent = last.vol;
+  const dl = prev ? last.net-prev.net : 0;
+  document.getElementById("bDelta").textContent = prev ? arrow(dl) : "—";
+
+  chipsEl.querySelectorAll(".chip").forEach(c=>c.onclick=()=>{ current=c.dataset.a; render(); });
+}
+segEl.querySelectorAll("button").forEach(b=>b.onclick=()=>{ gran=b.dataset.g; render(); });
+render();
+</script>
+</body>
+</html>

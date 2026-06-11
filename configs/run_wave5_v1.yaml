@@ -31,12 +31,13 @@ source_windows:
       - laptops
       - Alienware
       - LenovoLegion
-      # New 6 (brand subs + deal-discussion):
+      # New 5 (brand subs + deal-discussion):
+      # OmenByHP dropped session 47 — sub is restricted (consistent 403);
+      # HP Omen chatter still flows via peer subs.
       - ROG
       - ASUS
       - MSILaptops
       - AcerOfficial
-      - OmenByHP
       - LaptopDeals
   rss:
     enabled: true
