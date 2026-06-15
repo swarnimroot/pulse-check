@@ -177,7 +177,7 @@ Without these tests, evidence-first is aspirational. With them, it's enforced.
 
 **Stack** — Vitest + `@testing-library/react` + `@testing-library/jest-dom` on jsdom. Co-located test files next to source (no separate `__tests__/` directory). Setup file at `src/test-setup.ts` registers jest-dom matchers and auto-cleans the DOM between tests. Config lives in `vite.config.ts` under the `test` block, using `defineConfig` from `vitest/config` so the `test` field type-checks.
 
-**Commands** — `npm test` (watch mode) and `npm run test:run` (one-shot; current 39 tests run in ~2.2s).
+**Commands** — `npm test` (watch mode) and `npm run test:run` (one-shot; current 51 tests run in ~7.8s).
 
 **Current coverage (session 44):**
 

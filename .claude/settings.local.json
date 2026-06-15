@@ -329,7 +329,11 @@
       "Bash(cp configs/product_set_gaming_laptops_2026.yaml /tmp/ps_test.yaml)",
       "Bash(echo \"ruff exit=$?\")",
       "Bash(echo \"mypy exit=$?\")",
-      "Bash(findstr /V \"INFO WARNING DEBUG\")"
+      "Bash(findstr /V \"INFO WARNING DEBUG\")",
+      "Bash(crontab -l)",
+      "Bash(ls -la data/logs/)",
+      "Bash(ls -la logs/)",
+      "Bash(echo \"tsc exit=$?\")"
     ]
   }
 }

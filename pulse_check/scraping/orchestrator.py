@@ -68,6 +68,16 @@ log = logging.getLogger(__name__)
 # the `cap` arg if Reddit's tolerance changes.
 REDDIT_COMMENT_FOLLOWUP_CAP = 50
 
+# Per-request politeness pause (seconds) for reddit `.rss` fetches, passed
+# through to scrapers-lib's reddit fetchers. The Scheduler drains in
+# `until_empty` mode, where its token-bucket RateLimiter is unusable (a
+# rate-limited job reads as "no work left" and ends the drain), so pacing must
+# ride on the fetcher's own per-request sleep. The library default (1.0s) let a
+# daily run trip Reddit's anonymous 429 (session 49); 4.0s spaces the ≈12
+# listing feeds + comment-followups well under the ceiling. Tune if Reddit's
+# tolerance shifts.
+REDDIT_RSS_THROTTLE_SECONDS = 4.0
+
 
 def run_scrape(
     session: Session,
@@ -207,6 +217,7 @@ def _enqueue_all_sources(
                 url=_reddit_url(subreddit),
                 source="reddit_rss",
                 anchors=all_anchors,
+                throttle_seconds=REDDIT_RSS_THROTTLE_SECONDS,
             )
             count += 1
 
@@ -496,6 +507,7 @@ def _enqueue_reddit_comment_followups(
             url=url,
             source="reddit_comments_rss",
             anchors=all_anchors,
+            throttle_seconds=REDDIT_RSS_THROTTLE_SECONDS,
             # Bypass per-comment regex; pulse-check inherits parent-post
             # primary attribution as SECONDARY via apply_comment_inheritance.
             emit_all_comments=True,
