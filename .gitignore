@@ -45,3 +45,6 @@ Thumbs.db
 
 # Claude Code runtime
 .claude/scheduled_tasks.lock
+# Personal, machine-local settings (permission allowlist) — not shareable.
+# The shareable counterpart is .claude/settings.json (not tracked here either).
+.claude/settings.local.json
