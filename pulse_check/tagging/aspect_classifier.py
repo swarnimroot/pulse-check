@@ -356,6 +356,17 @@ def parse_response(parsed: Any) -> list[AspectPrediction]:
         raise LlmParseError(msg)
 
     tags = parsed.get("tags")
+    if tags is None:
+        # Qwen (run through Ollama with format=json) signals "no relevant
+        # aspects" by returning {} or a tags-less object rather than the
+        # expected {"tags": []} — observed on ~30% of Qwen calls, overwhelmingly
+        # on contentless mentions (short Reddit comments, buying questions,
+        # off-topic chatter). That is a valid empty result, not a parse failure,
+        # so treat a missing/null tags field as zero aspects. Hallucinated
+        # tags-less schemas (e.g. {"laptop_deals": ...}) land here too and are
+        # likewise a legitimate zero-aspect read. A `tags` value that IS present
+        # but is a non-list type is still surfaced as a parse error below.
+        return []
     if not isinstance(tags, list):
         msg = f"expected 'tags' to be a list, got {type(tags).__name__}"
         raise LlmParseError(msg)

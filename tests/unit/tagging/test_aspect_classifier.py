@@ -159,9 +159,17 @@ def test_parse_response_drops_tag_with_unknown_polarity() -> None:
     assert parse_response(payload) == []
 
 
-def test_parse_response_raises_on_missing_tags_key() -> None:
-    with pytest.raises(LlmParseError):
-        parse_response({"aspects": []})
+def test_parse_response_missing_tags_key_returns_empty() -> None:
+    # Qwen signals "no relevant aspects" by returning {} or a tags-less object
+    # (incl. hallucinated schemas like {"aspects": []}) rather than
+    # {"tags": []}. That is a valid empty read, not a parse failure.
+    assert parse_response({}) == []
+    assert parse_response({"aspects": []}) == []
+    assert parse_response({"laptop_deals": ["..."]}) == []
+
+
+def test_parse_response_null_tags_returns_empty() -> None:
+    assert parse_response({"tags": None}) == []
 
 
 def test_parse_response_raises_on_non_dict() -> None:
