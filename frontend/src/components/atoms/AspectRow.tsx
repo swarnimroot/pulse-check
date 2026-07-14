@@ -8,10 +8,10 @@ import type { AspectRow as AspectRowType } from "@/lib/types";
  * Renders the metrics of the named bucket (PRIMARY or SECONDARY), with a
  * small bucket chip inline next to the aspect name. Single-line at-rest
  * layout per DESIGN_SYSTEM §5.1: aspect (with bucket chip) · sentiment ·
- * verified · mentions.
+ * mentions.
  */
 
-export const ROW_GRID = "grid-cols-[minmax(0,1fr)_72px_72px_72px]";
+export const ROW_GRID = "grid-cols-[minmax(0,1fr)_72px_72px]";
 
 export type AspectRowBucket = "primary" | "secondary";
 
@@ -24,7 +24,6 @@ export interface AspectRowProps {
 interface BucketMetrics {
   totalMentions: number;
   netSentiment: number;
-  verifiedPct: number;
 }
 
 function pickMetrics(row: AspectRowType, bucket: AspectRowBucket): BucketMetrics {
@@ -32,13 +31,11 @@ function pickMetrics(row: AspectRowType, bucket: AspectRowBucket): BucketMetrics
     return {
       totalMentions: row.total_mentions,
       netSentiment: row.net_sentiment,
-      verifiedPct: row.verified_pct,
     };
   }
   return {
     totalMentions: row.total_mentions_secondary,
     netSentiment: row.net_sentiment_secondary,
-    verifiedPct: row.verified_pct_secondary,
   };
 }
 
@@ -69,9 +66,6 @@ export function AspectRow({ row, bucket, onClick }: AspectRowProps): JSX.Element
           {sign}
           {m.netSentiment.toFixed(2)}
         </Chip>
-      </span>
-      <span className="tabular text-right text-xs text-fg-secondary">
-        {m.verifiedPct.toFixed(0)}%
       </span>
       <span className="tabular text-right text-sm text-fg-secondary">{m.totalMentions}</span>
     </button>

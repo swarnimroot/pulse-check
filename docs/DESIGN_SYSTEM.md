@@ -277,9 +277,9 @@ Vanilla content-placeholder block. `<div>` with `animate-pulse rounded bg-muted`
 
 **No within-scroller repeats.** Cross-scroller divergence is permitted: an aspect with `PRIMARY pos = 0.59` and `SECONDARY neg = −0.18` (real example: rog_strix_g16 price-value) appears in **left scroller's Primary** AND **right scroller's Secondary**. A small `primary` / `secondary` tone chip on the row tells the eye which bucket the metrics represent.
 
-**Column header (always visible):** at the top of the scroll viewport, sticky to the top so it stays visible as the column body scrolls — names the columns `aspect · sentiment · verified · mentions`. Sits inside the scroll viewport (not outside) so its right edge tracks the rows' right edge regardless of scrollbar reservation.
+**Column header (always visible):** at the top of the scroll viewport, sticky to the top so it stays visible as the column body scrolls — names the columns `aspect · sentiment · mentions`. Sits inside the scroll viewport (not outside) so its right edge tracks the rows' right edge regardless of scrollbar reservation.
 
-**Row at rest:** `aspect (with bucket chip) · sentiment · verified · mentions`. Single line, ~48px tall. Click → opens EvidenceDrawer with bucket-relevant `mention_ids` (PRIMARY ≠ SECONDARY pool). Intensity column dropped session 16 — too implicit a measure for the operator audience; surface intensity (and SourceDots, Sparkline) inside the EvidenceDrawer or row-expanded state instead.
+**Row at rest:** `aspect (with bucket chip) · sentiment · mentions`. Single line, ~48px tall. Click → opens EvidenceDrawer with bucket-relevant `mention_ids` (PRIMARY ≠ SECONDARY pool). Intensity column dropped session 16 — too implicit a measure for the operator audience; surface intensity (and SourceDots, Sparkline) inside the EvidenceDrawer or row-expanded state instead. **`verified` column dropped session 50** — the backing `verified_share` aggregate is structurally 0% across the entire corpus (no ingested source carries a verified-purchase signal; see §"EvidenceDrawer verified filter hidden"), so it was a dead 0% column, not a data point.
 
 **Row expanded:** reveals `SourceDots` + `Sparkline` + verbatim preview. Background `--aw-surface-alt`. *(Deferred to a follow-up bite — not in 11.3.a.)*
 

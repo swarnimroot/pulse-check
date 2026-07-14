@@ -132,12 +132,6 @@ export function AspectColumn({
         >
           <span>aspect</span>
           <span className="text-center" title="net sentiment, −1 to +1">sentiment</span>
-          <span
-            className="text-right"
-            title="% of mentions from verified-purchase reviewers"
-          >
-            verified
-          </span>
           <span className="text-right" title="total mentions for this aspect">
             mentions
           </span>
