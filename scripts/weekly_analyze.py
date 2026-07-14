@@ -45,6 +45,8 @@ from pulse_check.synthesis.anthropic_client import AnthropicClient
 from pulse_check.tagging import AspectClassifier, ProductContext
 from pulse_check.tagging.aspect_classifier import PROMPT_VERSION, TAXONOMY_VERSION
 from pulse_check.tagging.batch import tag_corpus_aspects
+from pulse_check.tagging.content_type_batch import classify_corpus_content_type
+from pulse_check.tagging.content_type_classifier import ContentTypeClassifier
 from pulse_check.tagging.ollama import OllamaClient
 
 log = logging.getLogger("pulse_check.scripts.weekly_analyze")
@@ -93,6 +95,15 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
         ),
     )
     parser.add_argument(
+        "--skip-content-type",
+        action="store_true",
+        help=(
+            "Skip content-type classification. Only use when the corpus is"
+            " already fully content-typed; otherwise new mentions are dropped"
+            " by the aspect-tagging DEAL gate and never analyzed."
+        ),
+    )
+    parser.add_argument(
         "--skip-tagging",
         action="store_true",
         help="Skip the tagging step (aggregate already-tagged corpus only).",
@@ -131,6 +142,44 @@ def main(argv: list[str] | None = None) -> int:
         args.provider,
         as_of.date().isoformat(),
     )
+
+    # --- Step 0: content-type classification -------------------------------
+    # Gate for aspect tagging: mentions without a content_type_tag are dropped
+    # by the DEAL-exclusion filter (tagging/batch.py), so any newly collected
+    # mention must be content-typed first or it never reaches analysis. Always
+    # uses Haiku (Anthropic) — content-type routing is fixed, independent of
+    # --provider (which only drives aspect tagging). Incremental + idempotent:
+    # only mentions lacking a tag for this prompt_version hit the API.
+    if args.skip_content_type:
+        log.info("content-type classification: SKIPPED (--skip-content-type)")
+    elif not settings.anthropic_api_key:
+        log.error(
+            "content-type classification requires ANTHROPIC_API_KEY. Without it "
+            "newly collected mentions stay untyped and are silently dropped from "
+            "aspect tagging. Set the key or pass --skip-content-type to override."
+        )
+        return 1
+    else:
+        ct_client = AnthropicClient(api_key=settings.anthropic_api_key, timeout=300.0)
+        ct_classifier = ContentTypeClassifier(
+            ct_client, model=settings.anthropic_haiku_model
+        )
+        with session_scope() as session:
+            ct_stats = classify_corpus_content_type(
+                session,
+                classifier=ct_classifier,
+                product_ids=[p.product_id for p in products],
+                commit_every=args.commit_every,
+            )
+        log.info(
+            "content-type done: seen=%d skipped_existing=%d classified=%d "
+            "inserted=%d parse_failures=%d",
+            ct_stats.mentions_seen,
+            ct_stats.mentions_skipped_existing,
+            ct_stats.mentions_classified,
+            ct_stats.tags_inserted,
+            ct_stats.parse_failures,
+        )
 
     # --- Step 1: incremental aspect tagging --------------------------------
     if args.skip_tagging:
