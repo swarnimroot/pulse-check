@@ -172,7 +172,8 @@ operational gotcha. Full mechanics in ARCHITECTURE §5.
   `reddit_comments_rss`) get posts **and** comments via the public Atom feeds
   over plain httpx + a browser UA. Comment-inheritance preserved. Comment
   deepening is capped at the 50 newest posts/run (reddit 429s the `.rss`
-  endpoint after ~100 requests) and self-paced ~1 s/request.
+  endpoint aggressively) and self-paced per-request (pulse-check passes
+  **10 s** since session 51 — see the backoff note below).
 - **YouTube now actually transcribes caption-less videos.** Enabled the
   `audio_fallback` path (yt-dlp + faster-whisper, CPU) so PoToken-gated /
   caption-less videos yield a whisper transcript instead of being dropped.
@@ -185,3 +186,12 @@ operational gotcha. Full mechanics in ARCHITECTURE §5.
   tripped a domain-wide backoff that skipped the new jobs. Delete
   `data/scheduler_state.db` once after a fetcher-source change; it's a transient
   job queue (the corpus lives in the main DB) and is rebuilt each run.
+- **Reddit backoff must not strand the run (session 51).** The session-49
+  `429 → BlockedError` mapping tripped a **6 h** domain backoff on the first
+  429, stranding the rest of each run's reddit jobs as `pending`; they piled up
+  to **1,866** and drained ~2/day, so fresh posts were never captured. Fixed by
+  reverting the mapping (a 429 is now an ordinary retryable failure → standard
+  3-strike / 1 h backoff) + a one-time backlog clear. **Residual leak:**
+  `until_empty` + daily re-enqueue still re-grows the backlog slowly whenever a
+  run 429s early; the durable fix (purge stale pending reddit jobs at run start,
+  or dedup on enqueue) is an open operator decision.

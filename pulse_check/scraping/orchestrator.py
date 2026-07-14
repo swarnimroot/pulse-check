@@ -73,10 +73,12 @@ REDDIT_COMMENT_FOLLOWUP_CAP = 50
 # `until_empty` mode, where its token-bucket RateLimiter is unusable (a
 # rate-limited job reads as "no work left" and ends the drain), so pacing must
 # ride on the fetcher's own per-request sleep. The library default (1.0s) let a
-# daily run trip Reddit's anonymous 429 (session 49); 4.0s spaces the ≈12
-# listing feeds + comment-followups well under the ceiling. Tune if Reddit's
-# tolerance shifts.
-REDDIT_RSS_THROTTLE_SECONDS = 4.0
+# daily run trip Reddit's anonymous 429 (session 49); 4.0s still 429'd on the
+# 2nd request (a 5s gap didn't help — session 51), so we widened to 10.0s as a
+# live experiment. Reddit is only ~20s of a ~5min run, so a wider pause is
+# nearly free; if 10s still 429s early the limit is count-per-window, not rate,
+# and throttling is a dead end (time-stagger the run instead). Tune per logs.
+REDDIT_RSS_THROTTLE_SECONDS = 10.0
 
 
 def run_scrape(

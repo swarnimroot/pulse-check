@@ -8,9 +8,23 @@ Running one-page chronicle. Updated **at session close**, when the operator says
 
 Paste at the start of your next session:
 
-> Resume pulse-check session 51. Audit first per `docs/SESSION_LOG.md`. Ultrathink. Subagents.
+> Resume pulse-check session 52. Audit first per `docs/SESSION_LOG.md`. Ultrathink. Subagents.
 
-### Audit checklist (session 50 → 51)
+### Audit checklist (session 51 → 52)
+
+Session 51 (2026-07-13) fixed bug #1 (Reddit daily collection degraded) in code and cleared the backlog; **the live experiment awaits the next daily 05:00 cron.** Baseline unchanged from session 50: **762 unit / 4 integration / mypy 148 (clean) / ruff clean** (frontend 51 + bundle `index-cNCOWrdw.js` + migration `eb05da255474` carried unchanged; frontend not re-run — no frontend change). scrapers-lib reddit tests **63 → 64** (+1 regression test). All bug records now closed; the open items are a live check + one operator decision:
+
+- **THE SESSION-52 PRIORITY — read the next daily cron log and classify Reddit's limit.** After the next daily 05:00 cron fires, read the newest `data/daily_collect_log/collect_*.log` **as utf-16** (`grep`/`Grep` give false negatives on utf-16). Count how many reddit `.rss` requests return 200 before a 429, and read the request timestamps (throttle is now **10 s**). **>2–3 through → rate-based:** widen the throttle further and/or accept longer runs (a full 61-request reddit pass at 10 s ≈ 10 min; runs are a background 05:00 cron so that's fine). **Still 429 on the 2nd request → count-per-window:** throttle is a dead end; the only lever left is **time-staggering** the run (several small cron slots across the day instead of one 05:00 burst) — a bigger change to scope with the operator. Do NOT fire a manual collection to test (no-auto-rerun rule); let the cron be the experiment.
+- **OPEN OPERATOR DECISION — the residual re-accumulation leak.** Even with the 6h→1h/3-strike fix, `until_empty` + daily re-enqueue leaves a run's un-fetched listing jobs as `pending` whenever reddit 429s early, so the backlog re-grows slowly (weeks, not days). Durable fix options: **(A) purge stale pending reddit jobs at run start** (recommended — each run wants only today's fresh listings; yesterday's un-fetched ones are stale) or **(B) dedup on enqueue**. Both are small; A needs a `Scheduler` purge method or a direct sqlite delete in the orchestrator before enqueue. Operator was asked and had not yet chosen at session-51 close.
+- **Reddit official OAuth API is OFF the table** — operator was rejected; do NOT re-propose it as a fix (memory `project_reddit_api_rejected.md`). Levers are throttle / time-stagger / backlog hygiene only.
+- **Code read-through (session-51 deliverables):**
+  - `../scrapers-lib/scrapers_lib/tier1/reddit.py` `_fetch_rss_text` — the `if r.status_code == 429: raise BlockedError(...)` branch is GONE; a 429 now falls through to `r.raise_for_status()` → ordinary `httpx.HTTPStatusError`. `BlockedError` import removed. Docstring updated. **This restores 1.7.0 behavior** (the session-49 429→BlockedError edit was never released/changelogged — scrapers-lib `[Unreleased]` is empty), so there is intentionally **no version bump and no CHANGELOG entry**; only the +1 regression test.
+  - `../scrapers-lib/tests/tier1/test_reddit_rss.py` — `test_fetch_rss_429_raises_http_status_error_not_blocked` (monkeypatches `httpx.get` → 429 + `time.sleep` → no-op; asserts `HTTPStatusError`).
+  - `pulse_check/scraping/orchestrator.py` — `REDDIT_RSS_THROTTLE_SECONDS = 10.0` (was 4.0), comment rewritten with the session-51 rationale; both enqueue sites use the constant.
+  - `scheduler_state.db` — 1,866 pending reddit jobs deleted + reddit `domain_state` backoff reset; backup at `data/scheduler_state.db.bak_s51` (gitignored, safe to delete once the next cron is confirmed healthy).
+- **TASKS drift check:** `Active` bug-#1-fixed wording + scrapers-lib **64** + `Session 51 ships` paragraph present; `Last reconciled = 2026-07-13` (session 51).
+
+### Audit checklist (session 50 → 51) — superseded (bug #1 fixed session 51)
 
 Session 50 (2026-07-13) closed **two** of the three known bugs — the content-type-gate never-wired-into-weekly bug (**#0**) and the Qwen `tags=None` false-alarm parse bug (**#2**). **Only #1 (Reddit daily degraded) remains open and is the session-51 forward priority.** Baseline this session: **762 unit / 4 integration / mypy 148 (clean) / ruff clean** (frontend 51 + bundle `index-BtspTJgn.js` + migration `eb05da255474` carried unchanged from session 49; frontend not re-run — no frontend change). Bug records below:
 
@@ -1309,6 +1323,20 @@ Added in session 23:
 ---
 
 ## Session history (newest first)
+
+### 2026-07-13 — session 51: Reddit daily collection bug #1 fixed (the last open reliability item). Resumed on the session-50 audit (baseline re-verified green: 762/4/mypy 148/ruff clean, head `eb05da255474`), then took bug #1 head-on.
+
+**Root cause — confirmed from the daily logs + `scheduler_state.db`, not guessed.** The session-49 `429 → BlockedError` mapping in `scrapers_lib/tier1/reddit.py` made the Scheduler apply a **6 h (21600 s) domain backoff on the *first* 429**. The logs (read as utf-16) show it firing ~2 requests into every run (e.g. 7/13: `r/SuggestALaptop` 200 → `r/buildapc` 429 → `domain www.reddit.com backed off for 21600s`). Because the Scheduler drains in `until_empty` mode and backed-off jobs stay `pending`, that one 429 **stranded the rest of the run** — the remaining listing feeds + all 50 comment-followups. Those stranded jobs never drained and **accumulated to 1,866 pending** (`select status,count(*) from jobs`: 335 `reddit_rss` + 1,531 `reddit_comments_rss`, job ids 24 → 3,728 ≈ 30 days, no enqueue dedup), which the worker drained ~2/day off the front (oldest-first) — so fresh posts were never reached. This matched the session-50 "draining ~2/day" observation exactly.
+
+**Fix — three parts (all within the session-50 operator-approved direction).** (1) **Reverted the `429 → BlockedError`** in `_fetch_rss_text`: a 429 now falls through to `raise_for_status()` → ordinary `httpx.HTTPStatusError`, so the Scheduler retries the job and backs reddit.com off only via its **standard 3-strike / 1 h path**, never the 6 h nuke. Removed the now-unused `BlockedError` import; rewrote the docstring. This **restores 1.7.0 behavior** (the session-49 edit was never released/changelogged — scrapers-lib `[Unreleased]` is empty), so **no version bump / no CHANGELOG entry** — only a **+1 regression test** (`test_fetch_rss_429_raises_http_status_error_not_blocked`, monkeypatched `httpx.get`→429; asserts `HTTPStatusError`). scrapers-lib reddit suite **63 → 64**, ruff clean. (2) **Cleared the backlog:** backed up `scheduler_state.db` → `.bak_s51`, deleted the 1,866 stranded pending reddit jobs, reset the reddit `domain_state` backoff. (3) **Widened the reddit `.rss` throttle 4 s → 10 s** (`REDDIT_RSS_THROTTLE_SECONDS`, `orchestrator.py`) as a live experiment — 4 s still 429'd on the 2nd request (a 5 s gap didn't help), which points to a **count-per-window** limit rather than a rate limit; the next cron's request spacing settles it. Reddit is only ~20 s of a ~5 min run (measured: last 8 daily runs = 2–9 min, avg ~5.5, dominated by YouTube whisper + articles; only 4–5 reddit `.rss` reqs/run), so a wider pause is nearly free.
+
+**Deliberately NOT done.** No manual collection fired (no-auto-rerun rule) — the next daily 05:00 cron is the experiment. The **residual re-accumulation leak** (`until_empty` + daily re-enqueue re-grows the backlog slowly whenever a run 429s early) was flagged to the operator with two durable-fix options (purge-stale-pending-at-run-start [recommended] vs dedup-on-enqueue); left as an **open operator decision**, not implemented unilaterally.
+
+**Also this session.** Operator confirmed the **Reddit official OAuth API application was rejected** → authenticated access is off the table until they say otherwise (new memory `project_reddit_api_rejected.md` + MEMORY.md; do not re-propose). Discussed the throttle/stagger math with real numbers (above). Docs aligned: ARCH §5 reddit-transport backoff paragraph rewritten (⚠️-known-issue → session-51 resolution + residual-leak note) · DAILY_INGESTION_DESIGN throttle figure + new backoff bullet · TASKS `Session 51 ships` + `Active` + `Last reconciled` · this entry + a fresh session 51→52 audit checklist at the top.
+
+**Baseline unchanged (pulse-check):** 762 unit · 4 integration · mypy 148 · ruff clean · migration `eb05da255474` · frontend 51 + bundle `index-cNCOWrdw.js` (not re-run, no frontend change). scrapers-lib reddit tests 63 → 64. **$0 billable LLM · no schema/migration.** Two changed repos: pulse-check (`orchestrator.py` + 4 docs + memory) and the shared sibling scrapers-lib (`reddit.py` + `test_reddit_rss.py`). *(Session close + commit/push status recorded at wrap.)*
+
+---
 
 ### 2026-07-13 — session 50 (opened + closed 2026-07-13): content-type gate wired into weekly + Qwen `tags=None` false-alarm fixed. Opened on an operator question — "did the daily and weekly runs happen?" (both healthy: daily collect 05:00 every day for two weeks, weekly analyze 07:00 each Sunday), which led to "why does `alienware_15` show no data?" Two distinct bugs surfaced; both fixed.
 
