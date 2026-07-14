@@ -81,9 +81,13 @@ Four real pieces of work, smallest to largest:
    operator's to stagger).
 
 2. **Weekly analysis entry point.** *(Shipped session 46 — `scripts/weekly_analyze.py`.)*
-   Runs aspect tagging (already incremental) + an aggregate snapshot. Skips brief
-   synthesis by default. Tagging defaults to **Qwen/ollama** (the volume tagger per
-   CLAUDE.md routing); `--provider anthropic` switches to Haiku. `--as-of YYYY-MM-DD`
+   Runs content-type classification (Haiku) → incremental aspect tagging → an
+   aggregate snapshot. Skips brief synthesis by default. Aspect tagging defaults to
+   **Qwen/ollama** (the volume tagger per CLAUDE.md routing); `--provider anthropic`
+   switches to Haiku. **Content-type is Step 0 (session 50)** — aspect tagging drops
+   any mention lacking a `content_type_tag`, so it must run first or newly collected
+   mentions never reach analysis (previously a standalone manual step, which is why
+   late-added products showed no data). `--as-of YYYY-MM-DD`
    overrides the snapshot week for backfill / deterministic re-runs. No separate
    weekly-state file — the snapshot `run_id`s *are* the run trail, so weekly
    gap-detection is deferred as YAGNI (unlike the daily tier, where the perishable feed
